@@ -6,7 +6,7 @@
  * que consume el panel pasa por acá — ninguna pantalla habla con supabase-js
  * directamente, así el modo mock nunca queda a medias.
  */
-import type { UnitStatus } from '@r360/core';
+import type { ProjectKind, UnitStatus } from '@r360/core';
 import type { HotspotRow } from '../editor/records.ts';
 import type { RpcFilter } from '../units/selection.ts';
 import type {
@@ -41,6 +41,71 @@ export interface NewSceneInput {
   source: Record<string, unknown>;
 }
 
+/* ── Alta de tenant / proyecto / estructura / unidades ────────────────── */
+
+export interface NewTenantInput {
+  slug: string;
+  name: string;
+}
+
+export interface NewProjectInput {
+  slug: string;
+  name: string;
+  kind: ProjectKind;
+  location: { address?: string; lat?: number; lng?: number };
+}
+
+/** Grupo a crear. El id lo genera el llamador para poder armar el árbol antes de escribir. */
+export interface NewGroupInput {
+  id: string;
+  parentId: string | null;
+  kind: string;
+  code: string;
+  name: string | null;
+  sort: number;
+}
+
+export interface NewUnitTypeInput {
+  code: string;
+  name: string;
+  attrSchema: Record<string, unknown>;
+}
+
+/**
+ * Unidad a crear. Referencia grupo y tipo por CÓDIGO, no por id: tanto el
+ * generador masivo como el CSV razonan en códigos, y los ids todavía no
+ * existen cuando hay que crear los grupos que faltan.
+ */
+export interface NewUnitInput {
+  code: string;
+  groupCode: string | null;
+  typeCode: string | null;
+  typeName?: string | null;
+  status: UnitStatus;
+  areaTotalM2: number | null;
+  attrs: Record<string, unknown>;
+  sort: number;
+  price?: { amount: number; currency: string; visibility: 'public' | 'on_request' } | null;
+}
+
+export interface CreateUnitsOptions {
+  /** Crear los grupos referenciados que no existan. */
+  createMissingGroups: boolean;
+  /** `groups.kind` de los grupos creados al vuelo. */
+  groupKind: string;
+  /** Crear los tipos referenciados que no existan (con schema vacío). */
+  createMissingTypes: boolean;
+}
+
+export interface CreateUnitsResult {
+  created: number;
+  /** Códigos que ya existían en el proyecto y no se tocaron. */
+  skipped: string[];
+  groupsCreated: number;
+  typesCreated: number;
+  pricesCreated: number;
+}
+
 export interface LeadListFilters {
   projectId?: string;
   status?: string;
@@ -65,6 +130,26 @@ export interface Repo {
   getUnitLog(unitId: string): Promise<StatusLogEntry[]>;
   saveGroups(projectId: string, groups: GroupRow[]): Promise<void>;
   saveUnitType(projectId: string, type: UnitTypeRow): Promise<void>;
+
+  /* ── Alta ──────────────────────────────────────────────────────────── */
+  /** Crea el tenant y la membership `owner` del usuario de la sesión. */
+  createTenant(input: NewTenantInput): Promise<{ id: string; slug: string; name: string }>;
+  createProject(tenantSlug: string, input: NewProjectInput): Promise<ProjectRow>;
+  /** Borra el proyecto y todo lo que cuelga de él (cascade). Sólo owner. */
+  deleteProject(projectId: string): Promise<void>;
+  createGroups(projectId: string, groups: NewGroupInput[]): Promise<GroupRow[]>;
+  createUnitTypes(projectId: string, types: NewUnitTypeInput[]): Promise<UnitTypeRow[]>;
+  /**
+   * Alta masiva. Resuelve `groupCode`/`typeCode` contra la estructura ya
+   * existente y, si se pide, crea lo que falte. Omite (no pisa) las unidades
+   * cuyo código ya existe: un import repetido no tiene que borrar estados
+   * comerciales que alguien cambió a mano.
+   */
+  createUnits(
+    projectId: string,
+    units: NewUnitInput[],
+    options: CreateUnitsOptions,
+  ): Promise<CreateUnitsResult>;
 
   /* ── Escenas y cola de procesamiento ──────────────────────────────── */
   listScenes(projectId: string): Promise<SceneRow[]>;

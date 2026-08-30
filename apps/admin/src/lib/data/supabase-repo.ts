@@ -6,7 +6,21 @@ import type { Pt } from '../editor/records.ts';
 import type { RpcFilter } from '../units/selection.ts';
 import { computeDiff, computeWarnings, unitToSnapshot, type PublishSnapshot, type UnitSnapshot } from '../publish/diff.ts';
 import { filterLeads, type LeadFilters } from '../leads/filters.ts';
-import { completenessOf, type LeadListFilters, type NewSceneInput, type Repo, type Structure } from './repo.ts';
+import { createServiceClient } from '../onboarding/service-client.ts';
+import {
+  completenessOf,
+  type CreateUnitsOptions,
+  type CreateUnitsResult,
+  type LeadListFilters,
+  type NewGroupInput,
+  type NewProjectInput,
+  type NewSceneInput,
+  type NewTenantInput,
+  type NewUnitInput,
+  type NewUnitTypeInput,
+  type Repo,
+  type Structure,
+} from './repo.ts';
 import type {
   GroupRow,
   HealthRow,
@@ -39,6 +53,43 @@ function asRecord(v: unknown): Record<string, unknown> {
 function first<T>(v: T | T[] | null | undefined): T | null {
   if (Array.isArray(v)) return v[0] ?? null;
   return v ?? null;
+}
+
+/** Filas por INSERT. 500 entra holgado en el payload de PostgREST. */
+const INSERT_CHUNK = 500;
+
+function isString(v: string | null | undefined): v is string {
+  return typeof v === 'string' && v.length > 0;
+}
+
+function distinct(values: readonly string[]): string[] {
+  return [...new Set(values)];
+}
+
+/**
+ * Agrupa por profundidad en el árbol: primero los que no tienen padre dentro
+ * del lote, después sus hijos, etc. Un INSERT de un hijo antes que su padre
+ * viola la FK `groups.parent_id`.
+ */
+function orderedByDepth(groups: readonly NewGroupInput[]): NewGroupInput[][] {
+  const pending = new Map(groups.map((g) => [g.id, g]));
+  const placed = new Set<string>();
+  const levels: NewGroupInput[][] = [];
+
+  while (pending.size > 0) {
+    const level = [...pending.values()].filter((g) => g.parentId === null || placed.has(g.parentId) || !pending.has(g.parentId));
+    // Ciclo o padre inexistente: se emite el resto de una y que hable la FK.
+    if (level.length === 0) {
+      levels.push([...pending.values()]);
+      break;
+    }
+    for (const g of level) {
+      pending.delete(g.id);
+      placed.add(g.id);
+    }
+    levels.push(level);
+  }
+  return levels;
 }
 
 export class SupabaseRepo implements Repo {
@@ -329,6 +380,223 @@ export class SupabaseRepo implements Repo {
     });
     if (error) throw new Error(error.message);
   }
+
+  /* ── Alta ──────────────────────────────────────────────────────────── */
+
+  async createTenant(input: NewTenantInput): Promise<{ id: string; slug: string; name: string }> {
+    const supabase = await createSupabaseServerClient();
+    const { data: auth } = await supabase.auth.getUser();
+    const user = auth.user;
+    if (!user) throw new Error('Sin sesión: no puedo saber de quién sería el tenant.');
+
+    // Ver la nota de service-client.ts: el primer alta es circular para RLS.
+    const service = createServiceClient();
+
+    const { data: existing } = await service.from('tenants').select('id').eq('slug', input.slug).maybeSingle();
+    if (existing) throw new Error(`Ya existe un cliente con el slug «${input.slug}».`);
+
+    const { data, error } = await service
+      .from('tenants')
+      .insert({ slug: input.slug, name: input.name })
+      .select('id, slug, name')
+      .single();
+    if (error) throw new Error(`No pude crear el cliente: ${error.message}`);
+
+    const tenant = asRecord(data);
+    const tenantId = String(tenant['id']);
+
+    const { error: membershipError } = await service
+      .from('memberships')
+      .insert({ tenant_id: tenantId, user_id: user.id, role: 'owner' });
+    if (membershipError) {
+      // Sin membership el tenant sería invisible incluso para quien lo creó.
+      await service.from('tenants').delete().eq('id', tenantId);
+      throw new Error(`No pude asignarte como dueño: ${membershipError.message}`);
+    }
+
+    return { id: tenantId, slug: String(tenant['slug']), name: String(tenant['name']) };
+  }
+
+  async createProject(tenantSlug: string, input: NewProjectInput): Promise<ProjectRow> {
+    const { supabase, tenantId } = await this.projectQuery(tenantSlug);
+    if (!tenantId) throw new Error(`No encontré el cliente «${tenantSlug}».`);
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        tenant_id: tenantId,
+        slug: input.slug,
+        name: input.name,
+        kind: input.kind,
+        location: input.location,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      if (error.code === '23505') throw new Error(`Ya hay un proyecto con el slug «${input.slug}» en este cliente.`);
+      throw new Error(`No pude crear el proyecto: ${error.message}`);
+    }
+    return this.toProject(data);
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from('projects').delete().eq('id', projectId);
+    if (error) throw new Error(`No pude borrar el proyecto: ${error.message}`);
+  }
+
+  async createGroups(projectId: string, groups: NewGroupInput[]): Promise<GroupRow[]> {
+    if (groups.length === 0) return [];
+    const supabase = await createSupabaseServerClient();
+    // En orden: un hijo no puede entrar antes que su padre (FK a groups.id).
+    for (const chunk of orderedByDepth(groups)) {
+      const { error } = await supabase.from('groups').insert(
+        chunk.map((g) => ({
+          id: g.id,
+          project_id: projectId,
+          parent_id: g.parentId,
+          kind: g.kind,
+          code: g.code,
+          name: g.name,
+          sort: g.sort,
+        })),
+      );
+      if (error) throw new Error(`No pude crear la estructura: ${error.message}`);
+    }
+    const structure = await this.getStructure(projectId);
+    return structure.groups;
+  }
+
+  async createUnitTypes(projectId: string, types: NewUnitTypeInput[]): Promise<UnitTypeRow[]> {
+    if (types.length === 0) return [];
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from('unit_types').upsert(
+      types.map((t) => ({
+        project_id: projectId,
+        code: t.code,
+        name: t.name,
+        attr_schema: t.attrSchema,
+      })),
+      { onConflict: 'project_id,code', ignoreDuplicates: true },
+    );
+    if (error) throw new Error(`No pude crear los tipos de unidad: ${error.message}`);
+    const structure = await this.getStructure(projectId);
+    return structure.types;
+  }
+
+  async createUnits(
+    projectId: string,
+    units: NewUnitInput[],
+    options: CreateUnitsOptions,
+  ): Promise<CreateUnitsResult> {
+    const supabase = await createSupabaseServerClient();
+    const structure = await this.getStructure(projectId);
+
+    const groupByCode = new Map(structure.groups.map((g) => [g.code, g.id]));
+    const typeByCode = new Map(structure.types.map((t) => [t.code, t.id]));
+
+    let groupsCreated = 0;
+    if (options.createMissingGroups) {
+      const missing = distinct(units.map((u) => u.groupCode).filter(isString)).filter((c) => !groupByCode.has(c));
+      if (missing.length > 0) {
+        const created = await this.createGroups(
+          projectId,
+          missing.map((code, i) => ({
+            id: crypto.randomUUID(),
+            parentId: null,
+            kind: options.groupKind,
+            code,
+            name: code,
+            sort: structure.groups.length + i + 1,
+          })),
+        );
+        groupsCreated = missing.length;
+        for (const g of created) groupByCode.set(g.code, g.id);
+      }
+    }
+
+    let typesCreated = 0;
+    if (options.createMissingTypes) {
+      const wanted = new Map<string, string>();
+      for (const unit of units) {
+        if (unit.typeCode && !typeByCode.has(unit.typeCode) && !wanted.has(unit.typeCode)) {
+          wanted.set(unit.typeCode, unit.typeName ?? unit.typeCode);
+        }
+      }
+      if (wanted.size > 0) {
+        const created = await this.createUnitTypes(
+          projectId,
+          [...wanted].map(([code, name]) => ({ code, name, attrSchema: {} })),
+        );
+        typesCreated = wanted.size;
+        for (const t of created) typeByCode.set(t.code, t.id);
+      }
+    }
+
+    const { data: existingRows } = await supabase
+      .from('units')
+      .select('code')
+      .eq('project_id', projectId)
+      .range(0, UNIT_HARD_LIMIT - 1);
+    const existing = new Set((existingRows ?? []).map((row) => String(asRecord(row)['code'])));
+
+    const skipped: string[] = [];
+    const toInsert = units.filter((unit) => {
+      if (existing.has(unit.code)) {
+        skipped.push(unit.code);
+        return false;
+      }
+      existing.add(unit.code);
+      return true;
+    });
+
+    const insertedIds = new Map<string, string>();
+    for (let i = 0; i < toInsert.length; i += INSERT_CHUNK) {
+      const chunk = toInsert.slice(i, i + INSERT_CHUNK);
+      const { data, error } = await supabase
+        .from('units')
+        .insert(
+          chunk.map((unit) => ({
+            project_id: projectId,
+            group_id: unit.groupCode ? groupByCode.get(unit.groupCode) ?? null : null,
+            unit_type_id: unit.typeCode ? typeByCode.get(unit.typeCode) ?? null : null,
+            code: unit.code,
+            status: unit.status,
+            area_total_m2: unit.areaTotalM2,
+            attrs: unit.attrs,
+            sort: unit.sort,
+          })),
+        )
+        .select('id, code');
+      if (error) throw new Error(`No pude crear las unidades: ${error.message}`);
+      for (const row of data ?? []) {
+        const r = asRecord(row);
+        insertedIds.set(String(r['code']), String(r['id']));
+      }
+    }
+
+    const priceRows = toInsert.flatMap((unit) => {
+      const unitId = insertedIds.get(unit.code);
+      if (!unitId || !unit.price) return [];
+      return [{
+        unit_id: unitId,
+        amount: unit.price.amount,
+        currency: unit.price.currency,
+        visibility: unit.price.visibility,
+      }];
+    });
+    let pricesCreated = 0;
+    for (let i = 0; i < priceRows.length; i += INSERT_CHUNK) {
+      const chunk = priceRows.slice(i, i + INSERT_CHUNK);
+      const { error } = await supabase.from('unit_prices').insert(chunk);
+      if (error) throw new Error(`Las unidades quedaron creadas pero los precios no: ${error.message}`);
+      pricesCreated += chunk.length;
+    }
+
+    return { created: toInsert.length, skipped, groupsCreated, typesCreated, pricesCreated };
+  }
+
   /* ── Hotspots (editor) ─────────────────────────────────────────────── */
 
   async listHotspots(projectId: string): Promise<HotspotRow[]> {
