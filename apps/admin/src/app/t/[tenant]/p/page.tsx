@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import type { ProjectCard } from '@/lib/data/types.ts';
 import { healthIssues, worstLevel } from '@/lib/health.ts';
+import { canEditStructure } from '@/lib/roles.ts';
 
 export default async function ProjectsPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
@@ -14,7 +15,17 @@ export default async function ProjectsPage({ params }: { params: Promise<{ tenan
   const needAttention = projects.filter((p) => worstLevel(healthIssues(p, tenant)) !== 'ok');
 
   return (
-    <AppShell membership={membership} crumbs={[{ label: membership.tenantName, href: `/t/${tenant}/p` }, { label: 'Proyectos' }]}>
+    <AppShell
+      membership={membership}
+      crumbs={[{ label: membership.tenantName, href: `/t/${tenant}/p` }, { label: 'Proyectos' }]}
+      actions={
+        canEditStructure(membership.role) ? (
+          <Link href={`/t/${tenant}/p/new`} className="r-btn" data-variant="primary">
+            Nuevo proyecto
+          </Link>
+        ) : undefined
+      }
+    >
       <div style={{ padding: 12 }}>
         {needAttention.length > 0 && <AttentionBand projects={needAttention} tenant={tenant} />}
 
@@ -31,7 +42,10 @@ export default async function ProjectsPage({ params }: { params: Promise<{ tenan
         </div>
 
         {projects.length === 0 && (
-          <p style={{ color: 'var(--fg-muted)' }}>No hay proyectos en este tenant todavía.</p>
+          <p style={{ color: 'var(--fg-muted)' }}>
+            No hay proyectos en este cliente todavía.{' '}
+            {canEditStructure(membership.role) && <Link href={`/t/${tenant}/p/new`}>Crear el primero →</Link>}
+          </p>
         )}
       </div>
     </AppShell>

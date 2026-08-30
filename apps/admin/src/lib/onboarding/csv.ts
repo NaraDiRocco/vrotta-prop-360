@@ -200,28 +200,41 @@ export function detectMapping(headers: readonly string[]): CsvMapping {
 
 /* ── 3. validación ────────────────────────────────────────────────────── */
 
+/** Primer número de la celda, con su signo y sus separadores. `120 m2` → `120`. */
+const NUMERIC_RUN = /-?\d[\d.,]*/;
+/** Un solo separador seguido de exactamente 3 dígitos: es de miles, no decimal. */
+const THOUSANDS_ONLY = /^-?\d{1,3}[.,]\d{3}$/;
+
 /**
  * Número de planilla → number. Acepta `1.234,56`, `1,234.56`, `109.68`,
  * `$ 120.000` y `120 m2`. Devuelve `undefined` si la celda está vacía y
- * `null` si hay texto que no es un número.
+ * `null` si hay texto que no contiene ningún número.
+ *
+ * El caso ambiguo real es `185.000`: en es-UY son ciento ochenta y cinco mil,
+ * en en-US son 185 con tres decimales. Se resuelve por la regla de la
+ * industria — un único separador seguido de EXACTAMENTE tres dígitos es de
+ * miles — porque ninguna planilla inmobiliaria escribe superficies ni precios
+ * con tres decimales, y sí escribe miles todo el tiempo.
  */
 export function parseDecimal(raw: string): number | null | undefined {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return undefined;
-  const stripped = trimmed.replace(/[^\d.,-]/g, '');
-  if (stripped.length === 0 || !/\d/.test(stripped)) return null;
+
+  const match = NUMERIC_RUN.exec(trimmed);
+  if (!match) return null;
+  const stripped = match[0].replace(/[.,]$/, '');
 
   const lastComma = stripped.lastIndexOf(',');
   const lastDot = stripped.lastIndexOf('.');
   let normalized: string;
   if (lastComma === -1 && lastDot === -1) {
     normalized = stripped;
+  } else if (THOUSANDS_ONLY.test(stripped)) {
+    normalized = stripped.replace(/[.,]/g, '');
   } else if (lastComma > lastDot) {
     normalized = stripped.replace(/\./g, '').replace(',', '.');
-  } else if (lastDot > lastComma) {
-    normalized = stripped.replace(/,/g, '');
   } else {
-    normalized = stripped;
+    normalized = stripped.replace(/,/g, '');
   }
 
   const value = Number(normalized);

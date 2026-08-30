@@ -69,6 +69,7 @@ export function AppShell({
         </Link>
         <RailLink href={`/t/${tenant}/p`} label="Proyectos" glyph="▤" />
         <RailLink href={`/t/${tenant}/leads`} label="Leads" glyph="✉" />
+        <RailLink href="/t/new" label="Nuevo cliente" glyph="+" />
         <div style={{ flex: 1 }} />
         <span
           title={`${membership.tenantName} · ${ROLE_LABEL[membership.role]}`}

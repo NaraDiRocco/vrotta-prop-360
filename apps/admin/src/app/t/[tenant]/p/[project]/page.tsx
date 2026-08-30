@@ -6,6 +6,8 @@ import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { countByStatus } from '@/lib/units/query.ts';
 import { canPublishProject, healthIssues, LEVEL_COLOR, LEVEL_GLYPH } from '@/lib/health.ts';
+import { startupChecklist } from '@/lib/onboarding/checklist.ts';
+import { StartupChecklist } from '@/components/onboarding/startup-checklist.tsx';
 
 export default async function ProjectOverview({
   params,
@@ -18,8 +20,13 @@ export default async function ProjectOverview({
   const project = await repo.getProject(tenant, projectSlug);
   if (!project) notFound();
 
-  const [health, units] = await Promise.all([repo.getHealth(project.id), repo.getAllUnits(project.id)]);
+  const [health, units, structure] = await Promise.all([
+    repo.getHealth(project.id),
+    repo.getAllUnits(project.id),
+    repo.getStructure(project.id),
+  ]);
   const issues = healthIssues({ ...project, health }, tenant);
+  const checklist = startupChecklist({ tenant, project, health, groupCount: structure.groups.length });
   const publishable = canPublishProject(issues) && membership.role === 'owner';
   const counts = countByStatus(units);
   const blockers = issues.filter((i) => i.level === 'block').length;
@@ -52,6 +59,8 @@ export default async function ProjectOverview({
       }
     >
       <div style={{ padding: 12, display: 'grid', gap: 12, maxWidth: 820 }}>
+        <StartupChecklist projectId={project.id} checklist={checklist} />
+
         <section style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <Metric label="Unidades" value={String(units.length)} />
           <Metric label="Escenas" value={String(health.scenesTotal)} />

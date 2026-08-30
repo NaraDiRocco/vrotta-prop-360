@@ -7,7 +7,20 @@ import { filterLeads, type LeadFilters } from '../leads/filters.ts';
 import { ensureSeeded, readProject, readScene, writeScene } from '../editor/hotspot-store.ts';
 import type { HotspotRow } from '../editor/records.ts';
 import { mockDb, type MockPublication } from './mock.ts';
-import { completenessOf, type LeadListFilters, type NewSceneInput, type Repo, type Structure } from './repo.ts';
+import {
+  completenessOf,
+  type CreateUnitsOptions,
+  type CreateUnitsResult,
+  type LeadListFilters,
+  type NewGroupInput,
+  type NewProjectInput,
+  type NewSceneInput,
+  type NewTenantInput,
+  type NewUnitInput,
+  type NewUnitTypeInput,
+  type Repo,
+  type Structure,
+} from './repo.ts';
 import type {
   GroupRow,
   HealthRow,
@@ -191,6 +204,180 @@ export class MockRepo implements Repo {
     if (index >= 0) types[index] = type;
     else types.push(type);
     mockDb().types[projectId] = types;
+  }
+
+  /* ── Alta ──────────────────────────────────────────────────────────── */
+
+  async createTenant(input: NewTenantInput): Promise<{ id: string; slug: string; name: string }> {
+    const db = mockDb();
+    if (db.user.memberships.some((m) => m.tenantSlug === input.slug)) {
+      throw new Error(`Ya existe un cliente con el slug «${input.slug}».`);
+    }
+    const tenantId = crypto.randomUUID();
+    db.user.memberships.push({
+      tenantId,
+      tenantSlug: input.slug,
+      tenantName: input.name,
+      role: 'owner',
+    });
+    return { id: tenantId, slug: input.slug, name: input.name };
+  }
+
+  async createProject(tenantSlug: string, input: NewProjectInput): Promise<ProjectRow> {
+    const db = mockDb();
+    const membership = db.user.memberships.find((m) => m.tenantSlug === tenantSlug);
+    if (!membership) throw new Error(`No encontré el cliente «${tenantSlug}».`);
+    if (db.projects.some((p) => p.tenantId === membership.tenantId && p.slug === input.slug)) {
+      throw new Error(`Ya hay un proyecto con el slug «${input.slug}» en este cliente.`);
+    }
+
+    const project: ProjectRow = {
+      id: crypto.randomUUID(),
+      tenantId: membership.tenantId,
+      slug: input.slug,
+      name: input.name,
+      kind: input.kind,
+      location: input.location,
+      publishedVersion: 0,
+      settings: {},
+      updatedAt: new Date().toISOString(),
+    };
+    db.projects.push(project);
+    db.groups[project.id] = [];
+    db.types[project.id] = [];
+    db.units[project.id] = [];
+    db.scenes[project.id] = [];
+    db.jobs[project.id] = [];
+    db.scenesTotal[project.id] = 0;
+    db.publications[project.id] = [];
+    db.leads[project.id] = [];
+    db.previewTokens[project.id] = [];
+    return project;
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    const db = mockDb();
+    db.projects = db.projects.filter((p) => p.id !== projectId);
+    delete db.groups[projectId];
+    delete db.types[projectId];
+    delete db.units[projectId];
+    delete db.scenes[projectId];
+    delete db.jobs[projectId];
+    delete db.scenesTotal[projectId];
+    delete db.publications[projectId];
+    delete db.leads[projectId];
+    delete db.previewTokens[projectId];
+  }
+
+  async createGroups(projectId: string, groups: NewGroupInput[]): Promise<GroupRow[]> {
+    const db = mockDb();
+    const existing = db.groups[projectId] ?? [];
+    for (const g of groups) {
+      existing.push({ id: g.id, parentId: g.parentId, kind: g.kind, code: g.code, name: g.name, sort: g.sort });
+    }
+    db.groups[projectId] = existing;
+    return existing;
+  }
+
+  async createUnitTypes(projectId: string, types: NewUnitTypeInput[]): Promise<UnitTypeRow[]> {
+    const db = mockDb();
+    const existing = db.types[projectId] ?? [];
+    for (const t of types) {
+      if (existing.some((e) => e.code === t.code)) continue;
+      existing.push({ id: crypto.randomUUID(), code: t.code, name: t.name, attrSchema: t.attrSchema });
+    }
+    db.types[projectId] = existing;
+    return existing;
+  }
+
+  async createUnits(
+    projectId: string,
+    units: NewUnitInput[],
+    options: CreateUnitsOptions,
+  ): Promise<CreateUnitsResult> {
+    const db = mockDb();
+    const groups = db.groups[projectId] ?? [];
+    const types = db.types[projectId] ?? [];
+    const existingUnits = db.units[projectId] ?? [];
+
+    let groupsCreated = 0;
+    if (options.createMissingGroups) {
+      for (const code of new Set(units.map((u) => u.groupCode).filter((c): c is string => !!c))) {
+        if (groups.some((g) => g.code === code)) continue;
+        groups.push({
+          id: crypto.randomUUID(),
+          parentId: null,
+          kind: options.groupKind,
+          code,
+          name: code,
+          sort: groups.length + 1,
+        });
+        groupsCreated += 1;
+      }
+      db.groups[projectId] = groups;
+    }
+
+    let typesCreated = 0;
+    if (options.createMissingTypes) {
+      for (const unit of units) {
+        if (!unit.typeCode || types.some((t) => t.code === unit.typeCode)) continue;
+        types.push({
+          id: crypto.randomUUID(),
+          code: unit.typeCode,
+          name: unit.typeName ?? unit.typeCode,
+          attrSchema: {},
+        });
+        typesCreated += 1;
+      }
+      db.types[projectId] = types;
+    }
+
+    const seen = new Set(existingUnits.map((u) => u.code));
+    const skipped: string[] = [];
+    let pricesCreated = 0;
+    let created = 0;
+
+    for (const unit of units) {
+      if (seen.has(unit.code)) {
+        skipped.push(unit.code);
+        continue;
+      }
+      seen.add(unit.code);
+      const group = unit.groupCode ? groups.find((g) => g.code === unit.groupCode) ?? null : null;
+      const type = unit.typeCode ? types.find((t) => t.code === unit.typeCode) ?? null : null;
+      const id = crypto.randomUUID();
+      existingUnits.push({
+        id,
+        code: unit.code,
+        status: unit.status,
+        groupId: group?.id ?? null,
+        groupCode: group?.code ?? null,
+        unitTypeId: type?.id ?? null,
+        typeCode: type?.code ?? null,
+        typeName: type?.name ?? null,
+        areaTotalM2: unit.areaTotalM2,
+        attrs: unit.attrs,
+        price: unit.price ? { ...unit.price } : null,
+        hasPolygon: false,
+        updatedAt: new Date().toISOString(),
+        sort: unit.sort,
+      });
+      if (unit.price) {
+        db.prices[id] = [{
+          id: crypto.randomUUID(),
+          amount: unit.price.amount,
+          currency: unit.price.currency,
+          visibility: unit.price.visibility,
+          validFrom: new Date().toISOString(),
+          validTo: null,
+        }];
+        pricesCreated += 1;
+      }
+      created += 1;
+    }
+
+    db.units[projectId] = existingUnits;
+    return { created, skipped, groupsCreated, typesCreated, pricesCreated };
   }
 
   /* ── Escenas y cola de procesamiento ──────────────────────────────── */
