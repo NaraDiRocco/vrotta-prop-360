@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { createSupabaseClient } from '../lib/supabase.ts';
 import { getTenantConfig } from '../lib/csp.ts';
+import { resolveProject } from '../lib/resolve.ts';
 
 /**
  * POST /api/leads
@@ -16,6 +17,13 @@ import { getTenantConfig } from '../lib/csp.ts';
  * que el front vuelva a llamar a nadie) nunca quedaría registrado. Por eso
  * acá el insert en Supabase pasa ANTES de armar cualquier redirect/URL de
  * salida.
+ *
+ * Tabla real (supabase/migrations/0007_publications_leads_jobs_saved_views.sql):
+ *   leads(id, project_id, unit_id, channel, payload jsonb, created_at)
+ * `unit_id` es un uuid — si vino `unitCode` en el body, se resuelve contra
+ * `units` antes de insertar; si no matchea ninguna unidad del proyecto, el
+ * lead igual se registra con `unit_id: null` (nunca se pierde el lead por un
+ * código de unidad inválido).
  *
  * Tres canales soportados:
  *  - 'form'        → sólo registro (+ TODO: disparar email de notificación,
@@ -54,20 +62,36 @@ leads.post('/api/leads', async (c) => {
 
   const db = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceKey: c.env.SUPABASE_SERVICE_KEY });
 
+  const resolved = await resolveProject(db, tenant, project).catch(() => null);
+  if (!resolved) {
+    return c.json({ error: 'unknown_project', message: `No existe ${tenant}/${project} en Supabase` }, 404);
+  }
+
+  let unitId: string | null = null;
+  if (body.unitCode) {
+    const units = await db
+      .select<{ id: string }[]>(
+        'units',
+        `project_id=eq.${resolved.projectId}&code=eq.${encodeURIComponent(body.unitCode)}&select=id`,
+      )
+      .catch(() => []);
+    unitId = units[0]?.id ?? null;
+  }
+
   // 1) Registro en Supabase — SIEMPRE primero, para los tres canales.
-  // TODO: tabla `leads` real todavía no existe en supabase/migrations.
   try {
     await db.insert('leads', [
       {
-        tenant,
-        project_id: project,
+        project_id: resolved.projectId,
+        unit_id: unitId,
         channel,
-        name,
-        email: body.email ?? null,
-        phone: body.phone ?? null,
-        unit_code: body.unitCode ?? null,
-        message: body.message ?? null,
-        created_at: new Date().toISOString(),
+        payload: {
+          name,
+          email: body.email ?? null,
+          phone: body.phone ?? null,
+          unitCode: body.unitCode ?? null,
+          message: body.message ?? null,
+        },
       },
     ]);
   } catch (err) {

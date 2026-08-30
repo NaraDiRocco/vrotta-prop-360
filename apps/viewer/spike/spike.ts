@@ -8,6 +8,7 @@
  * Uso:  /spike/?n=600&densify=1&step=2&stress=1&cull=0
  */
 import '@photo-sphere-viewer/core/index.css';
+import '@photo-sphere-viewer/markers-plugin/index.css';
 import { Viewer } from '@photo-sphere-viewer/core';
 import { MarkersPlugin, type MarkerConfig } from '@photo-sphere-viewer/markers-plugin';
 import {
@@ -355,6 +356,31 @@ function render(): void {
 
 viewer.addEventListener('ready', () => mount(), { once: true });
 
+/**
+ * Medición sincrónica del camino caliente.
+ *
+ * El FPS por rAF depende del vsync y se degrada a 0 si la pestaña no está
+ * componiendo (headless, pestaña en segundo plano). `renderMarkers()` es
+ * exactamente lo que PSV corre en cada frame por cada marcador: visibilidad +
+ * proyección esfera→pantalla + reescritura del `d` del path. Medirlo en un
+ * bucle cerrado da el costo de CPU por frame atribuible a los polígonos, que
+ * es el número que decide si el diseño se sostiene.
+ */
+function syncBench(frames = 120): { msPerFrame: number; p95: number; frames: number } {
+  const samples: number[] = [];
+  let yaw = 0;
+  for (let i = 0; i < frames; i++) {
+    yaw += 0.02;
+    viewer.rotate({ yaw, pitch: Math.sin(yaw) * 0.2 });
+    const t = performance.now();
+    markersPlugin.renderMarkers();
+    samples.push(performance.now() - t);
+  }
+  samples.sort((a, b) => a - b);
+  const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
+  return { msPerFrame: mean, p95: samples[Math.floor(samples.length * 0.95)] ?? 0, frames };
+}
+
 // Puente para automatizar la medición desde un navegador headless.
 (window as unknown as Record<string, unknown>).__spike = {
   metrics: () => ({ ...m }),
@@ -362,5 +388,6 @@ viewer.addEventListener('ready', () => mount(), { once: true });
   setDensify: (v: boolean) => { cfg.densify = v; mount(); },
   setCull: (v: boolean) => { cfg.cull = v; mount(); },
   bulkUpdate,
+  syncBench,
   resetFps: () => { frameTimes.length = 0; m.fpsMin = Infinity; },
 };

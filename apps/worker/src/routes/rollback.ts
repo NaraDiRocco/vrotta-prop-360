@@ -23,7 +23,7 @@ export const rollback = new Hono<{ Bindings: Env }>();
 rollback.post('/api/rollback', async (c) => {
   const body = await c.req
     .json<{ tenant?: string; project?: string; toVersion?: number }>()
-    .catch(() => ({}));
+    .catch(() => ({}) as { tenant?: string; project?: string; toVersion?: number });
   const { tenant, project, toVersion } = body;
   if (!tenant || !project || typeof toVersion !== 'number') {
     return c.json({ error: 'bad_request', message: 'Faltan tenant, project y/o toVersion' }, 400);

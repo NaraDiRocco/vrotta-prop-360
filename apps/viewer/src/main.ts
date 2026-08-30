@@ -7,6 +7,7 @@
  * primer pixel, que en 4G rural es medio segundo largo.
  */
 import '@photo-sphere-viewer/core/index.css';
+import '@photo-sphere-viewer/markers-plugin/index.css';
 import 'leaflet/dist/leaflet.css';
 import './styles.css';
 

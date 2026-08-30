@@ -59,6 +59,15 @@ export function createSupabaseClient(cfg: SupabaseConfig) {
         body: JSON.stringify(rows),
         headers: { Prefer: opts.returning ? 'return=representation' : 'return=minimal' },
       }),
+    update: <T>(table: string, query: string, patch: unknown) =>
+      restRequest<T>(cfg, `${table}?${query}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+        headers: { Prefer: 'return=minimal' },
+      }),
+    /** Llama a una función Postgres expuesta vía PostgREST (`/rest/v1/rpc/{fn}`). */
+    rpc: <T>(fn: string, args: Record<string, unknown>) =>
+      restRequest<T>(cfg, `rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) }),
   };
 }
 

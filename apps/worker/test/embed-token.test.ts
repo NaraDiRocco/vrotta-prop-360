@@ -45,7 +45,11 @@ describe('embed-token', () => {
     const p = payload();
     const token = await signEmbedToken(p, SECRET);
     const [payloadPart, sigPart] = token.split('.');
-    const flipped = sigPart!.slice(0, -1) + (sigPart!.at(-1) === 'A' ? 'B' : 'A');
+    // Flipeamos un carácter que no esté en la cola de padding del base64url,
+    // para garantizar que decodifique a bytes distintos.
+    const idx = Math.floor(sigPart!.length / 2);
+    const flippedChar = sigPart![idx] === 'A' ? 'B' : 'A';
+    const flipped = sigPart!.slice(0, idx) + flippedChar + sigPart!.slice(idx + 1);
     const result = await verifyEmbedToken(`${payloadPart}.${flipped}`, { secrets: SECRETS });
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.reason).toBe('bad_signature');

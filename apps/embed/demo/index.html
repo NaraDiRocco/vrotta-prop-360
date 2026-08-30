@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>@r360/embed — demo local (2 tours)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 1100px;
+        margin: 24px auto;
+        padding: 0 16px;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 20px;
+      }
+      p.hint {
+        color: #555;
+        font-size: 13px;
+      }
+      .tours {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      @media (max-width: 800px) {
+        .tours {
+          grid-template-columns: 1fr;
+        }
+      }
+      .tour-block h2 {
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+      .controls {
+        margin: 8px 0;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      button {
+        font-size: 12px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        background: #f5f5f5;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #eaeaea;
+      }
+      #protocol-log {
+        margin-top: 28px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 10px;
+        background: #0a0f14;
+        color: #d6e4ea;
+        font: 11px/1.5 ui-monospace, monospace;
+        height: 260px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>@r360/embed — demo local</h1>
+    <p class="hint">
+      Dos tours embebidos en la misma página, cada uno con su propio <code>instanceId</code>, cola de
+      mensajes y estado de fullscreen — nada de variables globales compartidas entre instancias. El
+      "viewer" de cada iframe es un mock (<code>demo/mock-viewer.ts</code>) que habla el mismo
+      <code>protocol.ts</code> tipado que va a importar el visor real. Servido por
+      <code>scripts/serve-demo.mjs</code> para que loader e iframes sean same-origin (necesario para que
+      la validación estricta de <code>event.origin</code> pase en local).
+    </p>
+
+    <div class="tours">
+      <div class="tour-block">
+        <h2>Tour 1 — dacal / baleia</h2>
+        <div class="controls">
+          <button data-cmd="goToUnit" data-target="1" data-unit="B2-A">goToUnit B2-A</button>
+          <button data-cmd="goToUnit" data-target="1" data-unit="C4-B">goToUnit C4-B</button>
+        </div>
+        <div
+          class="tm-tour"
+          id="tour-1"
+          data-tenant="dacal"
+          data-project="baleia"
+          data-poster="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='800' height='450' fill='%23274156'/%3E%3Ctext x='400' y='230' font-size='28' fill='white' text-anchor='middle' font-family='sans-serif'%3EPoster — Baleia%3C/text%3E%3C/svg%3E"
+          data-unit="B2-A"
+          data-aspect="16/9"
+          data-seo-json='{"name":"Baleia — Dacal","canonicalUrl":"https://dacal.example.com/baleia","units":[{"label":"Unidad B2-A","url":"https://dacal.example.com/baleia/b2-a"},{"label":"Unidad C4-B","url":"https://dacal.example.com/baleia/c4-b"}]}'
+        ></div>
+      </div>
+
+      <div class="tour-block">
+        <h2>Tour 2 — costa / vento (carga tardía, sin data-unit)</h2>
+        <div class="controls">
+          <button data-cmd="goToUnit" data-target="2" data-unit="A1-C">goToUnit A1-C</button>
+        </div>
+        <p class="hint" style="margin: 0 0 6px">
+          Este bloque tiene mucho margen arriba a propósito, para ver el <code>IntersectionObserver</code>
+          (rootMargin 400px) disparar la carga recién al acercarse con scroll.
+        </p>
+        <div style="height: 900px"></div>
+        <div
+          class="tm-tour"
+          id="tour-2"
+          data-tenant="costa"
+          data-project="vento"
+          data-poster="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='800' height='450' fill='%23555233'/%3E%3Ctext x='400' y='230' font-size='28' fill='white' text-anchor='middle' font-family='sans-serif'%3EPoster — Vento%3C/text%3E%3C/svg%3E"
+          data-aspect="4/3"
+        ></div>
+      </div>
+    </div>
+
+    <h2 style="margin-top: 28px; font-size: 15px">Log del protocolo (todos los mensajes tumarca-tour)</h2>
+    <div id="protocol-log"></div>
+
+    <script>
+      // Dev-only overrides — see the comment above VIEWER_ORIGIN/EMBED_ORIGIN
+      // in src/v1.ts. Client sites never set these.
+      window.__TM_DEV_VIEWER_ORIGIN__ = window.location.origin;
+      window.__TM_DEV_EMBED_ORIGIN__ = window.location.origin;
+
+      const logEl = document.getElementById("protocol-log");
+      function log(line) {
+        const row = document.createElement("div");
+        row.textContent = `[${new Date().toLocaleTimeString()}] ${line}`;
+        logEl.appendChild(row);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      // Raw wire traffic (what actually crosses postMessage).
+      window.addEventListener("message", (event) => {
+        if (event.origin !== window.location.origin) return;
+        const d = event.data;
+        if (!d || d.channel !== "tumarca-tour") return;
+        log(`postMessage  [${d.instance}] ${d.type} ${JSON.stringify(d.payload)}`);
+      });
+
+      // Client-facing events the loader dispatches on each .tm-tour container
+      // (this is what a client site's own scripts / GTM would listen to).
+      document.addEventListener(
+        "tm:ready",
+        (e) => log(`CustomEvent   ready`),
+      );
+      [
+        "ready",
+        "sceneView",
+        "unitView",
+        "lotClick",
+        "leadIntent",
+        "deeplink",
+        "error",
+        "loadError",
+      ].forEach((name) => {
+        document.addEventListener(`tm:${name}`, (e) => {
+          log(`CustomEvent   tm:${name} ${JSON.stringify(e.detail)}`);
+        });
+      });
+
+      window.dataLayer = window.dataLayer || [];
+      const push = window.dataLayer.push.bind(window.dataLayer);
+      window.dataLayer.push = (item) => {
+        log(`dataLayer.push ${JSON.stringify(item)}`);
+        return push(item);
+      };
+
+      document.querySelectorAll("button[data-cmd]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const target = document.getElementById(`tour-${btn.dataset.target}`);
+          if (target && window.tumarcaEmbed) {
+            window.tumarcaEmbed.goToUnit(target, btn.dataset.unit);
+          }
+        });
+      });
+    </script>
+    <script src="/dist/v1.js" async></script>
+  </body>
+</html>

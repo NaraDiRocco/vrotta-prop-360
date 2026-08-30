@@ -36,21 +36,28 @@ function reportSize() {
   }
 }
 
+const demoOptions = {
+  entryPoints: [path.join(root, "demo/mock-viewer.ts")],
+  outfile: path.join(root, "demo/dist/mock-viewer.js"),
+  bundle: true,
+  format: "iife",
+  target: ["es2018"],
+  sourcemap: true,
+  logLevel: "info",
+};
+
 if (watch) {
-  const ctx = await context({
-    ...options,
-    plugins: [
-      {
-        name: "size-report",
-        setup(b) {
-          b.onEnd(() => reportSize());
-        },
-      },
-    ],
-  });
-  await ctx.watch();
-  console.log("watching src/v1.ts for changes...");
+  const [loaderCtx, demoCtx] = await Promise.all([
+    context({
+      ...options,
+      plugins: [{ name: "size-report", setup: (b) => b.onEnd(() => reportSize()) }],
+    }),
+    context(demoOptions),
+  ]);
+  await Promise.all([loaderCtx.watch(), demoCtx.watch()]);
+  console.log("watching src/v1.ts and demo/mock-viewer.ts for changes...");
 } else {
   await build(options);
   reportSize();
+  await build(demoOptions);
 }

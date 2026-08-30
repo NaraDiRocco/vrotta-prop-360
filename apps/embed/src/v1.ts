@@ -10,11 +10,19 @@
  * file should need to change when the final domain is decided.
  * ---------------------------------------------------------------------
  */
-const VIEWER_ORIGIN = "https://viewer.tumarca.com";
+// The `__TM_DEV_*` overrides exist ONLY so demo/index.html can point a
+// locally-built bundle at http://localhost:<port> without a second build
+// config. Client sites never set these; production always resolves to the
+// literal defaults below.
+const VIEWER_ORIGIN: string =
+  (typeof window !== "undefined" && (window as unknown as Record<string, string>).__TM_DEV_VIEWER_ORIGIN__) ||
+  "https://viewer.tumarca.com";
 /** Origin this very script is served from. Used only to validate messages
  * from the parent's own context if ever needed; kept separate from
  * VIEWER_ORIGIN because the two may live on different subdomains. */
-const EMBED_ORIGIN = "https://embed.tumarca.com";
+const EMBED_ORIGIN: string =
+  (typeof window !== "undefined" && (window as unknown as Record<string, string>).__TM_DEV_EMBED_ORIGIN__) ||
+  "https://embed.tumarca.com";
 
 import {
   PROTOCOL_VERSION,
