@@ -1,0 +1,21 @@
+{
+  "name": "recorrido360",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:viewer": "pnpm --filter @r360/viewer dev",
+    "dev:admin": "pnpm --filter @r360/admin dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

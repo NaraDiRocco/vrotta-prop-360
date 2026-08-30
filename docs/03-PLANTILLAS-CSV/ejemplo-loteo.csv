@@ -1,0 +1,4 @@
+codigo_unidad,tipologia,superficie_cubierta_m2,superficie_total_m2,estado,precio,moneda,mostrar_precio_publico,financiacion,bloque_o_piso,orientacion,notas_internas
+LOTE-0001,Lote esquina,0,600,disponible,45000,USD,SI,"20% anticipo, 36 cuotas",Manzana 1,Norte,
+LOTE-0002,Lote interno,0,450,reservado,32000,USD,SI,"20% anticipo, 36 cuotas",Manzana 1,,"Reservado por Fernandez, sena 27/08"
+LOTE-0003,Lote interno,0,450,vendido,32000,USD,NO,,Manzana 1,,Escritura en tramite

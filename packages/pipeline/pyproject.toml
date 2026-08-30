@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pano-pipeline"
+version = "0.1.0"
+description = "Pipeline de produccion de tiles para panoramas equirectangulares y planos gigapixel (Recorrido 360)."
+requires-python = ">=3.9,<3.10"
+readme = "README.md"
+license = { text = "Proprietary" }
+dependencies = [
+    "py360convert>=1.0.3",
+    "Pillow>=10.0",
+    "numpy<2",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+pano-validate = "pano_pipeline.validate:main"
+pano-tiles = "pano_pipeline.tiles:main"
+pano-preview = "pano_pipeline.preview:main"
+pano-dzi = "pano_pipeline.dzi:main"
+pano-run = "pano_pipeline.run:main"
+pano-make-test = "pano_pipeline.make_test_pano:main"
+
+[tool.setuptools.packages.find]
+include = ["pano_pipeline*"]
