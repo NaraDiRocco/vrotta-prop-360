@@ -88,7 +88,9 @@ export function PublishScreen({ tenant, projectSlug, projectId }: { tenant: stri
         </div>
         <div>
           <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>Publicada</div>
-          <div style={{ fontSize: 12 }}>{fmtDate(state.livePublishedAt)}</div>
+          <div suppressHydrationWarning style={{ fontSize: 12 }}>
+            {fmtDate(state.livePublishedAt)}
+          </div>
         </div>
         <div>
           <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>Cambios pendientes</div>

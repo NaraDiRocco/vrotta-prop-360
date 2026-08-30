@@ -61,7 +61,9 @@ export function PublishHistory({ projectId, onDiffVersion }: { projectId: string
             {publications.map((p) => (
               <tr key={p.id} className="r-row">
                 <td className="r-td tnum">v{p.version}</td>
-                <td className="r-td">{fmtDate(p.publishedAt)}</td>
+                <td className="r-td" suppressHydrationWarning>
+                  {fmtDate(p.publishedAt)}
+                </td>
                 <td className="r-td" title={p.note ?? ''}>
                   {p.note ?? '—'}
                 </td>

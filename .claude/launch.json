@@ -2,15 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "viewer",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@r360/viewer", "run", "dev", "--", "--port", "5173", "--strictPort"],
-      "port": 5173
-    },
-    {
       "name": "admin",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@r360/admin", "run", "dev"],
+      "runtimeArgs": ["--filter", "@r360/admin", "dev"],
       "port": 3001
     }
   ]

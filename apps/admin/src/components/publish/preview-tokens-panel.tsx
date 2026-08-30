@@ -109,7 +109,7 @@ export function PreviewTokensPanel({ projectId, previewBaseUrl }: { projectId: s
                 <code style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={url}>
                   {url}
                 </code>
-                <span style={{ color: expired ? 'var(--danger)' : 'var(--fg-muted)' }}>
+                <span suppressHydrationWarning style={{ color: expired ? 'var(--danger)' : 'var(--fg-muted)' }}>
                   {expired ? 'expirado' : `vence ${fmtDate(t.expiresAt)}`}
                 </span>
                 {t.note && <span style={{ color: 'var(--fg-faint)' }}>· {t.note}</span>}

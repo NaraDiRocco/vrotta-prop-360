@@ -17,7 +17,7 @@
  *    se despegue del lote a FOV ancho.
  */
 import { useEffect, useRef } from 'react';
-import { Viewer, type ClickEvent } from '@photo-sphere-viewer/core';
+import { Viewer, type events } from '@photo-sphere-viewer/core';
 import { MarkersPlugin, type MarkerConfig } from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
@@ -67,7 +67,7 @@ export function PanoCanvas({
       keyboard: false,
     });
     viewerRef.current = viewer;
-    markersRef.current = viewer.getPlugin(MarkersPlugin);
+    markersRef.current = viewer.getPlugin<MarkersPlugin>(MarkersPlugin);
 
     const api: CanvasApi = {
       fromClient(clientX, clientY) {
@@ -107,9 +107,8 @@ export function PanoCanvas({
     viewer.addEventListener('position-updated', notify);
     viewer.addEventListener('zoom-updated', notify);
     viewer.addEventListener('size-updated', notify);
-    viewer.addEventListener('rendered', notify);
 
-    const onClick = (e: ClickEvent) => {
+    const onClick = (e: events.ClickEvent) => {
       if (e.data.rightclick) return;
       const markerId = e.data.marker?.id ?? null;
       const hotspotId = markerId ? markerId.replace(LABEL_SUFFIX, '') : null;
