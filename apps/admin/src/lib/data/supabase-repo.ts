@@ -7,12 +7,24 @@ import type { RpcFilter } from '../units/selection.ts';
 import { computeDiff, computeWarnings, unitToSnapshot, type PublishSnapshot, type UnitSnapshot } from '../publish/diff.ts';
 import { filterLeads, type LeadFilters } from '../leads/filters.ts';
 import { createServiceClient } from '../onboarding/service-client.ts';
+import type {
+  MaterialFileRow,
+  MaterialPatch,
+  MaterialShareLinkRow,
+  MaterialStateRow,
+  MaterialStatus,
+  MaterialUploadVia,
+} from '../material/types.ts';
+import { generateShareToken } from '../material/share.ts';
 import {
   completenessOf,
   type CreateUnitsOptions,
   type CreateUnitsResult,
   type LeadListFilters,
+  type MaterialShareContext,
   type NewGroupInput,
+  type NewMaterialFileInput,
+  type NewMaterialShareLinkInput,
   type NewProjectInput,
   type NewSceneInput,
   type NewTenantInput,
@@ -647,7 +659,7 @@ export class SupabaseRepo implements Repo {
 
   /* ── Escenas y cola de procesamiento ──────────────────────────────── */
 
-  private async getProjectById(projectId: string): Promise<ProjectRow | null> {
+  async getProjectById(projectId: string): Promise<ProjectRow | null> {
     const supabase = await createSupabaseServerClient();
     const { data } = await supabase.from('projects').select('*').eq('id', projectId).maybeSingle();
     return data ? this.toProject(data) : null;
@@ -1087,6 +1099,231 @@ export class SupabaseRepo implements Repo {
       }
     }
     return changed;
+  }
+
+  /* ── Material requerido ─────────────────────────────────────────────── */
+
+  private toMaterialState(raw: unknown): MaterialStateRow {
+    const r = asRecord(raw);
+    return {
+      itemId: String(r['item_id']),
+      status: r['status'] as MaterialStatus,
+      notes: r['notes'] === null || r['notes'] === undefined ? null : String(r['notes']),
+      updatedAt: String(r['updated_at']),
+      // Igual que en el log de estados: el join a auth.users no es accesible
+      // con la anon key. Se resolverá cuando exista una vista de perfiles.
+      updatedByEmail: null,
+    };
+  }
+
+  private toMaterialFile(raw: unknown): MaterialFileRow {
+    const r = asRecord(raw);
+    return {
+      id: String(r['id']),
+      itemId: String(r['item_id']),
+      storagePath: String(r['storage_path']),
+      filename: String(r['filename']),
+      sizeBytes: Number(r['size_bytes'] ?? 0),
+      mime: String(r['mime'] ?? 'application/octet-stream'),
+      uploadedVia: (r['uploaded_via'] ?? 'panel') as MaterialUploadVia,
+      uploadedByEmail: null,
+      createdAt: String(r['created_at']),
+    };
+  }
+
+  private toMaterialLink(raw: unknown): MaterialShareLinkRow {
+    const r = asRecord(raw);
+    return {
+      id: String(r['id']),
+      token: String(r['token']),
+      label: r['label'] === null || r['label'] === undefined ? null : String(r['label']),
+      createdAt: String(r['created_at']),
+      expiresAt: r['expires_at'] === null || r['expires_at'] === undefined ? null : String(r['expires_at']),
+      revokedAt: r['revoked_at'] === null || r['revoked_at'] === undefined ? null : String(r['revoked_at']),
+    };
+  }
+
+  async listMaterial(projectId: string): Promise<MaterialStateRow[]> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.from('project_material').select('*').eq('project_id', projectId);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => this.toMaterialState(row));
+  }
+
+  async setMaterialState(projectId: string, itemId: string, patch: MaterialPatch): Promise<MaterialStateRow> {
+    const supabase = await createSupabaseServerClient();
+    const { data: user } = await supabase.auth.getUser();
+    const row: Record<string, unknown> = {
+      project_id: projectId,
+      item_id: itemId,
+      updated_at: new Date().toISOString(),
+      updated_by: user.user?.id ?? null,
+    };
+    if (patch.status !== undefined) row['status'] = patch.status;
+    if (patch.notes !== undefined) row['notes'] = patch.notes;
+    const { data, error } = await supabase
+      .from('project_material')
+      .upsert(row, { onConflict: 'project_id,item_id' })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return this.toMaterialState(data);
+  }
+
+  async listMaterialFiles(projectId: string): Promise<MaterialFileRow[]> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from('material_files')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => this.toMaterialFile(row));
+  }
+
+  async registerMaterialFile(projectId: string, input: NewMaterialFileInput): Promise<MaterialFileRow> {
+    const supabase = await createSupabaseServerClient();
+    const { data: user } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('material_files')
+      .insert({
+        project_id: projectId,
+        item_id: input.itemId,
+        storage_path: input.storagePath,
+        filename: input.filename,
+        size_bytes: input.sizeBytes,
+        mime: input.mime,
+        uploaded_via: input.uploadedVia,
+        uploaded_by: user.user?.id ?? null,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+
+    // Subir algo deja el ítem en `recibido`, salvo que ya estuviera cerrado:
+    // una aprobación o un "no aplica" son decisiones del operador y no las
+    // pisa un archivo nuevo.
+    const current = (await this.listMaterial(projectId)).find((m) => m.itemId === input.itemId);
+    if (!current || (current.status !== 'aprobado' && current.status !== 'no_aplica')) {
+      await this.setMaterialState(projectId, input.itemId, { status: 'recibido' });
+    }
+    return this.toMaterialFile(data);
+  }
+
+  async deleteMaterialFile(projectId: string, fileId: string): Promise<void> {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from('material_files').delete().eq('id', fileId).eq('project_id', projectId);
+    if (error) throw new Error(error.message);
+  }
+
+  async listMaterialShareLinks(projectId: string): Promise<MaterialShareLinkRow[]> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from('material_share_links')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => this.toMaterialLink(row));
+  }
+
+  async createMaterialShareLink(projectId: string, input: NewMaterialShareLinkInput): Promise<MaterialShareLinkRow> {
+    const supabase = await createSupabaseServerClient();
+    const { data: user } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('material_share_links')
+      .insert({
+        project_id: projectId,
+        token: generateShareToken(),
+        label: input.label,
+        expires_at: input.expiresAt,
+        created_by: user.user?.id ?? null,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return this.toMaterialLink(data);
+  }
+
+  async revokeMaterialShareLink(projectId: string, linkId: string): Promise<void> {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase
+      .from('material_share_links')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('id', linkId)
+      .eq('project_id', projectId)
+      .is('revoked_at', null);
+    if (error) throw new Error(error.message);
+  }
+
+  /**
+   * Las cuatro operaciones del link público pasan por RPCs `security definer`
+   * (ver 0016): revalidan el token en cada llamada y no exponen ninguna otra
+   * tabla a `anon`. Acá se usa el cliente de la sesión igual que en el resto —
+   * si no hay sesión, es la anon key, que es exactamente el caso del cliente
+   * que abre el link desde WhatsApp.
+   */
+  async resolveMaterialShareToken(token: string): Promise<MaterialShareContext | null> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc('material_link_project', { p_token: token });
+    if (error) throw new Error(error.message);
+    const row = Array.isArray(data) ? asRecord(data[0]) : asRecord(data);
+    if (!row['project_id']) return null;
+    return {
+      projectId: String(row['project_id']),
+      projectName: String(row['project_name']),
+      projectKind: row['project_kind'] as MaterialShareContext['projectKind'],
+    };
+  }
+
+  async readMaterialByToken(token: string): Promise<{ states: MaterialStateRow[]; files: MaterialFileRow[] } | null> {
+    const ctx = await this.resolveMaterialShareToken(token);
+    if (!ctx) return null;
+    const supabase = await createSupabaseServerClient();
+    const [states, files] = await Promise.all([
+      supabase.rpc('material_link_states', { p_token: token }),
+      supabase.rpc('material_link_files', { p_token: token }),
+    ]);
+    if (states.error) throw new Error(states.error.message);
+    if (files.error) throw new Error(files.error.message);
+    return {
+      states: (Array.isArray(states.data) ? states.data : []).map((row) => ({
+        ...this.toMaterialState(row),
+        updatedAt: asRecord(row)['updated_at'] === undefined ? '' : String(asRecord(row)['updated_at']),
+      })),
+      files: (Array.isArray(files.data) ? files.data : []).map((row) => ({
+        ...this.toMaterialFile(row),
+        uploadedVia: 'link' as MaterialUploadVia,
+      })),
+    };
+  }
+
+  async registerMaterialFileByToken(
+    token: string,
+    input: Omit<NewMaterialFileInput, 'uploadedVia'>,
+  ): Promise<MaterialFileRow | null> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc('material_link_register_file', {
+      p_token: token,
+      p_item_id: input.itemId,
+      p_storage_path: input.storagePath,
+      p_filename: input.filename,
+      p_size_bytes: input.sizeBytes,
+      p_mime: input.mime,
+    });
+    if (error) throw new Error(error.message);
+    if (data === null || data === undefined) return null;
+    return {
+      id: String(data),
+      itemId: input.itemId,
+      storagePath: input.storagePath,
+      filename: input.filename,
+      sizeBytes: input.sizeBytes,
+      mime: input.mime,
+      uploadedVia: 'link',
+      uploadedByEmail: null,
+      createdAt: new Date().toISOString(),
+    };
   }
 }
 

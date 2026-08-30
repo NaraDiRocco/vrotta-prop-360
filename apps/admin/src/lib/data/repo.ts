@@ -10,6 +10,13 @@ import type { ProjectKind, UnitStatus } from '@r360/core';
 import type { HotspotRow } from '../editor/records.ts';
 import type { RpcFilter } from '../units/selection.ts';
 import type {
+  MaterialFileRow,
+  MaterialPatch,
+  MaterialShareLinkRow,
+  MaterialStateRow,
+  MaterialUploadVia,
+} from '../material/types.ts';
+import type {
   GroupRow,
   HealthRow,
   JobRow,
@@ -106,6 +113,34 @@ export interface CreateUnitsResult {
   pricesCreated: number;
 }
 
+/* ── Material requerido ───────────────────────────────────────────────── */
+
+/** Archivo ya subido al storage: acá sólo se registra la fila. */
+export interface NewMaterialFileInput {
+  itemId: string;
+  storagePath: string;
+  filename: string;
+  sizeBytes: number;
+  mime: string;
+  uploadedVia: MaterialUploadVia;
+}
+
+export interface NewMaterialShareLinkInput {
+  label: string | null;
+  /** null = no vence. */
+  expiresAt: string | null;
+}
+
+/**
+ * Lo único que un token de link resuelve. Deliberadamente NO incluye tenant:
+ * quien tiene el link no tiene por qué saber de qué cliente es el proyecto.
+ */
+export interface MaterialShareContext {
+  projectId: string;
+  projectName: string;
+  projectKind: ProjectKind;
+}
+
 export interface LeadListFilters {
   projectId?: string;
   status?: string;
@@ -119,6 +154,8 @@ export interface Repo {
   getSession(): Promise<SessionUser | null>;
   listProjects(tenantSlug: string): Promise<ProjectCard[]>;
   getProject(tenantSlug: string, projectSlug: string): Promise<ProjectRow | null>;
+  /** Por id, para los route handlers que sólo tienen el project_id de la URL. */
+  getProjectById(projectId: string): Promise<ProjectRow | null>;
   getHealth(projectId: string): Promise<HealthRow>;
   getStructure(projectId: string): Promise<Structure>;
   /** Universo de unidades del proyecto. El filtrado/paginado lo hace queryUnits. */
@@ -195,6 +232,24 @@ export interface Repo {
   listLeads(tenantSlug: string, filters?: LeadListFilters): Promise<LeadRow[]>;
   updateLead(leadId: string, patch: LeadPatch): Promise<LeadRow>;
   bulkUpdateLeads(leadIds: string[], patch: LeadPatch): Promise<number>;
+
+  /* ── Material requerido ─────────────────────────────────────────────── */
+  /** Sólo los ítems con fila. Los que faltan se leen como `pendiente`. */
+  listMaterial(projectId: string): Promise<MaterialStateRow[]>;
+  setMaterialState(projectId: string, itemId: string, patch: MaterialPatch): Promise<MaterialStateRow>;
+  listMaterialFiles(projectId: string): Promise<MaterialFileRow[]>;
+  /** Registra un archivo subido desde el panel y pasa el ítem a `recibido`. */
+  registerMaterialFile(projectId: string, input: NewMaterialFileInput): Promise<MaterialFileRow>;
+  deleteMaterialFile(projectId: string, fileId: string): Promise<void>;
+  listMaterialShareLinks(projectId: string): Promise<MaterialShareLinkRow[]>;
+  createMaterialShareLink(projectId: string, input: NewMaterialShareLinkInput): Promise<MaterialShareLinkRow>;
+  revokeMaterialShareLink(projectId: string, linkId: string): Promise<void>;
+  /** null si el token no existe, está revocado o venció: los tres casos son indistinguibles. */
+  resolveMaterialShareToken(token: string): Promise<MaterialShareContext | null>;
+  /** Estado + archivos del proyecto al que apunta el token, ya recortados para el público. */
+  readMaterialByToken(token: string): Promise<{ states: MaterialStateRow[]; files: MaterialFileRow[] } | null>;
+  /** Alta de archivo por el link público. null si el token dejó de servir. */
+  registerMaterialFileByToken(token: string, input: Omit<NewMaterialFileInput, 'uploadedVia'>): Promise<MaterialFileRow | null>;
 }
 
 export function isMockMode(): boolean {

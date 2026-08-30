@@ -1,7 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
-const PUBLIC_PATHS = ['/login', '/auth'];
+/**
+ * Rutas que NO exigen sesión.
+ *
+ * `/m` es la página que el cliente abre desde WhatsApp y `/api/material` es la
+ * API que esa página consume: si el middleware la mandara al login, el link
+ * compartible no serviría para nada. La autorización de esas dos rutas no la
+ * da una sesión sino el token del link, que se valida en el propio endpoint
+ * (ver `lib/material/share.ts`).
+ */
+const PUBLIC_PATHS = ['/login', '/auth', '/m', '/api/material'];
 
 /**
  * Renueva la sesión de Supabase en cada request y saca del panel a quien no

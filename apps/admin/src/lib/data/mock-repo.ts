@@ -7,12 +7,33 @@ import { filterLeads, type LeadFilters } from '../leads/filters.ts';
 import { ensureSeeded, readProject, readScene, writeScene } from '../editor/hotspot-store.ts';
 import type { HotspotRow } from '../editor/records.ts';
 import { mockDb, type MockPublication } from './mock.ts';
+import type {
+  MaterialFileRow,
+  MaterialPatch,
+  MaterialShareLinkRow,
+  MaterialStateRow,
+} from '../material/types.ts';
+import {
+  mockAddFile,
+  mockCreateLink,
+  mockDeleteFile,
+  mockFindByToken,
+  mockListFiles,
+  mockListLinks,
+  mockListStates,
+  mockRevokeLink,
+  mockSetState,
+} from '../material/mock-store.ts';
+import { isShareLinkUsable } from '../material/share.ts';
 import {
   completenessOf,
   type CreateUnitsOptions,
   type CreateUnitsResult,
   type LeadListFilters,
+  type MaterialShareContext,
   type NewGroupInput,
+  type NewMaterialFileInput,
+  type NewMaterialShareLinkInput,
   type NewProjectInput,
   type NewSceneInput,
   type NewTenantInput,
@@ -695,4 +716,86 @@ export class MockRepo implements Repo {
     }
     return changed;
   }
+
+  async getProjectById(projectId: string): Promise<ProjectRow | null> {
+    return mockDb().projects.find((p) => p.id === projectId) ?? null;
+  }
+
+  /* ── Material requerido ─────────────────────────────────────────────── */
+
+  async listMaterial(projectId: string): Promise<MaterialStateRow[]> {
+    return mockListStates(projectId);
+  }
+
+  async setMaterialState(projectId: string, itemId: string, patch: MaterialPatch): Promise<MaterialStateRow> {
+    return mockSetState(projectId, itemId, patch, mockDb().user.email);
+  }
+
+  async listMaterialFiles(projectId: string): Promise<MaterialFileRow[]> {
+    return mockListFiles(projectId);
+  }
+
+  async registerMaterialFile(projectId: string, input: NewMaterialFileInput): Promise<MaterialFileRow> {
+    const file: MaterialFileRow = {
+      id: crypto.randomUUID(),
+      itemId: input.itemId,
+      storagePath: input.storagePath,
+      filename: input.filename,
+      sizeBytes: input.sizeBytes,
+      mime: input.mime,
+      uploadedVia: input.uploadedVia,
+      uploadedByEmail: input.uploadedVia === 'panel' ? mockDb().user.email : null,
+      createdAt: new Date().toISOString(),
+    };
+    mockAddFile(projectId, file);
+    this.markReceived(projectId, input.itemId, input.uploadedVia === 'panel');
+    return file;
+  }
+
+  /** Subir algo deja el ítem en `recibido`, salvo que ya estuviera cerrado. */
+  private markReceived(projectId: string, itemId: string, byPanel: boolean): void {
+    const current = mockListStates(projectId).find((s) => s.itemId === itemId);
+    if (current && (current.status === 'aprobado' || current.status === 'no_aplica')) return;
+    mockSetState(projectId, itemId, { status: 'recibido' }, byPanel ? mockDb().user.email : null);
+  }
+
+  async deleteMaterialFile(projectId: string, fileId: string): Promise<void> {
+    mockDeleteFile(projectId, fileId);
+  }
+
+  async listMaterialShareLinks(projectId: string): Promise<MaterialShareLinkRow[]> {
+    return mockListLinks(projectId);
+  }
+
+  async createMaterialShareLink(projectId: string, input: NewMaterialShareLinkInput): Promise<MaterialShareLinkRow> {
+    return mockCreateLink(projectId, input.label, input.expiresAt);
+  }
+
+  async revokeMaterialShareLink(projectId: string, linkId: string): Promise<void> {
+    mockRevokeLink(projectId, linkId);
+  }
+
+  async resolveMaterialShareToken(token: string): Promise<MaterialShareContext | null> {
+    const found = mockFindByToken(token);
+    if (!found || !isShareLinkUsable(found.link)) return null;
+    const project = mockDb().projects.find((p) => p.id === found.projectId);
+    if (!project) return null;
+    return { projectId: project.id, projectName: project.name, projectKind: project.kind };
+  }
+
+  async readMaterialByToken(token: string): Promise<{ states: MaterialStateRow[]; files: MaterialFileRow[] } | null> {
+    const ctx = await this.resolveMaterialShareToken(token);
+    if (!ctx) return null;
+    return { states: mockListStates(ctx.projectId), files: mockListFiles(ctx.projectId) };
+  }
+
+  async registerMaterialFileByToken(
+    token: string,
+    input: Omit<NewMaterialFileInput, 'uploadedVia'>,
+  ): Promise<MaterialFileRow | null> {
+    const ctx = await this.resolveMaterialShareToken(token);
+    if (!ctx) return null;
+    return this.registerMaterialFile(ctx.projectId, { ...input, uploadedVia: 'link' });
+  }
+
 }

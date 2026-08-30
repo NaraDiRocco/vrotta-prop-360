@@ -48,6 +48,7 @@ done
 | `0012_project_health_view.sql` | Vista `project_health` |
 | `0013_availability_json.sql` | Función `generate_availability_json(p_project_id uuid)` |
 | `0014_indexes.sql` | Índices de consulta (project+status, project+group, prefijo de código) |
+| `0016_material.sql` | Material requerido: `project_material`, `material_files`, `material_share_links`, RPCs del link público (`material_link_*`) y bucket privado `material` |
 
 ## Cómo correr el seed
 

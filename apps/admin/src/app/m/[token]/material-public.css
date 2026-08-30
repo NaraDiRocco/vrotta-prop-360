@@ -1,0 +1,647 @@
+/**
+ * Estilos de la vista pública de material (/m/[token]).
+ *
+ * Deliberadamente NO toca globals.css ni reutiliza las clases .r-* del panel
+ * (son para densidad de operador experto). Consume los mismos tokens de color
+ * (--bg, --fg, --accent, etc., definidos en globals.css y ya disponibles acá
+ * porque vienen del layout raíz) pero con tipografía más grande, más aire, y
+ * un solo camino por vez — pensado para un teléfono, no un escritorio.
+ *
+ * NO usa los colores de estado comercial de @r360/core (--st-*): esos hablan
+ * de disponibilidad de unidades, no de avance de material.
+ */
+
+.mp {
+  --mp-text-body: 17px;
+  --mp-text-lg: 20px;
+  --mp-text-xl: 26px;
+  --mp-text-2xl: 30px;
+  --mp-space: 20px;
+  --mp-radius: 14px;
+  --mp-max-w: 720px;
+  --mp-req-obligatorio: #c81e2b;
+  --mp-req-obligatorio-bg: #fdecec;
+  --mp-req-recomendado: #94540a;
+  --mp-req-recomendado-bg: #fdf4e3;
+  --mp-req-opcional: #5b6572;
+  --mp-req-opcional-bg: var(--bg-subtle);
+
+  min-height: 100dvh;
+  background: var(--bg-canvas);
+  color: var(--fg);
+  font-size: var(--mp-text-body);
+  line-height: 1.55;
+}
+
+:root[data-theme='dark'] .mp {
+  --mp-req-obligatorio-bg: color-mix(in srgb, var(--mp-req-obligatorio) 18%, var(--bg));
+  --mp-req-recomendado-bg: color-mix(in srgb, var(--mp-req-recomendado) 18%, var(--bg));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .mp {
+    --mp-req-obligatorio-bg: color-mix(in srgb, var(--mp-req-obligatorio) 18%, var(--bg));
+    --mp-req-recomendado-bg: color-mix(in srgb, var(--mp-req-recomendado) 18%, var(--bg));
+  }
+}
+
+.mp * {
+  box-sizing: border-box;
+}
+
+.mp-shell {
+  max-width: var(--mp-max-w);
+  margin: 0 auto;
+  padding: var(--mp-space) 16px 64px;
+}
+
+@media (min-width: 640px) {
+  .mp-shell {
+    padding: 40px 24px 80px;
+  }
+}
+
+/* ── Encabezado ─────────────────────────────────────────────────────── */
+
+.mp-header {
+  margin-bottom: 28px;
+}
+
+.mp-eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 6px;
+}
+
+.mp-title {
+  font-size: var(--mp-text-2xl);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 10px;
+  letter-spacing: -0.01em;
+}
+
+.mp-lede {
+  font-size: var(--mp-text-lg);
+  color: var(--fg-muted);
+  margin: 0;
+  max-width: 56ch;
+}
+
+/* ── Progreso ───────────────────────────────────────────────────────── */
+
+.mp-progress {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--mp-radius);
+  padding: 20px;
+  margin-bottom: 28px;
+}
+
+.mp-progress-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mp-progress-label {
+  font-weight: 700;
+  font-size: var(--mp-text-lg);
+}
+
+.mp-progress-count {
+  font-size: 15px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.mp-progress-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.mp-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.mp-progress-fill[data-done='true'] {
+  background: var(--ok);
+}
+
+.mp-progress-done {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ok);
+  font-weight: 600;
+  font-size: 15px;
+  margin-top: 14px;
+}
+
+.mp-progress-blockers {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mp-progress-blockers li {
+  font-size: 15px;
+  color: var(--fg-muted);
+}
+
+.mp-progress-blockers a {
+  color: var(--fg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mp-progress-blockers a:hover {
+  text-decoration: underline;
+}
+
+/* ── Grupos de categoría ────────────────────────────────────────────── */
+
+.mp-group {
+  margin-bottom: 32px;
+}
+
+.mp-group-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 12px;
+}
+
+.mp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Ítem ───────────────────────────────────────────────────────────── */
+
+.mp-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--mp-radius);
+  overflow: hidden;
+}
+
+.mp-item[data-resolved='true'] {
+  border-color: var(--border);
+}
+
+.mp-item-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.mp-item-head:hover {
+  background: var(--bg-hover);
+}
+
+.mp-item-check {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border-strong);
+  color: transparent;
+}
+
+.mp-item-check[data-resolved='true'] {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: white;
+}
+
+.mp-item-check[data-noaplica='true'] {
+  background: var(--fg-faint);
+  border-color: var(--fg-faint);
+  color: white;
+}
+
+.mp-item-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.mp-item-name {
+  font-size: var(--mp-text-lg);
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.mp-item-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mp-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+.mp-badge[data-req='obligatorio'] {
+  background: var(--mp-req-obligatorio-bg);
+  color: var(--mp-req-obligatorio);
+}
+
+.mp-badge[data-req='recomendado'] {
+  background: var(--mp-req-recomendado-bg);
+  color: var(--mp-req-recomendado);
+}
+
+.mp-badge[data-req='opcional'] {
+  background: var(--mp-req-opcional-bg);
+  color: var(--mp-req-opcional);
+}
+
+.mp-item-status {
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.mp-item-chevron {
+  flex: none;
+  color: var(--fg-faint);
+  transition: transform 0.15s ease;
+}
+
+.mp-item[data-open='true'] .mp-item-chevron {
+  transform: rotate(180deg);
+}
+
+.mp-item-body {
+  padding: 0 16px 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.mp-item-explain {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.mp-item-explain-block h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg-muted);
+}
+
+.mp-item-explain-block p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.mp-item-format {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+}
+
+.mp-help {
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+.mp-help summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mp-help summary::-webkit-details-marker {
+  display: none;
+}
+
+.mp-help-body {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--fg-muted);
+}
+
+.mp-help-body dt {
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.mp-help-body dd {
+  margin: 2px 0 0;
+}
+
+/* ── Subida de archivos ─────────────────────────────────────────────── */
+
+.mp-dropzone {
+  display: block;
+  position: relative;
+  border: 2px dashed var(--border-strong);
+  border-radius: 12px;
+  padding: 22px 16px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.mp-dropzone:hover,
+.mp-dropzone[data-dragging='true'] {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--fg);
+}
+
+.mp-dropzone input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mp-dropzone-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.mp-dropzone-cta {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.mp-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mp-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.mp-file-row[data-error='true'] {
+  border-color: var(--ui-danger-border);
+  background: var(--ui-danger-bg);
+}
+
+.mp-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-file-meta {
+  font-size: 13px;
+  color: var(--fg-muted);
+  flex: none;
+}
+
+.mp-file-progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.mp-file-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.mp-file-error {
+  color: var(--ui-danger);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* ── Acciones (subir / no lo tengo / comentario) ───────────────────── */
+
+.mp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.mp-btn {
+  appearance: none;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.mp-btn:hover {
+  background: var(--bg-hover);
+}
+
+.mp-btn[data-variant='primary'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+.mp-btn[data-variant='primary']:hover {
+  filter: brightness(1.06);
+}
+
+.mp-btn[data-active='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.mp-comment-box {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mp-comment-box textarea {
+  font: inherit;
+  font-size: 16px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--fg);
+  resize: vertical;
+  min-height: 84px;
+}
+
+.mp-comment-box textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -1px;
+}
+
+.mp-comment-saved {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--fg-muted);
+}
+
+.mp-no-material-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--fg-muted);
+  margin-top: 12px;
+}
+
+/* ── Estados de token (error) ───────────────────────────────────────── */
+
+.mp-error-shell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.mp-error-card {
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--mp-radius);
+  padding: 36px 28px;
+}
+
+.mp-error-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  color: var(--fg-muted);
+}
+
+.mp-error-title {
+  font-size: var(--mp-text-xl);
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+.mp-error-desc {
+  color: var(--fg-muted);
+  font-size: 16px;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.mp-error-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+  font-size: 16px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  text-decoration: none;
+  min-height: 44px;
+}
+
+.mp-error-contact:hover {
+  filter: brightness(1.06);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+
+.mp-footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--fg-faint);
+  text-align: center;
+}

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Home, Images, Network, Table2, UploadCloud, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FolderKanban, Home, Images, Network, Table2, UploadCloud, type LucideIcon } from 'lucide-react';
 import type { Role } from '@/lib/data/types.ts';
 import { canEditStructure } from '@/lib/roles.ts';
 
@@ -48,6 +48,7 @@ export function ProjectNav({
     { href: `${base}/units`, label: 'Unidades', Icon: Table2, show: true },
     { href: `${base}/structure`, label: 'Estructura', Icon: Network, show: canEditStructure(role) },
     { href: `${base}/scenes`, label: 'Escenas', Icon: Images, show: canEditStructure(role) },
+    { href: `${base}/material`, label: 'Material', Icon: FolderKanban, show: canEditStructure(role) },
     { href: `${base}/publish`, label: 'Publicar', Icon: UploadCloud, show: role === 'owner' },
   ];
 
