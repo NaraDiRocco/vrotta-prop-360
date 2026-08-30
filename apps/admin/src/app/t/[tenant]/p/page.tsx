@@ -1,18 +1,42 @@
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell.tsx';
-import { StatusBar, summarize } from '@/components/status.tsx';
+import { ClientKpiRow } from '@/components/projects/kpi-row.tsx';
+import { AttentionQueue, type AttentionRow } from '@/components/projects/attention-queue.tsx';
+import { ProjectCardView } from '@/components/projects/project-card.tsx';
 import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
-import type { ProjectCard } from '@/lib/data/types.ts';
-import { healthIssues, worstLevel } from '@/lib/health.ts';
+import { healthIssues } from '@/lib/health.ts';
 import { canEditStructure } from '@/lib/roles.ts';
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default async function ProjectsPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
   const { membership } = await requireAdmin(tenant);
-  const projects = await getRepo().listProjects(tenant);
+  const repo = getRepo();
+  const [projects, leads] = await Promise.all([repo.listProjects(tenant), repo.listLeads(tenant)]);
 
-  const needAttention = projects.filter((p) => worstLevel(healthIssues(p, tenant)) !== 'ok');
+  const cutoff = Date.now() - SEVEN_DAYS_MS;
+  const leads7dByProject = new Map<string, number>();
+  let leads7dTotal = 0;
+  for (const lead of leads) {
+    if (new Date(lead.createdAt).getTime() >= cutoff) {
+      leads7dTotal += 1;
+      leads7dByProject.set(lead.projectId, (leads7dByProject.get(lead.projectId) ?? 0) + 1);
+    }
+  }
+
+  // Cola de atención: una fila por issue (no por proyecto), bloqueantes antes que avisos.
+  const attentionRows: AttentionRow[] = projects
+    .flatMap((project) =>
+      healthIssues(project, tenant)
+        .filter((issue) => issue.level !== 'ok')
+        .map((issue) => ({ issue, projectName: project.name })),
+    )
+    .sort((a, b) => {
+      if (a.issue.level !== b.issue.level) return a.issue.level === 'block' ? -1 : 1;
+      return a.projectName.localeCompare(b.projectName);
+    });
 
   return (
     <AppShell
@@ -26,120 +50,67 @@ export default async function ProjectsPage({ params }: { params: Promise<{ tenan
         ) : undefined
       }
     >
-      <div style={{ padding: 12 }}>
-        {needAttention.length > 0 && <AttentionBand projects={needAttention} tenant={tenant} />}
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 10,
-          }}
-        >
-          {projects.map((project) => (
-            <ProjectCardView key={project.id} project={project} tenant={tenant} />
-          ))}
-        </div>
-
-        {projects.length === 0 && (
-          <p style={{ color: 'var(--fg-muted)' }}>
-            No hay proyectos en este cliente todavía.{' '}
-            {canEditStructure(membership.role) && <Link href={`/t/${tenant}/p/new`}>Crear el primero →</Link>}
-          </p>
-        )}
-      </div>
-    </AppShell>
-  );
-}
-
-function AttentionBand({ projects, tenant }: { projects: ProjectCard[]; tenant: string }) {
-  return (
-    <section
-      style={{
-        border: '1px solid var(--warn)',
-        borderRadius: 7,
-        padding: '8px 10px',
-        marginBottom: 12,
-        background: 'color-mix(in srgb, var(--warn) 8%, transparent)',
-      }}
-    >
-      <h2 style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Requiere atención</h2>
-      <ul style={{ display: 'grid', gap: 3 }}>
-        {projects.map((project) => {
-          const issues = healthIssues(project, tenant).filter((i) => i.level !== 'ok');
-          return (
-            <li key={project.id} style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-              <Link href={`/t/${tenant}/p/${project.slug}`} style={{ fontWeight: 600 }}>
-                {project.name}
-              </Link>
-              {issues.map((issue) => (
-                <Link
-                  key={issue.id}
-                  href={issue.href}
-                  style={{
-                    fontSize: 11,
-                    color: issue.level === 'block' ? 'var(--danger)' : 'var(--warn)',
-                  }}
-                >
-                  {issue.title}
-                </Link>
-              ))}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-function ProjectCardView({ project, tenant }: { project: ProjectCard; tenant: string }) {
-  const pct = Math.round(project.completeness * 100);
-  return (
-    <Link
-      href={`/t/${tenant}/p/${project.slug}`}
-      style={{
-        display: 'block',
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        overflow: 'hidden',
-        background: 'var(--bg)',
-      }}
-    >
+      <style
+        // Hover de la card: borde más marcado, sin tocar globals.css (lo reescribe otro agente en esta etapa).
+        dangerouslySetInnerHTML={{
+          __html: '.r-project-card:hover { border-color: var(--border-strong); }',
+        }}
+      />
       <div
         style={{
-          height: 84,
-          background: 'linear-gradient(135deg, var(--bg-sunken), var(--bg-hover))',
-          display: 'grid',
-          placeItems: 'center',
-          color: 'var(--fg-faint)',
-          fontSize: 11,
+          padding: '16px 12px',
+          background: 'var(--bg-canvas)',
+          minHeight: '100%',
         }}
       >
-        {project.location.address ?? project.kind}
-      </div>
-      <div style={{ padding: 9 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-          <strong>{project.name}</strong>
-          <span className="tnum" style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-            {project.unitsTotal} u.
-          </span>
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginBottom: 7 }}>
-          {project.kind} · {project.publishedVersion > 0 ? `publicado v${project.publishedVersion}` : 'sin publicar'}
-        </div>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          {projects.length > 0 && <ClientKpiRow projects={projects} leads7d={leads7dTotal} />}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-          <div style={{ flex: 1, height: 4, background: 'var(--bg-sunken)', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)' }} />
-          </div>
-          <span className="tnum" style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-            {pct}%
-          </span>
-        </div>
+          <AttentionQueue rows={attentionRows} />
 
-        <StatusBar counts={project.statusCounts} />
-        <div style={{ fontSize: 10, color: 'var(--fg-faint)', marginTop: 5 }}>{summarize(project.statusCounts)}</div>
+          {projects.length > 0 && (
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, marginBottom: 10 }}>Proyectos</h2>
+          )}
+
+          {projects.length > 0 ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: 16,
+              }}
+            >
+              {projects.map((project) => (
+                <ProjectCardView
+                  key={project.id}
+                  project={project}
+                  tenant={tenant}
+                  leads7d={leads7dByProject.get(project.id) ?? 0}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                border: '1px dashed var(--border-strong)',
+                borderRadius: 'var(--radius-card)',
+                padding: '40px 20px',
+                textAlign: 'center',
+                color: 'var(--fg-muted)',
+              }}
+            >
+              <p style={{ marginBottom: canEditStructure(membership.role) ? 10 : 0 }}>
+                No hay proyectos en este cliente todavía.
+              </p>
+              {canEditStructure(membership.role) && (
+                <Link href={`/t/${tenant}/p/new`} className="r-btn" data-variant="primary">
+                  Crear el primero →
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </Link>
+    </AppShell>
   );
 }

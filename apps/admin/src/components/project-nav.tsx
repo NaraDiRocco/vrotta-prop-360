@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, Home, Images, Network, Table2, UploadCloud, type LucideIcon } from 'lucide-react';
 import type { Role } from '@/lib/data/types.ts';
 import { canEditStructure } from '@/lib/roles.ts';
 
@@ -42,12 +43,12 @@ export function ProjectNav({
   }
 
   const base = `/t/${tenant}/p/${project.slug}`;
-  const items: { href: string; label: string; glyph: string; show: boolean }[] = [
-    { href: base, label: 'Resumen', glyph: '◎', show: true },
-    { href: `${base}/units`, label: 'Unidades', glyph: '▤', show: true },
-    { href: `${base}/structure`, label: 'Estructura', glyph: '⌗', show: canEditStructure(role) },
-    { href: `${base}/scenes`, label: 'Escenas', glyph: '◈', show: canEditStructure(role) },
-    { href: `${base}/publish`, label: 'Publicar', glyph: '↑', show: role === 'owner' },
+  const items: { href: string; label: string; Icon: LucideIcon; show: boolean }[] = [
+    { href: base, label: 'Resumen', Icon: Home, show: true },
+    { href: `${base}/units`, label: 'Unidades', Icon: Table2, show: true },
+    { href: `${base}/structure`, label: 'Estructura', Icon: Network, show: canEditStructure(role) },
+    { href: `${base}/scenes`, label: 'Escenas', Icon: Images, show: canEditStructure(role) },
+    { href: `${base}/publish`, label: 'Publicar', Icon: UploadCloud, show: role === 'owner' },
   ];
 
   return (
@@ -80,7 +81,7 @@ export function ProjectNav({
           title={collapsed ? 'Expandir' : 'Colapsar'}
           style={{ width: 26, height: 26, padding: 0, justifyContent: 'center' }}
         >
-          {collapsed ? '»' : '«'}
+          {collapsed ? <ChevronRight size={14} strokeWidth={2} aria-hidden /> : <ChevronLeft size={14} strokeWidth={2} aria-hidden />}
         </button>
       </div>
 
@@ -101,13 +102,15 @@ export function ProjectNav({
                     height: 28,
                     padding: '0 8px',
                     borderRadius: 5,
-                    color: active ? 'var(--fg)' : 'var(--fg-muted)',
+                    color: active ? 'var(--accent)' : 'var(--fg-muted)',
                     background: active ? 'var(--bg-sel)' : 'transparent',
                     fontWeight: active ? 600 : 400,
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <span style={{ width: 14, textAlign: 'center' }}>{item.glyph}</span>
+                  <span style={{ width: 14, display: 'grid', placeItems: 'center', flex: 'none' }}>
+                    <item.Icon size={14} strokeWidth={active ? 2 : 1.75} aria-hidden />
+                  </span>
                   {!collapsed && item.label}
                 </Link>
               </li>

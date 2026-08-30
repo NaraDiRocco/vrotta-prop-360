@@ -15,7 +15,10 @@
  */
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Inter variable self-hosted (next/font/local en layout.tsx). La variable
+     --font-inter la publica next/font sobre <html>; el fallback métrico lo
+     genera el propio next/font, así que el swap no salta. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
   --text-xs: 11px;
@@ -24,31 +27,62 @@
   --text-md: 14px;
   --text-lg: 16px;
   --text-xl: 20px;
+  --text-2xl: 26px;
 
   --spacing-row: 32px;
   --spacing-control: 28px;
-  --spacing-rail: 56px;
+  --spacing-rail: 64px;
   --spacing-projbar: 220px;
   --spacing-tree: 200px;
   --spacing-sheet: 420px;
 }
 
 :root {
-  --bg: #ffffff;
-  --bg-subtle: #f7f8f9;
-  --bg-sunken: #f1f3f5;
-  --bg-hover: #eef1f4;
-  --bg-sel: #e6efff;
-  --border: #e3e6ea;
-  --border-strong: #cbd1d8;
-  --fg: #14181d;
-  --fg-muted: #64707d;
-  --fg-faint: #94a0ac;
-  --accent: #1f6feb;
+  /* superficies — contenido blanco sobre lienzo gris */
+  --bg-canvas: #f3f4f6;  /* fondo de página */
+  --bg: #ffffff;         /* superficie de contenido: cards, tabla, sheet */
+  --bg-subtle: #f8f9fa;  /* encabezados de tabla, rail, franjas internas */
+  --bg-sunken: #edeff2;  /* pistas de barras, wells, inputs deshabilitados */
+  --bg-hover: #f1f3f5;   /* hover de fila y de botón ghost */
+  --bg-sel: #e8f0fe;     /* fila/ítem seleccionado */
+
+  /* bordes */
+  --border: #e5e7eb;
+  --border-strong: #cdd2d9;
+
+  /* texto — tres niveles, nada más */
+  --fg: #191c1f;         /* 17.1:1 sobre --bg */
+  --fg-muted: #5b6572;   /* 5.9:1 sobre --bg — etiquetas, th, metadatos */
+  --fg-faint: #98a1ac;   /* 2.6:1 — sólo texto prescindible (placeholder, timestamps) */
+
+  /* acento: interactivo, nunca semántico */
+  --accent: #1b5fd0;         /* 5.8:1 sobre --bg; blanco encima da 5.8:1 */
   --accent-fg: #ffffff;
-  --danger: #dc2626;
-  --warn: #d97706;
-  --ok: #16a34a;
+  --accent-subtle: #e8f0fe;  /* = --bg-sel a propósito: "seleccionado" es una sola seña */
+
+  /* semánticos de INTERFAZ. Vocabulario separado de los estados comerciales
+     (--st-*): estos van en banners, validaciones y toasts con fondo teñido;
+     los comerciales van en puntos, chips y segmentos de barra. Cada par
+     texto/-bg da ≥4.5:1 (medido). */
+  --ui-danger: #c81e2b;  --ui-danger-bg: #fdecec;  --ui-danger-border: #f2b8bc;
+  --ui-warn:   #94540a;  --ui-warn-bg:   #fdf4e3;  --ui-warn-border:   #ead08f;
+  --ui-ok:     #12744a;  --ui-ok-bg:     #e7f6ee;  --ui-ok-border:     #a9dcc2;
+
+  /* Alias de compatibilidad: los consumidores que todavía dicen --danger/
+     --warn/--ok hablan del sistema (errores de guardado, jobs fallidos,
+     validaciones), no del negocio. Apuntan al vocabulario de interfaz para
+     que no compartan hex con vendido/reservado/disponible. */
+  --danger: var(--ui-danger);
+  --warn: var(--ui-warn);
+  --ok: var(--ui-ok);
+
+  --focus-ring: var(--accent);
+
+  --radius-control: 5px;
+  --radius-card: 8px;
+  --shadow-overlay: 0 4px 16px rgb(20 24 29 / 0.14);  /* SÓLO popover/sheet/toast */
+
+  /* densidad (sin cambios) */
   --row-h: 32px;
   --control-h: 28px;
 }
@@ -58,7 +92,7 @@ html {
 }
 
 body {
-  background: var(--bg);
+  background: var(--bg-canvas);
   color: var(--fg);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -74,6 +108,16 @@ td.num,
   font-feature-settings: "tnum" 1;
 }
 
+/* Toda celda numérica de tabla es tabular por defecto, se olvide o no la
+   clase: en una tabla de 1.000 filas una cifra proporcional rompe la columna. */
+.r-td.num,
+.r-th.num,
+.r-td[data-num="true"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  text-align: right;
+}
+
 /* ── primitivas ────────────────────────────────────────────────────────── */
 
 .r-btn {
@@ -83,10 +127,11 @@ td.num,
   height: var(--control-h);
   padding: 0 9px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: var(--bg);
   color: var(--fg);
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -105,7 +150,7 @@ td.num,
   height: var(--control-h);
   padding: 0 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: var(--bg);
   color: var(--fg);
   font-size: 12px;
@@ -142,6 +187,15 @@ td.num,
   color: var(--fg-muted);
 }
 
+/* Superficie de contenido sobre el lienzo: card, sección, panel. Sin sombra —
+   la elevación se hace con superficie + borde; las sombras quedan para los
+   overlays. */
+.r-surface {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
 /* ── tabla densa ───────────────────────────────────────────────────────── */
 
 .r-table { width: 100%; border-collapse: separate; border-spacing: 0; }
@@ -153,7 +207,9 @@ td.num,
   color: var(--fg-muted);
   text-align: left;
   background: var(--bg-subtle);
-  border-bottom: 1px solid var(--border);
+  /* La línea estructural más importante de la pantalla: separa header de
+     cuerpo y no puede pesar lo mismo que un divisor de fila. */
+  border-bottom: 1px solid var(--border-strong);
   white-space: nowrap;
   user-select: none;
 }
@@ -167,9 +223,11 @@ td.num,
 }
 .r-row:hover { background: var(--bg-hover); }
 .r-row[data-selected="true"] { background: var(--bg-sel); }
-.r-row[data-cursor="true"] { box-shadow: inset 2px 0 0 var(--accent); }
+/* Hover dentro de una selección grande tiene que seguir viéndose. */
+.r-row[data-selected="true"]:hover { background: color-mix(in srgb, var(--bg-sel) 70%, var(--bg-hover)); }
+.r-row[data-cursor="true"] { box-shadow: inset 3px 0 0 var(--accent); }
 .r-row[data-pending="true"] { opacity: 0.55; }
-.r-row[data-failed="true"] { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.r-row[data-failed="true"] { background: color-mix(in srgb, var(--ui-danger) 12%, transparent); }
 
 .r-dot {
   display: inline-block;
@@ -181,26 +239,47 @@ td.num,
 
 .r-stack { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--bg-sunken); }
 
-*:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+*:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* Dentro de una fila con overflow oculto un offset positivo se recorta y el
+   foco "desaparece" — en un panel de atajos eso es crítico. */
+.r-row *:focus-visible,
+.r-td *:focus-visible { outline-offset: -2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* El panel es CLARO por decisión de producto: se mira ocho horas seguidas
    sobre tablas densas, y el claro sostiene mejor la lectura prolongada de
    datos. El modo oscuro queda disponible con [data-theme="dark"] en <html>,
-   pero ya no se activa solo por la preferencia del sistema operativo.
+   pero ya no se activa solo por la preferencia del sistema operativo: lo
+   enciende el toggle del rail y se persiste en localStorage (r360.theme).
    (El editor de hotspots es la excepción y fuerza oscuro por su cuenta: el
    marco claro falsea la percepción del color de los polígonos sobre una
    panorámica.) */
 :root[data-theme="dark"] {
-    --bg: #0f1216;
-    --bg-subtle: #151a20;
-    --bg-sunken: #1b2229;
-    --bg-hover: #1d242c;
-    --bg-sel: #16273f;
-    --border: #232a33;
-    --border-strong: #333c47;
-    --fg: #e6ebf1;
-    --fg-muted: #93a1b0;
-    --fg-faint: #6b7885;
-    --accent: #4c8dff;
-    --accent-fg: #0b0e12;
+  --bg-canvas: #0b0e12;
+  --bg: #12161b;
+  --bg-subtle: #171c22;
+  --bg-sunken: #1b2129;
+  --bg-hover: #1e242c;
+  --bg-sel: #17293f;
+  --border: #262e38;
+  --border-strong: #39434f;
+  --fg: #e6ebf1;
+  --fg-muted: #9aa7b4;
+  --fg-faint: #6b7885;
+  --accent: #6ba1ff;
+  --accent-fg: #0b0e12;
+  --accent-subtle: #17293f;
+
+  --ui-danger: #ff7b82;  --ui-danger-bg: color-mix(in srgb, #ff7b82 14%, var(--bg));  --ui-danger-border: color-mix(in srgb, #ff7b82 34%, var(--bg));
+  --ui-warn:   #e5ac52;  --ui-warn-bg:   color-mix(in srgb, #e5ac52 14%, var(--bg));  --ui-warn-border:   color-mix(in srgb, #e5ac52 34%, var(--bg));
+  --ui-ok:     #58cf94;  --ui-ok-bg:     color-mix(in srgb, #58cf94 14%, var(--bg));  --ui-ok-border:     color-mix(in srgb, #58cf94 34%, var(--bg));
+
+  --shadow-overlay: 0 4px 16px rgb(0 0 0 / 0.5);
 }

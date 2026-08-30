@@ -2,7 +2,7 @@
 
 import { STATUS_TOKENS, UNIT_STATUSES } from '@r360/core';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StatusDot } from '@/components/status.tsx';
 import type { GroupRow, UnitPatch, UnitRow, UnitTypeRow } from '@/lib/data/types.ts';
 import type { UnitDetailResponse } from '@/lib/units/api-types.ts';
@@ -31,6 +31,17 @@ export function UnitSheet({
 }) {
   const [tab, setTab] = useState<Tab>('detalle');
 
+  // Entra con un pequeño desplazamiento + fade (§7.4.2): sin esto el panel de
+  // 420px "aparece de golpe" y el ojo pierde de dónde vino. 140ms, nada más
+  // — más y estorba al operar rápido. Se apaga con reduced-motion.
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const reducedMotion =
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   const detail = useQuery<UnitDetailResponse>({
     queryKey: ['unit-detail', projectId, unit.id],
     queryFn: async () => {
@@ -56,6 +67,10 @@ export function UnitSheet({
         flexDirection: 'column',
         background: 'var(--bg)',
         overflow: 'hidden',
+        boxShadow: 'var(--shadow-overlay)',
+        opacity: reducedMotion || entered ? 1 : 0,
+        transform: reducedMotion || entered ? 'translateX(0)' : 'translateX(8px)',
+        transition: reducedMotion ? undefined : 'opacity 140ms ease-out, transform 140ms ease-out',
       }}
     >
       <header

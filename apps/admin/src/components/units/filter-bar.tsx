@@ -2,7 +2,7 @@
 
 import { STATUS_TOKENS, UNIT_STATUSES, type UnitStatus } from '@r360/core';
 import { forwardRef, useEffect, useState } from 'react';
-import { StatusDot } from '@/components/status.tsx';
+import { StatusDot, statusVar, statusTotal } from '@/components/status.tsx';
 import type { StatusCounts, UnitTypeRow } from '@/lib/data/types.ts';
 import type { TableState } from '@/lib/units/url-state.ts';
 
@@ -80,6 +80,52 @@ export const SearchInput = forwardRef<HTMLInputElement, {
     </div>
   );
 });
+
+/**
+ * Barra apilada de la filter bar (§6.5). No reusa el `StatusBar` compartido
+ * de `@/components/status.tsx` a propósito: ese componente lo toca en
+ * paralelo la etapa del dashboard, y acá necesitamos las dos reglas nuevas
+ * (mínimo de segmento y separador) ya, sin pisarnos.
+ *
+ * - Alto 8px.
+ * - Todo estado con count > 0 recibe al menos 6px; el resto se reparte
+ *   proporcional al ancho restante — un estado presente pero invisible
+ *   comunica peor que una proporción distorsionada.
+ * - 1px de separador entre segmentos para que los colores no vibren.
+ */
+function StackedStatusBar({ counts }: { counts: StatusCounts }) {
+  const total = statusTotal(counts);
+  const ordered = [...UNIT_STATUSES].sort((a, b) => STATUS_TOKENS[a].order - STATUS_TOKENS[b].order);
+  const present = ordered.filter((s) => counts[s] > 0);
+
+  if (total === 0 || present.length === 0) {
+    return <div style={{ height: 8, borderRadius: 3, background: 'var(--bg-sunken)', flex: 1, minWidth: 80 }} />;
+  }
+
+  const MIN_PX = 6;
+
+  return (
+    <div
+      role="img"
+      aria-label={present.map((s) => `${STATUS_TOKENS[s].label} ${counts[s]}`).join(' · ')}
+      style={{ display: 'flex', height: 8, borderRadius: 3, overflow: 'hidden', flex: 1, minWidth: 80, gap: 1 }}
+    >
+      {present.map((s) => (
+        <span
+          key={s}
+          title={`${STATUS_TOKENS[s].label}: ${counts[s]}`}
+          style={{
+            // flex-basis fija el mínimo de 6px; flex-grow reparte el resto
+            // del ancho proporcional al conteo. Flexbox resuelve esto sin
+            // necesitar medir el contenedor a mano.
+            flex: `${counts[s]} 0 ${MIN_PX}px`,
+            background: statusVar(s),
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function FilterBar({
   state,
@@ -168,27 +214,44 @@ export function FilterBar({
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-        {UNIT_STATUSES.map((status) => (
-          <button
-            key={status}
-            type="button"
-            className="r-chip"
-            data-on={state.statuses.includes(status)}
-            onClick={() => toggleStatus(status)}
-            title={`Filtrar por ${STATUS_TOKENS[status].label}`}
-          >
-            <StatusDot status={status} size={7} />
-            {STATUS_TOKENS[status].label}
-            <span className="tnum" style={{ color: 'var(--fg-muted)' }}>
-              {counts[status]}
-            </span>
-          </button>
-        ))}
+      {/* Los chips de conteo son la leyenda y el filtro a la vez (§6.4),
+         pegados a la barra apilada (§6.5): comparten orden y color, así que
+         la barra no necesita una leyenda aparte. */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+          {UNIT_STATUSES.map((status) => {
+            const on = state.statuses.includes(status);
+            return (
+              <button
+                key={status}
+                type="button"
+                className="r-chip"
+                data-on={on}
+                onClick={() => toggleStatus(status)}
+                title={`Filtrar por ${STATUS_TOKENS[status].label}`}
+                style={
+                  on
+                    ? {
+                        borderColor: statusVar(status),
+                        background: `color-mix(in srgb, ${statusVar(status)} 10%, var(--bg-subtle))`,
+                      }
+                    : undefined
+                }
+              >
+                <StatusDot status={status} size={7} />
+                {STATUS_TOKENS[status].label}
+                <span className="tnum" style={{ color: 'var(--fg-muted)' }}>
+                  {counts[status]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <StackedStatusBar counts={counts} />
       </div>
 
       {warnings.length > 0 && (
-        <div style={{ fontSize: 11, color: 'var(--warn)' }}>{warnings.join(' ')}</div>
+        <div style={{ fontSize: 11, color: 'var(--ui-warn)' }}>{warnings.join(' ')}</div>
       )}
     </div>
   );

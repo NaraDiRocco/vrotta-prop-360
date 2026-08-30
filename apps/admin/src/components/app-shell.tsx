@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ROLE_LABEL } from '@/lib/roles.ts';
+import { getSession } from '@/lib/auth.ts';
 import type { Membership } from '@/lib/data/types.ts';
 import { isMockMode } from '@/lib/data/repo.ts';
 import { ProjectNav } from './project-nav.tsx';
+import { RailNav } from './rail-nav.tsx';
+import { TenantSwitcher } from './tenant-switcher.tsx';
+import { ThemeToggle } from './theme-toggle.tsx';
 
 export interface Crumb {
   label: string;
@@ -11,12 +15,16 @@ export interface Crumb {
 }
 
 /**
- * Shell del panel: rail de 56px + header con breadcrumb navegable + barra de
+ * Shell del panel: rail de 64px + header con breadcrumb navegable + barra de
  * proyecto de 220px colapsable. Nada de wizards ni de paneles que aparecen y
  * desaparecen: lo opera una persona que va a estar acá ocho horas por día y
  * necesita que las cosas estén siempre en el mismo lugar.
+ *
+ * El rail lleva icono + etiqueta y marca la sección activa. Los 8px extra
+ * respecto de los 56 anteriores son exactamente eso: el lugar de la etiqueta.
+ * No se convierte en sidebar ancho — el ancho de la pantalla es de la tabla.
  */
-export function AppShell({
+export async function AppShell({
   membership,
   crumbs,
   project,
@@ -33,50 +41,51 @@ export function AppShell({
   children: ReactNode;
 }) {
   const tenant = membership.tenantSlug;
+  // La lista de clientes del operador ya viaja en la sesión; el conmutador no
+  // necesita datos nuevos.
+  const session = await getSession();
+  const memberships = session?.memberships.filter((m) => m.role !== 'sales') ?? [membership];
+
   return (
     <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
       <nav
         aria-label="Secciones"
         style={{
-          width: 56,
+          width: 64,
           flex: 'none',
           borderRight: '1px solid var(--border)',
           background: 'var(--bg-subtle)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          paddingTop: 8,
-          gap: 4,
+          paddingTop: 6,
+          gap: 6,
         }}
       >
-        <Link
-          href={`/t/${tenant}/p`}
-          title={membership.tenantName}
+        <TenantSwitcher current={membership} memberships={memberships.length > 0 ? memberships : [membership]} />
+        <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
+        <RailNav tenant={tenant} />
+
+        <div style={{ flex: 1 }} />
+
+        <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
+        <div
           style={{
-            width: 32,
-            height: 32,
-            display: 'grid',
-            placeItems: 'center',
-            borderRadius: 7,
-            background: 'var(--accent)',
-            color: 'var(--accent-fg)',
-            fontWeight: 700,
-            fontSize: 13,
-            marginBottom: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            paddingBottom: 6,
           }}
         >
-          {membership.tenantName.slice(0, 2).toUpperCase()}
-        </Link>
-        <RailLink href={`/t/${tenant}/p`} label="Proyectos" glyph="▤" />
-        <RailLink href={`/t/${tenant}/leads`} label="Leads" glyph="✉" />
-        <RailLink href="/t/new" label="Nuevo cliente" glyph="+" />
-        <div style={{ flex: 1 }} />
-        <span
-          title={`${membership.tenantName} · ${ROLE_LABEL[membership.role]}`}
-          style={{ fontSize: 10, color: 'var(--fg-faint)', paddingBottom: 8, writingMode: 'vertical-rl' }}
-        >
-          {ROLE_LABEL[membership.role]}
-        </span>
+          <ThemeToggle />
+          <span
+            title={`${membership.tenantName} · ${ROLE_LABEL[membership.role]}`}
+            style={{ fontSize: 9, color: 'var(--fg-faint)' }}
+          >
+            {ROLE_LABEL[membership.role]}
+          </span>
+        </div>
       </nav>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -84,6 +93,7 @@ export function AppShell({
           style={{
             height: 40,
             flex: 'none',
+            background: 'var(--bg)',
             borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
@@ -112,8 +122,9 @@ export function AppShell({
                 fontSize: 10,
                 padding: '2px 6px',
                 borderRadius: 4,
-                border: '1px solid var(--warn)',
-                color: 'var(--warn)',
+                border: '1px solid var(--ui-warn-border)',
+                background: 'var(--ui-warn-bg)',
+                color: 'var(--ui-warn)',
               }}
             >
               MOCK
@@ -124,32 +135,21 @@ export function AppShell({
 
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           {project && <ProjectNav tenant={tenant} project={project} role={membership.role} />}
-          <main style={{ flex: 1, minWidth: 0, overflow: fill ? 'hidden' : 'auto', display: fill ? 'flex' : undefined }}>
+          <main
+            style={{
+              flex: 1,
+              minWidth: 0,
+              // Las pantallas de tabla pintan su propia superficie blanca; el
+              // resto vive sobre el lienzo gris.
+              background: fill ? 'var(--bg)' : 'var(--bg-canvas)',
+              overflow: fill ? 'hidden' : 'auto',
+              display: fill ? 'flex' : undefined,
+            }}
+          >
             {children}
           </main>
         </div>
       </div>
     </div>
-  );
-}
-
-function RailLink({ href, label, glyph }: { href: string; label: string; glyph: string }) {
-  return (
-    <Link
-      href={href}
-      title={label}
-      aria-label={label}
-      style={{
-        width: 36,
-        height: 32,
-        display: 'grid',
-        placeItems: 'center',
-        borderRadius: 6,
-        color: 'var(--fg-muted)',
-        fontSize: 15,
-      }}
-    >
-      {glyph}
-    </Link>
   );
 }

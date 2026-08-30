@@ -57,8 +57,13 @@ export function UnitsScreen({
   const [selection, setSelection] = useState<Selection>(EMPTY_SELECTION);
   const [cursor, setCursor] = useState(0);
   const [rowStates, setRowStates] = useState<Record<string, RowState | undefined>>({});
-  const [toast, setToast] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [toast, setToast] = useState<{
+    kind: 'ok' | 'error';
+    text: string;
+    onUndo?: () => void;
+  } | null>(null);
   const [lastToggled, setLastToggled] = useState<string | null>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const patchState = useCallback(
     (patch: Partial<TableState>) => {
@@ -97,7 +102,7 @@ export function UnitsScreen({
 
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
+    const timer = setTimeout(() => setToast(null), toast.onUndo ? 6000 : 4000);
     return () => clearTimeout(timer);
   }, [toast]);
 
@@ -119,7 +124,8 @@ export function UnitsScreen({
     onMutate: async ({ unit, patch }) => {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<UnitsResponse>(queryKey);
-      setRowStates((prev) => ({ ...prev, [unit.code]: 'pending' }));
+      const field = Object.keys(patch)[0];
+      setRowStates((prev) => ({ ...prev, [unit.code]: { kind: 'pending', field } }));
       queryClient.setQueryData<UnitsResponse>(queryKey, (old) =>
         old
           ? {
@@ -132,10 +138,12 @@ export function UnitsScreen({
     },
     onError: (error, _vars, context) => {
       // Rollback visible: vuelve el valor viejo Y la fila queda marcada en
-      // rojo. Un rollback silencioso hace que el usuario crea que guardó.
+      // rojo, con el motivo en el title. Un rollback silencioso hace que el
+      // usuario crea que guardó.
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
-      if (context?.code) setRowStates((prev) => ({ ...prev, [context.code]: 'failed' }));
-      setToast({ kind: 'error', text: error instanceof Error ? error.message : 'No se pudo guardar' });
+      const reason = error instanceof Error ? error.message : 'No se pudo guardar';
+      if (context?.code) setRowStates((prev) => ({ ...prev, [context.code]: { kind: 'failed', reason } }));
+      setToast({ kind: 'error', text: reason });
     },
     onSuccess: (_row, { unit }) => {
       setRowStates((prev) => ({ ...prev, [unit.code]: undefined }));
@@ -146,7 +154,16 @@ export function UnitsScreen({
   });
 
   const bulkStatus = useMutation({
-    mutationFn: async ({ status, note }: { status: UnitStatus; note: string | null }) => {
+    mutationFn: async ({
+      status,
+      note,
+    }: {
+      status: UnitStatus;
+      note: string | null;
+      /** Filas visibles antes del cambio, para poder ofrecer "Deshacer"
+       *  (§7.4.3). No pisa ninguna unidad que no estuviera cargada. */
+      snapshot: UnitRow[];
+    }) => {
       const response = await fetch(`/api/p/${projectId}/bulk-status`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -158,12 +175,19 @@ export function UnitsScreen({
       }
       return (await response.json()) as BulkStatusResponse;
     },
-    onSuccess: (result, { status }) => {
+    onSuccess: (result, { status, snapshot }) => {
+      const undoable = snapshot.filter((row) => row.status !== status);
       setToast({
         kind: 'ok',
         text:
           `${result.changed} unidad(es) → ${STATUS_TOKENS[status].label}` +
           (result.strategy === 'materialize' ? ` · por ${result.reason}, se resolvieron los códigos` : ''),
+        onUndo:
+          undoable.length > 0
+            ? () => {
+                for (const row of undoable) onEdit(row, { status: row.status });
+              }
+            : undefined,
       });
       setSelection(EMPTY_SELECTION);
       void queryClient.invalidateQueries({ queryKey: ['units', projectId] });
@@ -199,6 +223,15 @@ export function UnitsScreen({
   const isSelected = useCallback((code: string) => selectionHas(selection, code), [selection]);
   const selectedCount = selectionCount(selection, total);
   const plan = useMemo(() => planBulkStatusChange(selection, projectId), [selection, projectId]);
+
+  /** Copia de las filas seleccionadas y visibles, tomada ANTES del cambio de
+   *  estado — es lo que permite "Deshacer" sin pedirle nada nuevo al backend
+   *  (§7.4.3). Sólo cubre lo cargado en `rows`; unidades fuera de la página
+   *  actual no entran en el deshacer. */
+  const snapshotSelected = useCallback(
+    () => rows.filter((row) => isSelected(row.code)).map((row) => ({ ...row })),
+    [rows, isSelected],
+  );
 
   /**
    * El predicado de la selección tiene que describir EXACTAMENTE lo que se ve.
@@ -239,11 +272,18 @@ export function UnitsScreen({
         return;
       }
       if (event.key === 'Escape') {
-        if (state.openUnit) patchState({ openUnit: null });
+        if (shortcutsOpen) setShortcutsOpen(false);
+        else if (state.openUnit) patchState({ openUnit: null });
         else setSelection(EMPTY_SELECTION);
         return;
       }
       if (typing) return;
+
+      if (event.key === '?') {
+        event.preventDefault();
+        setShortcutsOpen((v) => !v);
+        return;
+      }
 
       const meta = event.metaKey || event.ctrlKey;
 
@@ -306,7 +346,11 @@ export function UnitsScreen({
         return;
       }
       setSelection({ mode: 'codes', codes: below.map((row) => row.code) });
-      bulkStatus.mutate({ status: source.status, note: `Rellenado desde ${source.code}` });
+      bulkStatus.mutate({
+        status: source.status,
+        note: `Rellenado desde ${source.code}`,
+        snapshot: below.map((row) => ({ ...row })),
+      });
     }
 
     function applyStatus(status: UnitStatus) {
@@ -320,7 +364,7 @@ export function UnitsScreen({
         const ok = window.confirm(`Marcar ${selectedCount} unidad(es) como Vendido. ¿Confirmás?`);
         if (!ok) return;
       }
-      bulkStatus.mutate({ status, note: null });
+      bulkStatus.mutate({ status, note: null, snapshot: snapshotSelected() });
     }
 
     window.addEventListener('keydown', onKeyDown);
@@ -336,6 +380,8 @@ export function UnitsScreen({
     rows,
     selectedCount,
     selectionFilter,
+    shortcutsOpen,
+    snapshotSelected,
     state.openUnit,
   ]);
 
@@ -415,7 +461,7 @@ export function UnitsScreen({
                     const ok = window.confirm(`Marcar ${selectedCount} unidad(es) como Vendido. ¿Confirmás?`);
                     if (!ok) return;
                   }
-                  bulkStatus.mutate({ status, note: null });
+                  bulkStatus.mutate({ status, note: null, snapshot: snapshotSelected() });
                 }}
               >
                 <StatusDot status={status} size={7} />
@@ -450,6 +496,10 @@ export function UnitsScreen({
             patchState({ sort: key, dir: state.sort === key && state.dir === 'asc' ? 'desc' : 'asc', page: 1 })
           }
           loading={units.isLoading}
+          fetching={units.isFetching}
+          onClearFilters={() =>
+            patchState({ q: '', statuses: [], groupIds: [], unitTypeIds: [], m2Min: null, m2Max: null, page: 1 })
+          }
         />
 
         <footer
@@ -508,7 +558,7 @@ export function UnitsScreen({
             <span className="r-kbd">/</span> buscar · <span className="r-kbd">j</span>
             <span className="r-kbd">k</span> mover · <span className="r-kbd">x</span> marcar ·{' '}
             <span className="r-kbd">1</span>–<span className="r-kbd">5</span> estado ·{' '}
-            <span className="r-kbd">⌘D</span> rellenar
+            <span className="r-kbd">⌘D</span> rellenar · <span className="r-kbd">?</span> atajos
           </span>
           {units.isFetching && <span style={{ whiteSpace: 'nowrap' }}>actualizando…</span>}
         </footer>
@@ -533,15 +583,91 @@ export function UnitsScreen({
             bottom: 14,
             left: '50%',
             transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
             padding: '7px 12px',
             borderRadius: 6,
-            background: toast.kind === 'ok' ? 'var(--ok)' : 'var(--danger)',
-            color: '#fff',
+            boxShadow: 'var(--shadow-overlay)',
+            // El toast de edición en lote con Deshacer usa fg/bg invertidos
+            // (§7.4.3); el resto sigue el vocabulario de sistema --ui-*.
+            background: toast.onUndo ? 'var(--fg)' : toast.kind === 'ok' ? 'var(--ui-ok)' : 'var(--ui-danger)',
+            color: toast.onUndo ? 'var(--bg)' : '#fff',
             zIndex: 50,
             maxWidth: '70vw',
           }}
         >
-          {toast.text}
+          <span>{toast.text}</span>
+          {toast.onUndo && (
+            <button
+              type="button"
+              onClick={() => {
+                toast.onUndo?.();
+                setToast(null);
+              }}
+              style={{ color: 'inherit', fontWeight: 600, textDecoration: 'underline', flex: 'none' }}
+            >
+              Deshacer
+            </button>
+          )}
+        </div>
+      )}
+
+      {shortcutsOpen && (
+        <div
+          role="dialog"
+          aria-label="Atajos de teclado"
+          onClick={() => setShortcutsOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'color-mix(in srgb, var(--fg) 35%, transparent)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 60,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="r-surface"
+            style={{ padding: 16, minWidth: 320, boxShadow: 'var(--shadow-overlay)' }}
+          >
+            <header style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+              <strong>Atajos de teclado</strong>
+              <span style={{ flex: 1 }} />
+              <button type="button" className="r-btn" data-variant="ghost" onClick={() => setShortcutsOpen(false)}>
+                ✕
+              </button>
+            </header>
+            <div style={{ display: 'grid', gap: 6, fontSize: 12 }}>
+              {(
+                [
+                  ['/', 'Buscar'],
+                  ['j / k', 'Mover el cursor'],
+                  ['x', 'Marcar la fila del cursor'],
+                  ['Enter', 'Abrir la unidad del cursor'],
+                  ['⌘A', 'Seleccionar todas las cargadas'],
+                  ['⌘⇧A', 'Seleccionar todas las que coinciden con el filtro'],
+                  ['1–5', 'Cambiar estado (fila o selección)'],
+                  ['⌘D', 'Rellenar hacia abajo desde el cursor'],
+                  ['Esc', 'Cerrar el panel o deseleccionar'],
+                  ['?', 'Mostrar/ocultar esta ayuda'],
+                ] as [string, string][]
+              ).map(([keys, help]) => (
+                <div key={keys} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 150, flex: 'none' }}>
+                    {keys.split(' / ').map((k) => (
+                      <span key={k} className="r-kbd" style={{ marginRight: 4 }}>
+                        {k}
+                      </span>
+                    ))}
+                  </span>
+                  <span style={{ color: 'var(--fg-muted)' }}>{help}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
