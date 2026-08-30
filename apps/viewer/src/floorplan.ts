@@ -8,6 +8,7 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import type { AvailabilityFile, Hotspot, Px, Scene, TourManifest } from '@r360/core';
+import { shouldRotate, toLatLng as planToLatLng } from './plan-orientation.ts';
 import { svgStyleFor, tokenFor, tooltipHtml, unitFacts, type MarkerMeta, type UnitFacts } from './polygons.ts';
 import { INFO_TOKEN } from '@r360/core';
 
@@ -21,6 +22,32 @@ interface PlanSource { url: string; width: number; height: number }
 
 function isPlanSource(s: Scene['source']): s is PlanSource {
   return 'url' in s && typeof s.url === 'string';
+}
+
+/** Gira la imagen 90° en sentido horario. Devuelve null si no se pudo. */
+async function rotatedImageUrl(src: string): Promise<string | null> {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise<void>((res, rej) => {
+      img.onload = () => res();
+      img.onerror = () => rej(new Error('no cargo'));
+      img.src = src;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalHeight;
+    canvas.height = img.naturalWidth;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/webp', 0.9));
+    return blob ? URL.createObjectURL(blob) : null;
+  } catch {
+    // Si falla, se muestra sin girar: chico, pero funcional. Nunca en blanco.
+    return null;
+  }
 }
 
 export class FloorplanRenderer implements SceneRenderer {
@@ -49,7 +76,13 @@ export class FloorplanRenderer implements SceneRenderer {
     const { url, width, height } = scene.source;
     this.destroyMap();
 
-    const bounds = L.latLngBounds([0, 0], [height, width]);
+    // Girar el plano cuando es apaisado y la pantalla vertical (ver
+    // `shouldRotate`). Al girar, alto y ancho del lienzo se intercambian.
+    const rot = shouldRotate(width, height, this.el.clientWidth, this.el.clientHeight);
+    const planW = rot ? height : width;
+    const planH = rot ? width : height;
+
+    const bounds = L.latLngBounds([0, 0], [planH, planW]);
     this.map = L.map(this.el, {
       crs: L.CRS.Simple,
       // Piso provisorio: el definitivo se calcula abajo contra el tamaño real
@@ -62,13 +95,23 @@ export class FloorplanRenderer implements SceneRenderer {
       attributionControl: false,
       maxBounds: bounds.pad(0.25),
     });
-    L.imageOverlay(url, bounds).addTo(this.map);
+    const overlay = L.imageOverlay(url, bounds).addTo(this.map);
+    if (rot) {
+      // Se pinta primero sin girar (se ve deformada un instante) y se cambia
+      // por la girada apenas está lista. Preferible a una pantalla vacía
+      // mientras el canvas trabaja sobre una imagen de 15 megapíxeles.
+      void rotatedImageUrl(url).then((rotatedUrl) => {
+        if (rotatedUrl && this.map) overlay.setUrl(rotatedUrl);
+      });
+    }
 
     for (const h of hotspots) {
       if (h.geometryKind !== 'polygon_px' && h.geometryKind !== 'point_px') continue;
       const facts = unitFacts(h, this.tour, availability);
       const { base, fill } = paintFor(facts, this.tour);
-      const toLatLng = (p: Px): L.LatLngExpression => [(1 - p[1]) * height, p[0] * width];
+      // Girado 90° horario: el punto (px,py) pasa a (1-py, px) y el lienzo
+      // intercambia sus lados. Verificado con las cuatro esquinas.
+      const toLatLng = (p: Px): L.LatLngExpression => planToLatLng(p, width, height, rot);
 
       const layer: L.Path =
         h.geometryKind === 'point_px'
