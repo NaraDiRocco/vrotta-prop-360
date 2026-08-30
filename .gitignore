@@ -12,3 +12,5 @@ __pycache__/
 out/
 .wrangler/
 coverage/
+packages/pipeline/out/
+packages/pipeline/*.egg-info/

@@ -1,0 +1,137 @@
+/**
+ * Escenas `floorplan` y `map`: geometría `polygon_px` sobre una imagen plana.
+ *
+ * Leaflet con `L.CRS.Simple` — sin proyección geográfica, el plano es su
+ * propio sistema de coordenadas. Los vértices llegan normalizados 0..1 sobre
+ * el master, así que el mismo dato sirve para cualquier resolución publicada.
+ */
+import L from 'leaflet';
+import type { AvailabilityFile, Hotspot, Px, Scene, TourManifest } from '@r360/core';
+import { svgStyleFor, tokenFor, tooltipHtml, unitFacts, type MarkerMeta } from './polygons.ts';
+import type { SceneRenderer, UnitClickPayload } from './scenes.ts';
+
+interface PlanSource { url: string; width: number; height: number }
+
+function isPlanSource(s: Scene['source']): s is PlanSource {
+  return 'url' in s && typeof s.url === 'string';
+}
+
+export class FloorplanRenderer implements SceneRenderer {
+  private map: L.Map | null = null;
+  private layers = new Map<string, L.Path>();
+  private meta = new Map<string, MarkerMeta>();
+  private codeToIds = new Map<string, string[]>();
+  private readonly el: HTMLElement;
+
+  constructor(
+    private readonly host: HTMLElement,
+    private readonly tour: TourManifest,
+    private readonly onUnitClick: (p: UnitClickPayload) => void,
+  ) {
+    this.el = document.createElement('div');
+    this.el.className = 'r360-plan';
+    this.host.appendChild(this.el);
+  }
+
+  mount(scene: Scene, hotspots: readonly Hotspot[], availability: AvailabilityFile | null): void {
+    if (!isPlanSource(scene.source)) {
+      console.warn(`[r360] La escena "${scene.slug}" es ${scene.kind} pero no trae source.url.`);
+      return;
+    }
+    const { url, width, height } = scene.source;
+    this.destroyMap();
+
+    const bounds = L.latLngBounds([0, 0], [height, width]);
+    this.map = L.map(this.el, {
+      crs: L.CRS.Simple,
+      minZoom: -4,
+      maxZoom: 4,
+      zoomControl: true,
+      attributionControl: false,
+      maxBounds: bounds.pad(0.25),
+    });
+    L.imageOverlay(url, bounds).addTo(this.map);
+    this.map.fitBounds(bounds);
+
+    for (const h of hotspots) {
+      if (h.geometryKind !== 'polygon_px' && h.geometryKind !== 'point_px') continue;
+      const facts = unitFacts(h, this.tour, availability);
+      const { base, fill } = tokenFor(facts.status, this.tour);
+      const toLatLng = (p: Px): L.LatLngExpression => [(1 - p[1]) * height, p[0] * width];
+
+      const layer: L.Path =
+        h.geometryKind === 'point_px'
+          ? L.circleMarker(toLatLng((h.geometry as Px[])[0] ?? [0.5, 0.5]), { radius: 7 })
+          : L.polygon((h.geometry as Px[]).map(toLatLng));
+
+      layer.setStyle({ color: base, weight: 2, fillColor: base, fillOpacity: fill });
+      layer.bindTooltip(tooltipHtml(facts, this.tour), { sticky: true, className: 'r360-leaflet-tip' });
+      layer.on('click', () => this.onUnitClick({ hotspotId: h.id, unitCode: h.unitCode, facts }));
+      layer.addTo(this.map);
+
+      this.layers.set(h.id, layer);
+      this.meta.set(h.id, { hotspotId: h.id, unitCode: h.unitCode, facts });
+      if (h.unitCode) {
+        const list = this.codeToIds.get(h.unitCode) ?? [];
+        list.push(h.id);
+        this.codeToIds.set(h.unitCode, list);
+      }
+    }
+    // El contenedor nace con tamaño 0 si la escena se monta oculta.
+    requestAnimationFrame(() => this.map?.invalidateSize());
+  }
+
+  /** Repinta sólo las unidades cambiadas: no se recrea ninguna capa. */
+  updateStatuses(codes: readonly string[], availability: AvailabilityFile | null): void {
+    for (const code of codes) {
+      for (const id of this.codeToIds.get(code) ?? []) {
+        const layer = this.layers.get(id);
+        const meta = this.meta.get(id);
+        if (!layer || !meta) continue;
+        const facts = unitFacts(
+          { id, sceneId: '', unitCode: code, geometryKind: 'polygon_px', geometry: [] },
+          this.tour,
+          availability,
+        );
+        meta.facts = { ...meta.facts, ...facts };
+        const { base, fill } = tokenFor(facts.status, this.tour);
+        layer.setStyle({ color: base, fillColor: base, fillOpacity: fill });
+        layer.setTooltipContent(tooltipHtml(meta.facts, this.tour));
+      }
+    }
+  }
+
+  focusUnit(code: string): void {
+    const id = this.codeToIds.get(code)?.[0];
+    const layer = id ? this.layers.get(id) : undefined;
+    if (!layer || !this.map) return;
+    if ('getBounds' in layer) this.map.fitBounds((layer as L.Polygon).getBounds(), { maxZoom: 2 });
+    layer.setStyle({ weight: 4 });
+    layer.openTooltip();
+  }
+
+  show(): void {
+    this.el.hidden = false;
+    requestAnimationFrame(() => this.map?.invalidateSize());
+  }
+
+  hide(): void {
+    this.el.hidden = true;
+  }
+
+  destroy(): void {
+    this.destroyMap();
+    this.el.remove();
+  }
+
+  private destroyMap(): void {
+    this.map?.remove();
+    this.map = null;
+    this.layers.clear();
+    this.meta.clear();
+    this.codeToIds.clear();
+  }
+}
+
+/** Reexport para que main.ts no tenga que importar leaflet directamente. */
+export { svgStyleFor };

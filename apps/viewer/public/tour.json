@@ -1,0 +1,1118 @@
+{
+  "schema": 1,
+  "project": "Loteo Los Algarrobos",
+  "version": 1,
+  "tenant": "demo",
+  "availabilityUrl": "./availability.json",
+  "start": "entrada",
+  "scenes": [
+    {
+      "id": "sc-pano",
+      "slug": "entrada",
+      "kind": "panorama",
+      "name": "Entrada al loteo",
+      "source": {
+        "url": "./demo/pano.svg",
+        "width": 4096,
+        "height": 2048
+      },
+      "initialView": {
+        "yaw": 0,
+        "pitch": -0.18,
+        "fov": 70
+      },
+      "northOffset": 0,
+      "sort": 1
+    },
+    {
+      "id": "sc-plan",
+      "slug": "plano",
+      "kind": "floorplan",
+      "name": "Plano general",
+      "source": {
+        "url": "./demo/plan.svg",
+        "width": 1600,
+        "height": 1000
+      },
+      "sort": 2
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "h-A-01",
+      "sceneId": "sc-pano",
+      "unitCode": "A-01",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          -1.2217304763960306,
+          -0.5585053606381855
+        ],
+        [
+          -0.9512044423369096,
+          -0.5585053606381855
+        ],
+        [
+          -0.9512044423369096,
+          -0.35779249665883756
+        ],
+        [
+          -1.2217304763960306,
+          -0.35779249665883756
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-02",
+      "sceneId": "sc-pano",
+      "unitCode": "A-02",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          -0.9162978572970231,
+          -0.5585053606381855
+        ],
+        [
+          -0.6457718232379019,
+          -0.5585053606381855
+        ],
+        [
+          -0.6457718232379019,
+          -0.35779249665883756
+        ],
+        [
+          -0.9162978572970231,
+          -0.35779249665883756
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-03",
+      "sceneId": "sc-pano",
+      "unitCode": "A-03",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          -0.6108652381980153,
+          -0.5585053606381855
+        ],
+        [
+          -0.34033920413889424,
+          -0.5585053606381855
+        ],
+        [
+          -0.34033920413889424,
+          -0.35779249665883756
+        ],
+        [
+          -0.6108652381980153,
+          -0.35779249665883756
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-04",
+      "sceneId": "sc-pano",
+      "unitCode": "A-04",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          -0.30543261909900765,
+          -0.5585053606381855
+        ],
+        [
+          -0.03490658503988659,
+          -0.5585053606381855
+        ],
+        [
+          -0.03490658503988659,
+          -0.35779249665883756
+        ],
+        [
+          -0.30543261909900765,
+          -0.35779249665883756
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-05",
+      "sceneId": "sc-pano",
+      "unitCode": "A-05",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          0,
+          -0.5585053606381855
+        ],
+        [
+          0.27052603405912107,
+          -0.5585053606381855
+        ],
+        [
+          0.27052603405912107,
+          -0.35779249665883756
+        ],
+        [
+          0,
+          -0.35779249665883756
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-06",
+      "sceneId": "sc-pano",
+      "unitCode": "A-06",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          0.30543261909900765,
+          -0.5585053606381855
+        ],
+        [
+          0.5759586531581288,
+          -0.5585053606381855
+        ],
+        [
+          0.5759586531581288,
+          -0.35779249665883756
+        ],
+        [
+          0.30543261909900765,
+          -0.35779249665883756
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-07",
+      "sceneId": "sc-pano",
+      "unitCode": "A-07",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          0.6108652381980153,
+          -0.5585053606381855
+        ],
+        [
+          0.8813912722571364,
+          -0.5585053606381855
+        ],
+        [
+          0.8813912722571364,
+          -0.35779249665883756
+        ],
+        [
+          0.6108652381980153,
+          -0.35779249665883756
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-08",
+      "sceneId": "sc-pano",
+      "unitCode": "A-08",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          0.9162978572970231,
+          -0.5585053606381855
+        ],
+        [
+          1.1868238913561442,
+          -0.5585053606381855
+        ],
+        [
+          1.1868238913561442,
+          -0.35779249665883756
+        ],
+        [
+          0.9162978572970231,
+          -0.35779249665883756
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-09",
+      "sceneId": "sc-pano",
+      "unitCode": "A-09",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          -1.2217304763960306,
+          -0.33161255787892263
+        ],
+        [
+          -0.9512044423369096,
+          -0.33161255787892263
+        ],
+        [
+          -0.9512044423369096,
+          -0.1308996938995747
+        ],
+        [
+          -1.2217304763960306,
+          -0.1308996938995747
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-10",
+      "sceneId": "sc-pano",
+      "unitCode": "A-10",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          -0.9162978572970231,
+          -0.33161255787892263
+        ],
+        [
+          -0.6457718232379019,
+          -0.33161255787892263
+        ],
+        [
+          -0.6457718232379019,
+          -0.1308996938995747
+        ],
+        [
+          -0.9162978572970231,
+          -0.1308996938995747
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-11",
+      "sceneId": "sc-pano",
+      "unitCode": "A-11",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          -0.6108652381980153,
+          -0.33161255787892263
+        ],
+        [
+          -0.34033920413889424,
+          -0.33161255787892263
+        ],
+        [
+          -0.34033920413889424,
+          -0.1308996938995747
+        ],
+        [
+          -0.6108652381980153,
+          -0.1308996938995747
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-12",
+      "sceneId": "sc-pano",
+      "unitCode": "A-12",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          -0.30543261909900765,
+          -0.33161255787892263
+        ],
+        [
+          -0.03490658503988659,
+          -0.33161255787892263
+        ],
+        [
+          -0.03490658503988659,
+          -0.1308996938995747
+        ],
+        [
+          -0.30543261909900765,
+          -0.1308996938995747
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-13",
+      "sceneId": "sc-pano",
+      "unitCode": "A-13",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          0,
+          -0.33161255787892263
+        ],
+        [
+          0.27052603405912107,
+          -0.33161255787892263
+        ],
+        [
+          0.27052603405912107,
+          -0.1308996938995747
+        ],
+        [
+          0,
+          -0.1308996938995747
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-14",
+      "sceneId": "sc-pano",
+      "unitCode": "A-14",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          0.30543261909900765,
+          -0.33161255787892263
+        ],
+        [
+          0.5759586531581288,
+          -0.33161255787892263
+        ],
+        [
+          0.5759586531581288,
+          -0.1308996938995747
+        ],
+        [
+          0.30543261909900765,
+          -0.1308996938995747
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-15",
+      "sceneId": "sc-pano",
+      "unitCode": "A-15",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          0.6108652381980153,
+          -0.33161255787892263
+        ],
+        [
+          0.8813912722571364,
+          -0.33161255787892263
+        ],
+        [
+          0.8813912722571364,
+          -0.1308996938995747
+        ],
+        [
+          0.6108652381980153,
+          -0.1308996938995747
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-A-16",
+      "sceneId": "sc-pano",
+      "unitCode": "A-16",
+      "geometryKind": "polygon_sph",
+      "geometry": [
+        [
+          0.9162978572970231,
+          -0.33161255787892263
+        ],
+        [
+          1.1868238913561442,
+          -0.33161255787892263
+        ],
+        [
+          1.1868238913561442,
+          -0.1308996938995747
+        ],
+        [
+          0.9162978572970231,
+          -0.1308996938995747
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "h-goto-plano",
+      "sceneId": "sc-pano",
+      "unitCode": null,
+      "geometryKind": "point_sph",
+      "geometry": [
+        [
+          2.356194490192345,
+          -0.1
+        ]
+      ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "plano"
+      },
+      "label": "Ver plano",
+      "zIndex": 50
+    },
+    {
+      "id": "hp-A-01",
+      "sceneId": "sc-plan",
+      "unitCode": "A-01",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.08,
+          0.12
+        ],
+        [
+          0.16999999999999998,
+          0.12
+        ],
+        [
+          0.16999999999999998,
+          0.38
+        ],
+        [
+          0.08,
+          0.38
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-02",
+      "sceneId": "sc-plan",
+      "unitCode": "A-02",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.185,
+          0.12
+        ],
+        [
+          0.275,
+          0.12
+        ],
+        [
+          0.275,
+          0.38
+        ],
+        [
+          0.185,
+          0.38
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-03",
+      "sceneId": "sc-plan",
+      "unitCode": "A-03",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.29,
+          0.12
+        ],
+        [
+          0.38,
+          0.12
+        ],
+        [
+          0.38,
+          0.38
+        ],
+        [
+          0.29,
+          0.38
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-04",
+      "sceneId": "sc-plan",
+      "unitCode": "A-04",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.395,
+          0.12
+        ],
+        [
+          0.485,
+          0.12
+        ],
+        [
+          0.485,
+          0.38
+        ],
+        [
+          0.395,
+          0.38
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-05",
+      "sceneId": "sc-plan",
+      "unitCode": "A-05",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.5,
+          0.12
+        ],
+        [
+          0.59,
+          0.12
+        ],
+        [
+          0.59,
+          0.38
+        ],
+        [
+          0.5,
+          0.38
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-06",
+      "sceneId": "sc-plan",
+      "unitCode": "A-06",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.605,
+          0.12
+        ],
+        [
+          0.695,
+          0.12
+        ],
+        [
+          0.695,
+          0.38
+        ],
+        [
+          0.605,
+          0.38
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-07",
+      "sceneId": "sc-plan",
+      "unitCode": "A-07",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.71,
+          0.12
+        ],
+        [
+          0.7999999999999999,
+          0.12
+        ],
+        [
+          0.7999999999999999,
+          0.38
+        ],
+        [
+          0.71,
+          0.38
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-08",
+      "sceneId": "sc-plan",
+      "unitCode": "A-08",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.815,
+          0.12
+        ],
+        [
+          0.9049999999999999,
+          0.12
+        ],
+        [
+          0.9049999999999999,
+          0.38
+        ],
+        [
+          0.815,
+          0.38
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-09",
+      "sceneId": "sc-plan",
+      "unitCode": "A-09",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.08,
+          0.6
+        ],
+        [
+          0.16999999999999998,
+          0.6
+        ],
+        [
+          0.16999999999999998,
+          0.86
+        ],
+        [
+          0.08,
+          0.86
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-10",
+      "sceneId": "sc-plan",
+      "unitCode": "A-10",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.185,
+          0.6
+        ],
+        [
+          0.275,
+          0.6
+        ],
+        [
+          0.275,
+          0.86
+        ],
+        [
+          0.185,
+          0.86
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-11",
+      "sceneId": "sc-plan",
+      "unitCode": "A-11",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.29,
+          0.6
+        ],
+        [
+          0.38,
+          0.6
+        ],
+        [
+          0.38,
+          0.86
+        ],
+        [
+          0.29,
+          0.86
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-12",
+      "sceneId": "sc-plan",
+      "unitCode": "A-12",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.395,
+          0.6
+        ],
+        [
+          0.485,
+          0.6
+        ],
+        [
+          0.485,
+          0.86
+        ],
+        [
+          0.395,
+          0.86
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-13",
+      "sceneId": "sc-plan",
+      "unitCode": "A-13",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.5,
+          0.6
+        ],
+        [
+          0.59,
+          0.6
+        ],
+        [
+          0.59,
+          0.86
+        ],
+        [
+          0.5,
+          0.86
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-14",
+      "sceneId": "sc-plan",
+      "unitCode": "A-14",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.605,
+          0.6
+        ],
+        [
+          0.695,
+          0.6
+        ],
+        [
+          0.695,
+          0.86
+        ],
+        [
+          0.605,
+          0.86
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-15",
+      "sceneId": "sc-plan",
+      "unitCode": "A-15",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.71,
+          0.6
+        ],
+        [
+          0.7999999999999999,
+          0.6
+        ],
+        [
+          0.7999999999999999,
+          0.86
+        ],
+        [
+          0.71,
+          0.86
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "hp-A-16",
+      "sceneId": "sc-plan",
+      "unitCode": "A-16",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.815,
+          0.6
+        ],
+        [
+          0.9049999999999999,
+          0.6
+        ],
+        [
+          0.9049999999999999,
+          0.86
+        ],
+        [
+          0.815,
+          0.86
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 1
+    }
+  ],
+  "units": {
+    "A-01": {
+      "label": "A-01",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 315,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 26
+      }
+    },
+    "A-02": {
+      "label": "A-02",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 330,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 27
+      }
+    },
+    "A-03": {
+      "label": "A-03",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 345,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 28
+      }
+    },
+    "A-04": {
+      "label": "A-04",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 360,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 29
+      }
+    },
+    "A-05": {
+      "label": "A-05",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 375,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 30
+      }
+    },
+    "A-06": {
+      "label": "A-06",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 390,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 31
+      }
+    },
+    "A-07": {
+      "label": "A-07",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 405,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 32
+      }
+    },
+    "A-08": {
+      "label": "A-08",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 420,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 33
+      }
+    },
+    "A-09": {
+      "label": "A-09",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 435,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 34
+      }
+    },
+    "A-10": {
+      "label": "A-10",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 450,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 35
+      }
+    },
+    "A-11": {
+      "label": "A-11",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 465,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 36
+      }
+    },
+    "A-12": {
+      "label": "A-12",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 480,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 37
+      }
+    },
+    "A-13": {
+      "label": "A-13",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 495,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 38
+      }
+    },
+    "A-14": {
+      "label": "A-14",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 510,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 39
+      }
+    },
+    "A-15": {
+      "label": "A-15",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 525,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 40
+      }
+    },
+    "A-16": {
+      "label": "A-16",
+      "groupCode": "MZ-A",
+      "typeCode": "lote",
+      "areaTotalM2": 540,
+      "attrs": {
+        "frente_m": 12,
+        "fondo_m": 41
+      }
+    }
+  }
+}

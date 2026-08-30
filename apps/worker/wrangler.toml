@@ -1,0 +1,47 @@
+name = "r360-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ---------------------------------------------------------------------------
+# Bindings — ver README.md para los pasos exactos de creación en Cloudflare.
+# ---------------------------------------------------------------------------
+
+# KV: config de tenants (frame-ancestors, webhook CRM, feature flags de
+# embed-token), punteros de versión activa (`ptr:{tenant}:{project}`) y
+# revocación de tokens (`revoked:{tenant}`).
+# Crear con: wrangler kv namespace create TENANTS_KV
+[[kv_namespaces]]
+binding = "TENANTS_KV"
+id = "REEMPLAZAR_CON_ID_DE_PRODUCCION"
+preview_id = "REEMPLAZAR_CON_ID_DE_PREVIEW"
+
+# R2: tour.json / availability.json / shell HTML por versión, y los tiles.
+# IMPORTANTE: los tiles se sirven vía el dominio público del bucket (custom
+# domain + Cloudflare cache), NO a través de este Worker — ver
+# src/routes/serve.ts. Este binding es sólo para que el Worker lea/escriba
+# tour.json, availability.json y el shell HTML.
+# Crear con: wrangler r2 bucket create r360-tours
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "r360-tours"
+preview_bucket_name = "r360-tours-preview"
+
+# ---------------------------------------------------------------------------
+# Secrets — NO van acá en texto plano. Configurar con:
+#   wrangler secret put EMBED_HMAC_SECRET
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SERVICE_KEY
+# (SUPABASE_URL no es sensible en sí, pero se maneja como secret para no
+# tener que tocar wrangler.toml por ambiente; alternativamente puede ir como
+# [vars] si se prefiere tenerla visible en el repo).
+# ---------------------------------------------------------------------------
+
+[env.production]
+# Sobreescribir acá los ids de KV/R2 de producción si se separan por entorno.
+
+[env.staging]
+# Idem para staging.
+
+[observability]
+enabled = true

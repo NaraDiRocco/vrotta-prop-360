@@ -1,0 +1,75 @@
+{
+  "v": 1,
+  "generated_at": "2026-08-30T05:33:00.212Z",
+  "units": {
+    "A-01": {
+      "s": "disponible",
+      "p": {
+        "a": 18000,
+        "c": "USD"
+      }
+    },
+    "A-02": {
+      "s": "reservado",
+      "p": null
+    },
+    "A-03": {
+      "s": "vendido",
+      "p": null
+    },
+    "A-04": {
+      "s": "bloqueado",
+      "p": null
+    },
+    "A-05": {
+      "s": "no_disponible",
+      "p": null
+    },
+    "A-06": {
+      "s": "disponible",
+      "p": {
+        "a": 22750,
+        "c": "USD"
+      }
+    },
+    "A-07": {
+      "s": "reservado",
+      "p": null
+    },
+    "A-08": {
+      "s": "vendido",
+      "p": null
+    },
+    "A-09": {
+      "s": "bloqueado",
+      "p": null
+    },
+    "A-10": {
+      "s": "no_disponible",
+      "p": null
+    },
+    "A-11": {
+      "s": "disponible",
+      "p": {
+        "a": 27500,
+        "c": "USD"
+      }
+    },
+    "A-12": {
+      "s": "reservado",
+      "p": null
+    },
+    "A-13": {
+      "s": "vendido",
+      "p": null
+    },
+    "A-14": {
+      "s": "bloqueado",
+      "p": null
+    },
+    "A-15": {
+      "s": "en_promocion",
+      "p": null
+    }
+  }
+}

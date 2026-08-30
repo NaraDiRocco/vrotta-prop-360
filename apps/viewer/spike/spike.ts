@@ -7,6 +7,7 @@
  *
  * Uso:  /spike/?n=600&densify=1&step=2&stress=1&cull=0
  */
+import '@photo-sphere-viewer/core/index.css';
 import { Viewer } from '@photo-sphere-viewer/core';
 import { MarkersPlugin, type MarkerConfig } from '@photo-sphere-viewer/markers-plugin';
 import {
