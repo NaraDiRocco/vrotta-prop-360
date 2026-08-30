@@ -9,6 +9,7 @@
  * el gesto que más convierte en este producto.
  */
 import { Viewer } from '@photo-sphere-viewer/core';
+import { CubemapTilesAdapter } from '@photo-sphere-viewer/cubemap-tiles-adapter';
 import { MarkersPlugin, events as markerEvents } from '@photo-sphere-viewer/markers-plugin';
 import {
   normalizeYaw,
@@ -28,6 +29,7 @@ import {
   type MarkerMeta,
   type UnitFacts,
 } from './polygons.ts';
+import { tiledSourceToPsvPanorama } from './tiledCubemap.ts';
 import type { FloorplanRenderer } from './floorplan.ts';
 
 export interface UnitClickPayload {
@@ -67,26 +69,33 @@ function isTiled(s: Scene['source']): s is TiledSource {
   return 'base' in s;
 }
 
-/** URL de panorámica equirectangular. El adaptador de tiles llega con el pipeline. */
-function panoramaUrl(scene: Scene): string {
-  if (isTiled(scene.source)) {
-    console.info(
-      `[r360] La escena "${scene.slug}" viene en tiles; el visor base carga la ` +
-        `previsualización. El adaptador de tiles se conecta con el pipeline.`,
-    );
-    return `${scene.source.base.replace(/\/$/, '')}/preview.jpg`;
-  }
-  return scene.source.url;
+/**
+ * Resuelve una ruta de `TiledSource.base` (relativa a la raíz del sitio,
+ * normalmente algo como `/t/{tenant}/{proyecto}/v{N}/scenes/{slug}/tiles`)
+ * contra la ubicación actual del documento.
+ */
+function resolveTileUrl(path: string): string {
+  return new URL(path, location.href).href;
+}
+
+/** Adaptador PSV + tipo de panorama a usar para una escena dada. */
+type PanoramaKind = 'equirect' | 'cubemap-tiles';
+
+function panoramaKindFor(scene: Scene): PanoramaKind {
+  return isTiled(scene.source) ? 'cubemap-tiles' : 'equirect';
 }
 
 export class PanoramaRenderer implements SceneRenderer {
-  readonly viewer: Viewer;
-  private readonly markers: MarkersPlugin;
+  viewer?: Viewer;
+  private markers?: MarkersPlugin;
   private readonly el: HTMLElement;
   private meta = new Map<string, MarkerMeta>();
   private codeToIds = new Map<string, string[]>();
   private anchors = new Map<string, Sph>();
-  private mounted = false;
+  /** El adaptador PSV queda fijo por instancia de Viewer: si la escena
+   * siguiente necesita otro adaptador (tiles ↔ equirectangular simple), se
+   * recrea el Viewer entero en vez de intentar mutarlo. */
+  private kind: PanoramaKind | null = null;
   /** Único hotspot resaltado a la vez: si no, se acumulan bordes gruesos. */
   private highlighted: string | null = null;
 
@@ -98,13 +107,24 @@ export class PanoramaRenderer implements SceneRenderer {
     this.el = document.createElement('div');
     this.el.className = 'r360-pano';
     host.appendChild(this.el);
+  }
+
+  private ensureViewer(kind: PanoramaKind): boolean {
+    if (this.kind === kind) return false;
+    this.viewer?.destroy();
+    this.kind = kind;
 
     this.viewer = new Viewer({
       container: this.el,
-      panorama: TRANSPARENT_PIXEL,
+      // El placeholder transparente sólo es una panorámica válida para el
+      // adaptador equirectangular (una URL de imagen); CubemapTilesAdapter
+      // exige un objeto `{ tileUrl, ... }` desde el arranque, así que para
+      // ese caso se omite acá y se resuelve en el primer `mount()`.
+      panorama: kind === 'equirect' ? TRANSPARENT_PIXEL : undefined,
       navbar: ['zoom', 'move', 'fullscreen'],
       defaultZoomLvl: 45,
       touchmoveTwoFingers: true,
+      adapter: kind === 'cubemap-tiles' ? CubemapTilesAdapter : undefined,
       plugins: [[MarkersPlugin, { defaultHoverScale: false }]],
     });
     this.markers = this.viewer.getPlugin<MarkersPlugin>(MarkersPlugin);
@@ -114,6 +134,7 @@ export class PanoramaRenderer implements SceneRenderer {
       const meta = this.meta.get(id);
       if (meta) this.onUnitClick({ hotspotId: id, unitCode: meta.unitCode, facts: meta.facts });
     });
+    return true;
   }
 
   mount(scene: Scene, hotspots: readonly Hotspot[], availability: AvailabilityFile | null): void {
@@ -138,24 +159,38 @@ export class PanoramaRenderer implements SceneRenderer {
     }
 
     const apply = () => {
-      this.markers.setMarkers(built.markers);
+      this.markers!.setMarkers(built.markers);
       if (scene.initialView) {
-        this.viewer.rotate({ yaw: scene.initialView.yaw, pitch: scene.initialView.pitch });
-        this.viewer.zoom(fovToZoom(scene.initialView.fov));
+        this.viewer!.rotate({ yaw: scene.initialView.yaw, pitch: scene.initialView.pitch });
+        this.viewer!.zoom(fovToZoom(scene.initialView.fov));
       }
     };
 
-    const url = panoramaUrl(scene);
-    if (!this.mounted) {
-      this.mounted = true;
-      this.viewer.setPanorama(url, { transition: false, showLoader: true }).then(apply, warn);
-    } else {
+    const kind = panoramaKindFor(scene);
+    const recreated = this.ensureViewer(kind);
+
+    if (kind === 'cubemap-tiles') {
+      const panorama = tiledSourceToPsvPanorama(scene.source as TiledSource, resolveTileUrl);
+      // El adaptador de tiles no soporta `transition` sin un `baseUrl` de
+      // cubemap de baja resolución (que no generamos: nuestro preview del
+      // pipeline es equirectangular, no un cubemap de 6 caras). Se corta en
+      // seco a la textura nueva; es el mismo comportamiento que un
+      // `showLoader` sin cross-fade.
+      this.viewer!.setPanorama(panorama, { transition: false, showLoader: true }).then(apply, warn);
+    } else if (!recreated) {
       // `transition: true` hace el cross-fade entre escenas; los marcadores se
       // limpian antes para que no queden polígonos de la escena anterior
       // flotando sobre la nueva mientras dura el fundido.
-      this.markers.clearMarkers();
-      this.viewer
-        .setPanorama(url, { transition: { speed: 900, effect: 'fade', rotation: false }, showLoader: true })
+      this.markers!.clearMarkers();
+      this.viewer!
+        .setPanorama((scene.source as { url: string }).url, {
+          transition: { speed: 900, effect: 'fade', rotation: false },
+          showLoader: true,
+        })
+        .then(apply, warn);
+    } else {
+      this.viewer!
+        .setPanorama((scene.source as { url: string }).url, { transition: false, showLoader: true })
         .then(apply, warn);
     }
   }
@@ -171,7 +206,7 @@ export class PanoramaRenderer implements SceneRenderer {
           availability,
         );
         // `render: false`: un solo repintado al final del lote (ver spike).
-        this.markers.updateMarker(
+        this.markers!.updateMarker(
           {
             id,
             svgStyle: svgStyleFor(meta.facts.status, this.tour),
@@ -181,7 +216,7 @@ export class PanoramaRenderer implements SceneRenderer {
         );
       }
     }
-    this.viewer.needsUpdate();
+    this.viewer!.needsUpdate();
   }
 
   focusUnit(code: string): void {
@@ -189,10 +224,10 @@ export class PanoramaRenderer implements SceneRenderer {
     if (!id) return;
     this.clearHighlight();
     const at = this.anchors.get(id);
-    if (at) this.viewer.animate({ yaw: normalizeYaw(at[0]), pitch: at[1], speed: '10rpm' });
+    if (at) this.viewer!.animate({ yaw: normalizeYaw(at[0]), pitch: at[1], speed: '10rpm' });
     const meta = this.meta.get(id);
     if (meta) {
-      this.markers.updateMarker({ id, svgStyle: svgStyleFor(meta.facts.status, this.tour, { highlighted: true }) });
+      this.markers!.updateMarker({ id, svgStyle: svgStyleFor(meta.facts.status, this.tour, { highlighted: true }) });
       this.highlighted = id;
     }
   }
@@ -202,12 +237,12 @@ export class PanoramaRenderer implements SceneRenderer {
     this.highlighted = null;
     if (!prev) return;
     const meta = this.meta.get(prev);
-    if (meta) this.markers.updateMarker({ id: prev, svgStyle: svgStyleFor(meta.facts.status, this.tour) });
+    if (meta) this.markers!.updateMarker({ id: prev, svgStyle: svgStyleFor(meta.facts.status, this.tour) });
   }
 
-  show(): void { this.el.classList.remove('r360-hidden'); this.viewer.needsUpdate(); }
+  show(): void { this.el.classList.remove('r360-hidden'); this.viewer?.needsUpdate(); }
   hide(): void { this.el.classList.add('r360-hidden'); }
-  destroy(): void { this.viewer.destroy(); this.el.remove(); }
+  destroy(): void { this.viewer?.destroy(); this.el.remove(); }
 }
 
 function warn(err: unknown): void {

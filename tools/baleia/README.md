@@ -214,3 +214,36 @@ Esto es lo que **no estaba en el material disponible** y bloquea pasar de
   las piscinas) **no tiene polígono propio** en el GeoJSON — no está entre
   las letras A/D/E/F/G pedidas y no es una unidad vendible, así que se dejó
   afuera a propósito.
+
+## Recorrido publicable (tour.json + availability.json)
+
+`scripts/build_tour.py` toma `out/baleia_hotspots.geojson` y
+`out/baleia_unidades.csv` (los dos artefactos de arriba, ya verificados) y
+genera `out/tour/`:
+
+```bash
+cd tools/baleia && source .venv/bin/activate
+python3 scripts/build_tour.py
+```
+
+- `tour.json` — `TourManifest`: una escena `floorplan` (el masterplan
+  recomprimido a WebP, ver decisión #1 en el docstring del script sobre
+  por qué imagen única y no DZI) con los 11 hotspots del GeoJSON (`B1`-`B5`
+  apuntan a sí mismos como "unidad" para heredar el pipeline de colores de
+  estado sin tocar `packages/core`; los amenities son informativos, sin
+  `unitCode`) y las 20 unidades del CSV en `units`.
+- `availability.json` — `AvailabilityFile` con estados de DEMOSTRACIÓN
+  (round-robin sintético, no reales: el brochure no trae stock, ver arriba)
+  y precios siempre en `null`.
+- Demuestra la regla dura del visor (un hotspot nunca desaparece por dato
+  ausente/raro, ver `apps/viewer/src/polygons.ts`) en dos capas: **Bloque 1**
+  queda fuera de `availability.json` y **Bloque 4** recibe un estado
+  inventado (`en_promocion`) que el visor no conoce — ambos deben verse en
+  gris con warning en consola. El mismo patrón se repite a nivel unidad
+  individual con `B3-K` (ausente) y `B3-J` (`en_pausa`).
+- El detalle completo de cada decisión (por qué imagen única, por qué los
+  bloques son "unidad-grupo", por qué los amenities salen en gris con
+  "(sin dato)") está en el docstring de `scripts/build_tour.py` — no se
+  repite acá para no desincronizarse.
+- `out/tour/` no está versionado (mismo `.gitignore` que el resto de
+  `out/`); correr el script siempre lo regenera.

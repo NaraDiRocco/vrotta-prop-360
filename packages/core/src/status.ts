@@ -39,3 +39,28 @@ export function isUnitStatus(v: unknown): v is UnitStatus {
 
 /** Estado de fallback. Nunca desaparece un hotspot en silencio. */
 export const FALLBACK_STATUS: UnitStatus = 'no_disponible';
+
+/**
+ * Estilo de los hotspots INFORMATIVOS: amenities, perímetros, puntos de
+ * interés. No son unidades vendibles, así que no tienen estado comercial y
+ * no deben resolverse contra availability.json.
+ *
+ * Sin esto un amenity caía en FALLBACK_STATUS y se dibujaba gris con un
+ * "(sin dato)" en el tooltip, como si le faltara información. No le falta:
+ * una laguna no está ni disponible ni vendida.
+ */
+export const INFO_TOKEN: Omit<StatusToken, 'order'> = {
+  base: '#0EA5E9',
+  fill: 0.18,
+  label: 'Punto de interés',
+  pattern: 'solid',
+};
+
+/**
+ * Un hotspot es informativo cuando no apunta a ninguna unidad vendible.
+ * Se decide por la ausencia de `unitCode`, no por una bandera aparte: así no
+ * pueden quedar en desacuerdo.
+ */
+export function isInformationalHotspot(h: { unitCode: string | null }): boolean {
+  return h.unitCode === null || h.unitCode === undefined || h.unitCode === '';
+}

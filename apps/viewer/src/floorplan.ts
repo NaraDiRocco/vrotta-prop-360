@@ -8,7 +8,13 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import type { AvailabilityFile, Hotspot, Px, Scene, TourManifest } from '@r360/core';
-import { svgStyleFor, tokenFor, tooltipHtml, unitFacts, type MarkerMeta } from './polygons.ts';
+import { svgStyleFor, tokenFor, tooltipHtml, unitFacts, type MarkerMeta, type UnitFacts } from './polygons.ts';
+import { INFO_TOKEN } from '@r360/core';
+
+/** Un amenity no tiene estado comercial: se pinta con su propio token. */
+function paintFor(facts: UnitFacts, tour: Parameters<typeof tokenFor>[1]) {
+  return facts.informational ? { base: INFO_TOKEN.base, fill: INFO_TOKEN.fill } : tokenFor(facts.status, tour);
+}
 import type { SceneRenderer, UnitClickPayload } from './scenes.ts';
 
 interface PlanSource { url: string; width: number; height: number }
@@ -57,7 +63,7 @@ export class FloorplanRenderer implements SceneRenderer {
     for (const h of hotspots) {
       if (h.geometryKind !== 'polygon_px' && h.geometryKind !== 'point_px') continue;
       const facts = unitFacts(h, this.tour, availability);
-      const { base, fill } = tokenFor(facts.status, this.tour);
+      const { base, fill } = paintFor(facts, this.tour);
       const toLatLng = (p: Px): L.LatLngExpression => [(1 - p[1]) * height, p[0] * width];
 
       const layer: L.Path =
@@ -67,7 +73,14 @@ export class FloorplanRenderer implements SceneRenderer {
 
       layer.setStyle({ color: base, weight: 2, fillColor: base, fillOpacity: fill });
       layer.bindTooltip(tooltipHtml(facts, this.tour), { sticky: true, className: 'r360-leaflet-tip' });
-      layer.on('click', () => this.onUnitClick({ hotspotId: h.id, unitCode: h.unitCode, facts }));
+      // Lee `facts` de `this.meta` (no de la closure de arriba): si no,
+      // un click después de un refresco de disponibilidad emite el estado
+      // viejo con el que se montó la escena, aunque el polígono ya se haya
+      // repintado con el color nuevo.
+      layer.on('click', () => {
+        const current = this.meta.get(h.id)?.facts ?? facts;
+        this.onUnitClick({ hotspotId: h.id, unitCode: h.unitCode, facts: current });
+      });
       layer.addTo(this.map);
 
       this.layers.set(h.id, layer);
@@ -100,7 +113,7 @@ export class FloorplanRenderer implements SceneRenderer {
           availability,
         );
         meta.facts = { ...meta.facts, ...facts };
-        const { base, fill } = tokenFor(facts.status, this.tour);
+        const { base, fill } = paintFor(facts, this.tour);
         layer.setStyle({ color: base, fillColor: base, fillOpacity: fill });
         layer.setTooltipContent(tooltipHtml(meta.facts, this.tour));
       }

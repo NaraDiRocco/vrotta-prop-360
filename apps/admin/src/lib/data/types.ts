@@ -1,4 +1,4 @@
-import type { UnitStatus } from '@r360/core';
+import type { SceneKind, UnitStatus } from '@r360/core';
 
 export type Role = 'owner' | 'editor' | 'sales';
 
@@ -109,4 +109,127 @@ export interface UnitPatch {
   groupId?: string | null;
   unitTypeId?: string | null;
   attrs?: Record<string, unknown>;
+}
+
+/* ── Escenas y procesamiento ─────────────────────────────────────────── */
+
+export interface SceneRow {
+  id: string;
+  projectId: string;
+  slug: string;
+  kind: SceneKind;
+  name: string;
+  source: Record<string, unknown>;
+  sort: number;
+  isInitial: boolean;
+  hotspotCount: number;
+  createdAt: string;
+}
+
+export type JobStatus = 'queued' | 'running' | 'done' | 'failed' | 'canceled';
+
+export interface JobRow {
+  id: string;
+  projectId: string;
+  sceneId: string | null;
+  sceneName: string | null;
+  kind: string;
+  status: JobStatus;
+  progress: number;
+  etaS: number | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Resultado de validar un archivo antes de subir un byte. */
+export interface UploadValidationIssue {
+  code:
+    | 'formato'
+    | 'aspecto'
+    | 'resolucion'
+    | 'tamano'
+    | 'dimensiones';
+  message: string;
+}
+
+export interface UploadValidationResult {
+  ok: boolean;
+  issues: UploadValidationIssue[];
+}
+
+/* ── Publicación ──────────────────────────────────────────────────────── */
+
+export interface PublicationRow {
+  id: string;
+  projectId: string;
+  version: number;
+  note: string | null;
+  publishedByEmail: string | null;
+  publishedAt: string;
+}
+
+export type DiffSection = 'units' | 'hotspots' | 'scenes' | 'config';
+export type DiffChangeKind = 'added' | 'removed' | 'modified';
+
+export interface DiffEntry {
+  id: string;
+  section: DiffSection;
+  kind: DiffChangeKind;
+  label: string;
+  detail: string;
+  /** Deeplink a la pantalla que originó el cambio. */
+  href: string;
+}
+
+export interface PublishWarning {
+  id: string;
+  message: string;
+  href: string;
+}
+
+export interface PublishState {
+  liveVersion: number | null;
+  livePublishedAt: string | null;
+  draftChanges: DiffEntry[];
+  warnings: PublishWarning[];
+}
+
+export interface PreviewTokenRow {
+  token: string;
+  note: string | null;
+  createdAt: string;
+  expiresAt: string;
+  revoked: boolean;
+}
+
+/* ── Leads ────────────────────────────────────────────────────────────── */
+
+export type LeadStatus = 'nuevo' | 'contactado' | 'calificado' | 'descartado' | 'ganado';
+export type LeadChannel = 'form' | 'crm_webhook' | 'whatsapp';
+
+export interface LeadRow {
+  id: string;
+  projectId: string;
+  projectSlug: string;
+  projectName: string;
+  unitId: string | null;
+  unitCode: string | null;
+  unitStatus: UnitStatus | null;
+  channel: LeadChannel | string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  message: string | null;
+  status: LeadStatus;
+  read: boolean;
+  notes: string | null;
+  source: { url?: string; referrer?: string; utm?: Record<string, string>; device?: string } | null;
+  createdAt: string;
+}
+
+export interface LeadPatch {
+  status?: LeadStatus;
+  read?: boolean;
+  notes?: string;
 }

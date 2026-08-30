@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { isUnitStatus } from '@r360/core';
 import { getSession } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
-import type { BulkStatusRequest, BulkStatusResponse } from '@/lib/units/api-types.ts';
+import type { BulkStatusResponse } from '@/lib/units/api-types.ts';
+import { validateBulkStatusBody } from '@/lib/units/bulk-status-validation.ts';
 import { matchingCodes } from '@/lib/units/query.ts';
 import { chunk, planBulkStatusChange, type RpcFilter } from '@/lib/units/selection.ts';
 
@@ -17,16 +17,29 @@ import { chunk, planBulkStatusChange, type RpcFilter } from '@/lib/units/selecti
  * polígono", exclusiones a mano), acá — en el servidor, no en el navegador —
  * se resuelven los códigos que matchean y se mandan en tandas. La respuesta
  * dice qué camino se tomó, y la UI lo muestra: nada de magia silenciosa.
+ *
+ * La validación del body vive en `bulk-status-validation.ts` (testeada
+ * aparte): un body incompleto o malformado devuelve 400 con el campo que
+ * falta, en vez de tirar una excepción no atrapada camino a un 500 vacío.
  */
 export async function POST(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
 
   const { project } = await ctx.params;
-  const body = (await request.json()) as BulkStatusRequest;
 
-  if (!isUnitStatus(body.status)) return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
-  if (!body.selection) return NextResponse.json({ error: 'Falta la selección' }, { status: 400 });
+  let raw: unknown;
+  try {
+    raw = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Cuerpo inválido', field: 'body' }, { status: 400 });
+  }
+
+  const validated = validateBulkStatusBody(raw);
+  if (!validated.ok) {
+    return NextResponse.json({ error: validated.error, field: validated.field }, { status: 400 });
+  }
+  const body = validated.body;
 
   const plan = planBulkStatusChange(body.selection, project);
   const repo = getRepo();

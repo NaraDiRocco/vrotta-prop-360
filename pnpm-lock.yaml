@@ -17,6 +17,12 @@ importers:
 
   apps/admin:
     dependencies:
+      '@photo-sphere-viewer/core':
+        specifier: ^5.15.1
+        version: 5.15.1
+      '@photo-sphere-viewer/markers-plugin':
+        specifier: ^5.15.1
+        version: 5.15.1(@photo-sphere-viewer/core@5.15.1)
       '@r360/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -35,6 +41,12 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.10.8
         version: 3.14.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      immer:
+        specifier: ^10.2.0
+        version: 10.2.0
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
       next:
         specifier: ^15.1.0
         version: 15.5.24(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -48,6 +60,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.0.0
         version: 4.3.3
+      '@types/leaflet':
+        specifier: ^1.9.22
+        version: 1.9.22
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
@@ -84,6 +99,9 @@ importers:
       '@photo-sphere-viewer/core':
         specifier: ^5.13.3
         version: 5.15.1
+      '@photo-sphere-viewer/cubemap-tiles-adapter':
+        specifier: ^5.15.1
+        version: 5.15.1(@photo-sphere-viewer/core@5.15.1)(@photo-sphere-viewer/cubemap-adapter@5.15.1(@photo-sphere-viewer/core@5.15.1))
       '@photo-sphere-viewer/markers-plugin':
         specifier: ^5.13.3
         version: 5.15.1(@photo-sphere-viewer/core@5.15.1)
@@ -841,6 +859,17 @@ packages:
   '@photo-sphere-viewer/core@5.15.1':
     resolution: {integrity: sha512-nhJviczUB1xiAT/I7mGba9iDIw7DvsiK34hbR9t7kIrg9MySG33uA+a4QUk2dEOP5PjcKMj58wod8I/dQ7ePiw==}
 
+  '@photo-sphere-viewer/cubemap-adapter@5.15.1':
+    resolution: {integrity: sha512-l2wan2TxYzEEYpyHEfGbaVn2kiJvBOR94xk4tXafSD1MUg/7bSq3iFYLeKsPiOl9q42kJi7+0OPD6beGhEkCfQ==}
+    peerDependencies:
+      '@photo-sphere-viewer/core': 5.15.1
+
+  '@photo-sphere-viewer/cubemap-tiles-adapter@5.15.1':
+    resolution: {integrity: sha512-CzmeNkzqigtP4Ynxrl+n+CAROPmWrOB3F68UMKsTw3W+eDmFcOXGutZB2MZg6GuihuQaNRR30M7j44KtLQsEHw==}
+    peerDependencies:
+      '@photo-sphere-viewer/core': 5.15.1
+      '@photo-sphere-viewer/cubemap-adapter': 5.15.1
+
   '@photo-sphere-viewer/markers-plugin@5.15.1':
     resolution: {integrity: sha512-57WiHy8fcQfwid9x07ADiQJGxzcFxclbR2yIqeggzfPDguwJlCKwX5tj8brTRqwouUiHpkb80QWxHByxt45LcA==}
     peerDependencies:
@@ -1336,6 +1365,9 @@ packages:
   iceberg-js@0.8.1:
     resolution: {integrity: sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==}
     engines: {node: '>=20.0.0'}
+
+  immer@10.2.0:
+    resolution: {integrity: sha512-d/+XTN3zfODyjr89gM3mPq1WNX2B8pYsu7eORitdwyA2sBubnTl3laYlBk4sXY5FUa5qTZGBDPJICVbvqzjlbw==}
 
   is-arrayish@0.3.4:
     resolution: {integrity: sha512-m6UrgzFVUYawGBh1dUsWR5M2Clqic9RVXC/9f8ceNlv2IcO9j9J/z8UoCLPqtsPBFNzEpfR3xftohbfqDx8EQA==}
@@ -2166,6 +2198,15 @@ snapshots:
     dependencies:
       three: 0.185.1
 
+  '@photo-sphere-viewer/cubemap-adapter@5.15.1(@photo-sphere-viewer/core@5.15.1)':
+    dependencies:
+      '@photo-sphere-viewer/core': 5.15.1
+
+  '@photo-sphere-viewer/cubemap-tiles-adapter@5.15.1(@photo-sphere-viewer/core@5.15.1)(@photo-sphere-viewer/cubemap-adapter@5.15.1(@photo-sphere-viewer/core@5.15.1))':
+    dependencies:
+      '@photo-sphere-viewer/core': 5.15.1
+      '@photo-sphere-viewer/cubemap-adapter': 5.15.1(@photo-sphere-viewer/core@5.15.1)
+
   '@photo-sphere-viewer/markers-plugin@5.15.1(@photo-sphere-viewer/core@5.15.1)':
     dependencies:
       '@photo-sphere-viewer/core': 5.15.1
@@ -2592,6 +2633,8 @@ snapshots:
   hono@4.13.5: {}
 
   iceberg-js@0.8.1: {}
+
+  immer@10.2.0: {}
 
   is-arrayish@0.3.4:
     optional: true

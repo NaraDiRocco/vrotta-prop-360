@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@photo-sphere-viewer/core": "^5.13.3",
+    "@photo-sphere-viewer/cubemap-tiles-adapter": "^5.15.1",
     "@photo-sphere-viewer/markers-plugin": "^5.13.3",
     "@r360/core": "workspace:*",
     "leaflet": "^1.9.4"

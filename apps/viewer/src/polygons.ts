@@ -13,6 +13,7 @@ import {
   sphericalCentroid,
   isUnitStatus,
   FALLBACK_STATUS,
+  INFO_TOKEN,
   STATUS_TOKENS,
   type AvailabilityFile,
   type Hotspot,
@@ -25,7 +26,9 @@ export interface ResolvedStatus {
   status: UnitStatus;
   /** true si hubo que recurrir al fallback (el dato no vino o no se entiende). */
   fellBack: boolean;
-  reason?: 'sin-codigo' | 'unidad-ausente' | 'estado-desconocido';
+  /** true si el hotspot no representa una unidad vendible (amenity, perimetro). */
+  informational?: boolean;
+  reason?: 'sin-codigo' | 'informativo' | 'unidad-ausente' | 'estado-desconocido';
 }
 
 export interface UnitFacts {
@@ -35,6 +38,7 @@ export interface UnitFacts {
   price: { a: number; c: string } | null;
   status: UnitStatus;
   fellBack: boolean;
+  informational?: boolean;
 }
 
 /** Datos que el visor guarda por marcador, para tooltip, eventos y refresco. */
@@ -51,7 +55,12 @@ export function resolveStatus(
   unitCode: string | null,
   availability: AvailabilityFile | null,
 ): ResolvedStatus {
-  if (!unitCode) return { status: FALLBACK_STATUS, fellBack: true, reason: 'sin-codigo' };
+  // Hotspot informativo (amenity, perímetro, punto de interés): no es una
+  // unidad vendible, así que no se resuelve contra availability.json ni es
+  // un fallback. `informational` lo distingue de "el dato falló".
+  if (!unitCode) {
+    return { status: FALLBACK_STATUS, fellBack: false, informational: true, reason: 'informativo' };
+  }
 
   const entry = availability?.units[unitCode];
   if (!entry) {
@@ -88,7 +97,7 @@ export function unitFacts(
 ): UnitFacts {
   const code = hotspot.unitCode;
   const info = code ? tour.units[code] : undefined;
-  const { status, fellBack } = resolveStatus(code, availability);
+  const { status, fellBack, informational } = resolveStatus(code, availability);
   return {
     code,
     label: hotspot.label ?? info?.label ?? code ?? hotspot.id,
@@ -96,6 +105,7 @@ export function unitFacts(
     price: (code && availability?.units[code]?.p) || null,
     status,
     fellBack,
+    informational,
   };
 }
 
@@ -119,9 +129,12 @@ export function tokenFor(status: UnitStatus, tour: TourManifest): { base: string
 export function svgStyleFor(
   status: UnitStatus,
   tour: TourManifest,
-  opts: { highlighted?: boolean } = {},
+  opts: { highlighted?: boolean; informational?: boolean } = {},
 ): Record<string, string> {
-  const { base, fill } = tokenFor(status, tour);
+  // Un amenity no se pinta con color de estado comercial: no lo tiene.
+  const { base, fill } = opts.informational
+    ? { base: INFO_TOKEN.base, fill: INFO_TOKEN.fill }
+    : tokenFor(status, tour);
   return {
     fill: hexToRgba(base, opts.highlighted ? Math.min(1, fill + 0.22) : fill),
     stroke: base,
@@ -134,7 +147,9 @@ export function svgStyleFor(
 // ------------------------------------------------------------------- tooltip
 
 export function tooltipHtml(facts: UnitFacts, tour: TourManifest): string {
-  const { base } = tokenFor(facts.status, tour);
+  const { base } = facts.informational
+    ? { base: INFO_TOKEN.base }
+    : tokenFor(facts.status, tour);
   const rows: string[] = [];
   if (facts.areaTotalM2 != null) rows.push(`${formatNumber(facts.areaTotalM2)} m²`);
   if (facts.price) rows.push(formatPrice(facts.price));
@@ -143,7 +158,7 @@ export function tooltipHtml(facts: UnitFacts, tour: TourManifest): string {
     `<div class="r360-tip__code">${escapeHtml(facts.label)}</div>` +
     (rows.length ? `<div class="r360-tip__meta">${escapeHtml(rows.join(' · '))}</div>` : '') +
     `<div class="r360-tip__status"><i style="background:${base}"></i>` +
-    `${escapeHtml(STATUS_TOKENS[facts.status].label)}` +
+    `${escapeHtml(facts.informational ? INFO_TOKEN.label : STATUS_TOKENS[facts.status].label)}` +
     (facts.fellBack ? ' <em>(sin dato)</em>' : '') +
     `</div></div>`
   );
@@ -208,7 +223,7 @@ export function buildMarkers(
         id: h.id,
         position: { yaw, pitch },
         circle: 12,
-        svgStyle: svgStyleFor(facts.status, tour),
+        svgStyle: svgStyleFor(facts.status, tour, { informational: facts.informational }),
         tooltip: { content: tooltipHtml(facts, tour), position: 'top center' },
         zIndex: h.zIndex ?? 10,
         data: { hotspotId: h.id },
@@ -229,7 +244,7 @@ export function buildMarkers(
     markers.push({
       id: h.id,
       polygon: ring.map(([y, p]) => [y, p] as [number, number]),
-      svgStyle: svgStyleFor(facts.status, tour),
+      svgStyle: svgStyleFor(facts.status, tour, { informational: facts.informational }),
       tooltip: { content: tooltipHtml(facts, tour), position: 'top center' },
       zIndex: h.zIndex ?? 1,
       data: { hotspotId: h.id },
