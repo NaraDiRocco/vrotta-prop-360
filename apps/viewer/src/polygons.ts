@@ -35,7 +35,7 @@ export interface UnitFacts {
   code: string | null;
   label: string;
   areaTotalM2: number | null;
-  price: { a: number; c: string } | null;
+  price: Price | null;
   status: UnitStatus;
   fellBack: boolean;
   informational?: boolean;
@@ -102,7 +102,7 @@ export function unitFacts(
     code,
     label: hotspot.label ?? info?.label ?? code ?? hotspot.id,
     areaTotalM2: info?.areaTotalM2 ?? null,
-    price: (code && availability?.units[code]?.p) || null,
+    price: (code ? availability?.units[code]?.p : null) ?? null,
     status,
     fellBack,
     informational,
@@ -152,7 +152,8 @@ export function tooltipHtml(facts: UnitFacts, tour: TourManifest): string {
     : tokenFor(facts.status, tour);
   const rows: string[] = [];
   if (facts.areaTotalM2 != null) rows.push(`${formatNumber(facts.areaTotalM2)} m²`);
-  if (facts.price) rows.push(formatPrice(facts.price));
+  const price = priceText(facts);
+  if (price) rows.push(price);
   return (
     `<div class="r360-tip">` +
     `<div class="r360-tip__code">${escapeHtml(facts.label)}</div>` +
@@ -167,14 +168,68 @@ export function tooltipHtml(facts: UnitFacts, tour: TourManifest): string {
 const NUM = new Intl.NumberFormat('es-AR');
 const formatNumber = (v: number) => NUM.format(v);
 
-function formatPrice(p: { a: number; c: string }): string {
+// --------------------------------------------------------------------- precio
+
+/**
+ * `availability.json` ya traía el precio (`p`) y el visor no lo mostraba en
+ * ningún lado. Estas dos funciones son toda la política de precio del visor y
+ * están acá, puras y exportadas, para que la ficha, el tooltip, la grilla de
+ * bloque y la lista de unidades digan exactamente lo mismo.
+ */
+export type Price = { a: number; c: string };
+
+/** Texto que se muestra cuando el precio existe pero no es público. */
+export const PRICE_ON_REQUEST = 'Consultar';
+
+export function formatPrice(p: Price): string {
+  if (!Number.isFinite(p.a)) return PRICE_ON_REQUEST;
   try {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency', currency: p.c, maximumFractionDigits: 0,
     }).format(p.a);
   } catch {
+    // Moneda que Intl no conoce: se muestra el código tal cual antes que
+    // tragarse el número. El dato del cliente manda sobre nuestro formateador.
     return `${p.c} ${NUM.format(p.a)}`;
   }
+}
+
+/**
+ * Qué decir del precio de una unidad, o `null` si no corresponde decir nada.
+ *
+ * Reglas, en orden:
+ *  - Un hotspot informativo (una laguna, el acceso) no tiene precio. Nada.
+ *  - Con `p` presente: el precio formateado.
+ *  - Con `p: null` (visibilidad no pública) en una unidad que todavía se puede
+ *    comprar: "Consultar". NO se inventa un número ni se deja el hueco mudo —
+ *    el hueco mudo es lo que hace que el visitante crea que falló la página.
+ *  - Con `p: null` en una unidad vendida/bloqueada: nada. El precio de lo que
+ *    ya no está a la venta no le sirve a nadie, y "Consultar" ahí es una
+ *    invitación falsa.
+ */
+export function priceText(facts: {
+  price: Price | null;
+  status: UnitStatus;
+  informational?: boolean;
+}): string | null {
+  if (facts.informational) return null;
+  if (facts.price) return formatPrice(facts.price);
+  return facts.status === 'disponible' || facts.status === 'reservado'
+    ? PRICE_ON_REQUEST
+    : null;
+}
+
+/** Igual que `priceText`, pero partiendo del código (lo que tiene la ficha). */
+export function priceTextForUnit(
+  code: string,
+  availability: AvailabilityFile | null,
+): string | null {
+  const entry = availability?.units[code];
+  if (!entry) return null;
+  return priceText({
+    price: entry.p ?? null,
+    status: isUnitStatus(entry.s) ? entry.s : FALLBACK_STATUS,
+  });
 }
 
 export function escapeHtml(s: string): string {

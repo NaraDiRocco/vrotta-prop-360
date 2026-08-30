@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@r360/admin", "exec", "next", "dev", "-p", "3005"],
       "port": 3005
+    },
+    {
+      "name": "viewer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@r360/viewer", "exec", "vite", "--port", "5183"],
+      "port": 5183
     }
   ]
 }

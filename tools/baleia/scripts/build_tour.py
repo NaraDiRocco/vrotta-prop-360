@@ -11,6 +11,7 @@ Salida: out/tour/
   tour.json           — TourManifest (packages/core/src/types.ts)
   availability.json   — AvailabilityFile (idem)
   masterplan.webp     — imagen de la escena floorplan
+  masterplan.thumb.webp — miniatura del plano, placeholder del arranque
   media/renders/*     — los 7 renders del complejo (escenas de galería)
   media/plantas/*     — la imagen de cada unidad (`units[].media`)
 
@@ -104,6 +105,15 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
    contornos —que son justamente el dato -- desaparecen. Se componen sobre
    blanco, que es el fondo con el que fueron diseñados (el del brochure), y
    el visor les da un contenedor claro.
+
+11. CONTACTO Y TRAMOS DE PRECIO SON OPCIONALES Y NO SE INVENTAN.
+   `TourManifest` tiene desde ahora dos campos opcionales y aditivos:
+   `contact` (habilita el CTA de WhatsApp con mensaje prellenado y deep link
+   a la unidad) y `theme.priceBands` (tramos fijos de la capa de precio).
+   Baleia no tiene teléfono publicado ni precios, así que este script NO los
+   emite: sin `contact` el visor no dibuja el botón, y sin `priceBands` los
+   deriva por cuantiles de lo que haya. Cuando el cliente dé el número:
+   `python3 scripts/build_tour.py --publish --whatsapp +59891234567`.
 
 10. QUÉ UNIDAD LE CORRESPONDE A CADA PLANTA: ver `UNIT_MEDIA`. El mapeo se
    verificó una por una contra el brochure (`pdftotext` de las páginas 13-19
@@ -200,6 +210,26 @@ RENDER_MAX_W, RENDER_Q = 1600, 76
 PLAN_MAX_W, PLAN_Q = 1400, 82
 THUMB_MAX_W, THUMB_Q = 400, 70
 
+# ------------------------------------------------------ contacto y precio
+# `TourManifest.contact` (packages/core/src/types.ts) es el campo opcional que
+# habilita el CTA de WhatsApp con el mensaje prellenado y el deep link a la
+# unidad. Baleia NO tiene un número de contacto publicado, así que acá va en
+# None y el visor simplemente no dibuja el botón — nunca un botón roto, y
+# nunca un teléfono inventado en un artefacto que se publica.
+#
+# Para cargarlo cuando el cliente lo dé:  build_tour.py --whatsapp +59891234567
+CONTACT_WHATSAPP: str | None = None
+CONTACT_NAME: str | None = None
+# Plantilla opcional del mensaje. None = el visor usa la suya
+# (ver apps/viewer/src/contact.ts::buildCtaMessage).
+CONTACT_TEMPLATE: str | None = None
+
+# `theme.priceBands` (también aditivo y opcional): tramos FIJOS de la capa de
+# precio. Sin esto el visor los deriva por cuantiles de los precios presentes
+# en availability.json. Baleia no publica precios, así que no hay tramos que
+# fijar: queda en None y no se emite `theme`.
+PRICE_BANDS: list[dict] | None = None
+
 # Casos de la "regla dura" (ver punto 6 del docstring).
 BLOCK_MISSING_FROM_AVAILABILITY = "B1"
 BLOCK_UNKNOWN_STATUS = "B4"
@@ -207,6 +237,15 @@ UNIT_MISSING_FROM_AVAILABILITY = "B3-K"
 UNIT_UNKNOWN_STATUS = "B3-J"
 UNKNOWN_STATUS_VALUE = "en_promocion"
 UNKNOWN_STATUS_VALUE_UNIT = "en_pausa"
+
+
+def cli_value(argv: list[str], flag: str) -> str | None:
+    """`--flag valor` -> "valor". Sin argparse: el script tiene dos banderas."""
+    if flag in argv:
+        i = argv.index(flag)
+        if i + 1 < len(argv):
+            return argv[i + 1]
+    return None
 
 
 def slug(s: str) -> str:
@@ -276,12 +315,32 @@ def aggregate_block_status(codes: list[str], demo_status: dict[str, str]) -> str
 def convert_masterplan(out_dir: str) -> dict:
     """PNG (300dpi) -> WebP calidad 85. Ver punto 1 del docstring: con el
     tamaño actual del masterplan (~15.6MP) una sola imagen WebP es más
-    simple y liviana que meter una pirámide DZI sin consumidor en el visor."""
+    simple y liviana que meter una pirámide DZI sin consumidor en el visor.
+
+    Emite ADEMÁS `masterplan.thumb.webp` con la misma convención de nombre que
+    los renders (punto 8). El visor la usa como placeholder desenfocado durante
+    el arranque: a los ~0,5 s se ve la forma del proyecto en vez de un texto
+    "Cargando…" sobre negro, y la barra de progreso mide la descarga del master
+    de verdad (ver `apps/viewer/src/main.ts`). Son ~15 KB para no tener nunca
+    una pantalla vacía."""
     img = Image.open(MASTERPLAN_SRC).convert("RGB")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "masterplan.webp")
     img.save(out_path, format="WEBP", quality=85, method=6)
-    return {"path": out_path, "width": img.width, "height": img.height, "bytes": os.path.getsize(out_path)}
+
+    thumb = img.copy()
+    thumb.thumbnail((THUMB_MAX_W, THUMB_MAX_W), Image.LANCZOS)
+    thumb_path = os.path.join(out_dir, "masterplan.thumb.webp")
+    thumb.save(thumb_path, format="WEBP", quality=THUMB_Q, method=6)
+
+    return {
+        "path": out_path,
+        "width": img.width,
+        "height": img.height,
+        "bytes": os.path.getsize(out_path),
+        "thumb": thumb_path,
+        "thumb_bytes": os.path.getsize(thumb_path),
+    }
 
 
 def optimize_image(src: str, dst: str, max_w: int, quality: int, flatten: bool = False) -> dict:
@@ -517,6 +576,21 @@ def build(argv: list[str] | None = None) -> int:
         "units": tour_units,
     }
 
+    # Campos OPCIONALES del contrato: sólo se emiten si hay dato real. Un
+    # `contact` vacío o un `theme.priceBands` inventado harían que el visor
+    # dibuje un CTA que no lleva a nadie o una leyenda de precios que nadie
+    # publicó — exactamente lo que este pipeline evita en todo lo demás.
+    whatsapp = cli_value(argv, "--whatsapp") or CONTACT_WHATSAPP
+    if whatsapp:
+        contact: dict = {"whatsapp": whatsapp}
+        if CONTACT_NAME:
+            contact["name"] = CONTACT_NAME
+        if CONTACT_TEMPLATE:
+            contact["messageTemplate"] = CONTACT_TEMPLATE
+        tour["contact"] = contact
+    if PRICE_BANDS:
+        tour["theme"] = {"priceBands": PRICE_BANDS}
+
     # ------------------------------------------------------- availability
     demo_status: dict[str, str] = {}
     for i, u in enumerate(units):
@@ -572,6 +646,7 @@ def build(argv: list[str] | None = None) -> int:
                 "media": media,
                 "peso_imagenes": peso,
                 "publicado": published,
+                "contact": tour.get("contact", None),
                 "escenas": len(scenes),
                 "unidades_con_planta": sorted(media_by_unit),
                 "unidades_sin_planta": sorted(

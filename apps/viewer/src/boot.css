@@ -1,0 +1,176 @@
+/*
+ * El primer minuto: arranque, progreso real, chip de orientación y CTA.
+ *
+ * MP360 pone dos puertas ("intro" + "hacé click para comenzar") antes de
+ * dejarte tocar nada, y dispara ~492 requests sin dar una sola señal de cuánto
+ * falta. Acá no hay ninguna puerta: lo que se ve mientras carga ES el
+ * recorrido, borroso, con una barra que mide la descarga de verdad.
+ *
+ * Está en su propio archivo (y no en styles.css) porque es la única parte del
+ * visor que tiene que poder pintarse antes de que exista nada más.
+ */
+
+/* --------------------------------------------------------------- arranque */
+
+.r360-boot {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  overflow: hidden;
+  background: var(--r360-bg);
+  display: grid;
+  place-items: center;
+  transition: opacity .45s ease;
+}
+
+.r360-boot.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/*
+ * Miniatura del masterplan (~15 KB) desenfocada: contenido degradado, nunca
+ * un spinner solo. A los 0,5 s el visitante ya ve la forma del proyecto.
+ */
+.r360-boot__thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(22px) saturate(.85);
+  transform: scale(1.15);
+  opacity: 0;
+  transition: opacity .5s ease;
+}
+
+.r360-boot__thumb.is-on { opacity: .5; }
+
+/*
+ * Si el plano va girado en la escena (masterplan apaisado + pantalla
+ * vertical), la miniatura se gira igual: si no, el arranque muestra una forma
+ * y un segundo después aparece otra.
+ */
+.r360-boot__thumb.is-rotated {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 100vh;
+  height: 100vw;
+  transform: translate(-50%, -50%) rotate(90deg) scale(1.15);
+}
+
+.r360-boot__brand {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.r360-boot__name {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .7);
+}
+
+.r360-boot__sub {
+  font-size: 13px;
+  color: #93a4b5;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
+}
+
+/* Barra fina arriba de todo: no compite con la marca y se lee de un vistazo. */
+.r360-boot__bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, .12);
+}
+
+.r360-boot__bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #16A34A;
+  transition: width .25s ease;
+}
+
+.r360-boot--error {
+  color: #f87171;
+  font-size: 14px;
+}
+
+/* ------------------------------------------------- chip de orientación */
+/* `r360-hint` y no `r360-chip`: los chips de filtro de la lista de unidades
+   ya ocupan ese nombre y le pintaban el fondo azul a este. */
+
+/*
+ * El único onboarding del recorrido. La lección de Tipuana en dos mitades: la
+ * instrucción explícita del gesto SÍ ("Tocá un bloque"), el modal que hay que
+ * cerrar NO — su X no respondía al toque y sólo cerraba con Escape, tecla que
+ * en un teléfono no existe. Este chip no bloquea nada, no tiene botón de
+ * cierre y se va solo a los 5 s o con el primer toque.
+ */
+.r360-hint {
+  position: absolute;
+  left: 50%;
+  /* Por encima de las dos leyendas (estados y tramos de precio), que en 375px
+     ocupan los ~112px de abajo: el chip explica el mapa, no lo tapa. */
+  bottom: 124px;
+  z-index: 90;
+  transform: translate(-50%, 12px);
+  max-width: min(340px, calc(100% - 32px));
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: var(--r360-panel);
+  border: 1px solid var(--r360-border);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease, transform .3s ease;
+}
+
+.r360-hint.is-on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.r360-hint b { font-weight: 700; }
+
+/* --------------------------------------------------------------- CTA */
+
+/*
+ * El botón de contacto que dibuja la ficha (`ui.ts::ctaHtml`) con el mensaje
+ * y el enlace que arma `contact.ts`. Vive acá, con el resto de la capa de
+ * conversión, y no en styles.css.
+ *
+ * Verde WhatsApp, no el verde de "disponible": el botón es un canal, no un
+ * estado comercial, y confundirlos con el mismo color enseña mal el mapa.
+ * 48px de alto — la regla de 44px del plan, con margen.
+ */
+.r360-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 16px;
+  margin: 10px 0 4px;
+  border-radius: 10px;
+  background: #25D366;
+  color: #06281a;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+}
+
+.r360-cta:active { background: #1fb457; }
