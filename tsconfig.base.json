@@ -9,8 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+        "isolatedModules": true,
     "verbatimModuleSyntax": true
   }
 }
