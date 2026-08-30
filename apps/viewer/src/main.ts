@@ -107,9 +107,24 @@ function showLoading(container: HTMLElement): HTMLElement {
 const root = document.getElementById('app');
 if (root) {
   const legend = document.getElementById('legend');
-  mountViewer({ container: root }).then((handle) => {
+  // `?tour=` para poder abrir un recorrido publicado en otra ruta sin tocar
+  // el HTML (ej. `?tour=/baleia/tour.json`). Sin el parámetro, `./tour.json`.
+  const tourUrl = new URLSearchParams(location.search).get('tour') ?? './tour.json';
+  mountViewer({ container: root, tourUrl }).then((handle) => {
     (window as unknown as Record<string, unknown>).r360 = handle;
     if (legend) renderLegend(legend, handle.tour);
+    // La interfaz (galería, ficha de unidad, lightbox) se monta sólo en el
+    // build standalone: un embed puede querer el recorrido pelado y poner su
+    // propia UI escuchando `r360:unit-click`.
+    void import('./ui.ts').then(({ mountUi }) =>
+      mountUi({
+        container: root,
+        tour: handle.tour,
+        controller: handle.controller,
+        availability: () => handle.poller.value,
+        tourUrl,
+      }),
+    );
     root.addEventListener('r360:unit-click', (e) => {
       const d = (e as CustomEvent<UnitClickPayload>).detail;
       console.info('[r360] unidad seleccionada', d.unitCode, d.facts);

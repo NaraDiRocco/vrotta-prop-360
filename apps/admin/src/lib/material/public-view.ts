@@ -14,6 +14,7 @@ import { getRepo } from '../data/index.ts';
 import { catalogFor } from './catalog.ts';
 import { isShareTokenShaped, publicItem } from './share.ts';
 import { signedMaterialUrl } from './storage.ts';
+import { isResolvedForClient } from './summary.ts';
 import { MAX_FILE_BYTES } from './uploads.ts';
 import type { PublicMaterialEntry, PublicMaterialResponse } from './api-types.ts';
 import type { MaterialStatus } from './types.ts';
@@ -57,7 +58,10 @@ export async function buildPublicMaterialView(token: string): Promise<PublicMate
 
   for (const item of catalogFor(context.projectKind)) {
     const status = statusById.get(item.id) ?? 'pendiente';
-    if (item.requisito === 'obligatorio' && status !== 'aprobado' && status !== 'no_aplica') {
+    // Criterio del CLIENTE, no el nuestro: lo que él todavía no entregó.
+    // Un ítem `recibido` ya no le falta a él aunque a nosotros nos falte
+    // revisarlo. Ver `isResolvedForClient` en summary.ts.
+    if (item.requisito === 'obligatorio' && !isResolvedForClient(status)) {
       obligatoriosFaltantes += 1;
     }
     const files = filesById.get(item.id) ?? [];

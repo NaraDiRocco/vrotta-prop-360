@@ -17,9 +17,27 @@ export interface MaterialEntry {
   files: MaterialFileRow[];
 }
 
-/** Un ítem cuenta como resuelto si lo aprobamos o si decidimos que no aplica. */
+/**
+ * "Resuelto" tiene DOS definiciones legítimas según a quién se le muestre.
+ * Son distintas a propósito y conviene no unificarlas:
+ *
+ *  - Para NOSOTROS (el panel), un ítem `recibido` todavía no está cerrado:
+ *    llegó un archivo pero falta revisarlo. Sólo `aprobado` o `no_aplica`
+ *    cierran el ítem.
+ *  - Para el CLIENTE (la vista pública), `recibido` SÍ está resuelto: él ya
+ *    hizo su parte. Decirle "te falta" algo que acaba de subir es incorrecto
+ *    y lo empuja a subirlo de nuevo.
+ *
+ * Usar la definición equivocada del lado equivocado es un bug de producto,
+ * no de código: por eso están separadas y nombradas.
+ */
 export function isResolved(status: MaterialStatus): boolean {
   return status === 'aprobado' || status === 'no_aplica';
+}
+
+/** La definición que se le muestra al cliente: lo que él ya entregó. */
+export function isResolvedForClient(status: MaterialStatus): boolean {
+  return status === 'recibido' || isResolved(status);
 }
 
 export function buildEntries(

@@ -8,9 +8,15 @@ mismo `tour.json`/`availability.json` (salvo `generated_at`, que es la hora
 de corrida) desde las dos fuentes de datos versionadas.
 
 Salida: out/tour/
-  tour.json          — TourManifest (packages/core/src/types.ts)
-  availability.json  — AvailabilityFile (idem)
+  tour.json           — TourManifest (packages/core/src/types.ts)
+  availability.json   — AvailabilityFile (idem)
   masterplan.webp     — imagen de la escena floorplan
+  media/renders/*     — los 7 renders del complejo (escenas de galería)
+  media/plantas/*     — la imagen de cada unidad (`units[].media`)
+
+Con `--publish` además copia todo a `apps/viewer/public/baleia/` y deja el
+manifiesto con las URLs prefijadas en `apps/viewer/public/tour.json`, que es
+lo que abre el visor en dev sin ningún parámetro.
 
 ------------------------------------------------------------------------
 DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
@@ -43,16 +49,13 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
    algo para vender" pesa más que mostrar un promedio.
 
 3. LOS AMENITIES (A/D/E/F/G) SON INFORMATIVOS: `unitCode: null`.
-   `resolveStatus(null, ...)` cae directo a FALLBACK_STATUS sin loguear
-   warning (motivo 'sin-codigo', ver polygons.ts) — es el camino ya
-   pensado en el visor para "esto no es una unidad en venta". Efecto
-   secundario documentado: como `floorplan.ts` no distingue "informativo"
-   de "unidad sin dato", el amenity se pinta con el gris de
-   `no_disponible` y el tooltip agrega "(sin dato)". Es ruido cosmético,
-   no funcional — corregirlo bien pide un campo nuevo en `Hotspot` (por
-   ejemplo `informational?: boolean`), que es un cambio de
-   `packages/core`, fuera de las carpetas de este encargo
-   (`apps/viewer/**`, `tools/baleia/**`).
+   `resolveStatus(null, ...)` no los resuelve contra availability.json y el
+   visor los pinta con `INFO_TOKEN` ("Punto de interés", celeste), no con el
+   gris de `no_disponible`: una laguna no está ni disponible ni vendida.
+   Informativo no quiere decir inerte: cada amenity lleva
+   `action: {kind:'goto'}` al render donde ese amenity se ve (ver
+   `AMENITY_SCENE`), que en un proyecto sin panorámicas es lo más parecido
+   a "entrar" al amenity.
 
 4. TERRENO (perímetro) va primero en el array de hotspots para que quede
    dibujado debajo del resto (Leaflet apila por orden de inserción, no lee
@@ -76,6 +79,37 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
      - Nivel unidad (dato comercial, no clickeable individualmente en este
        masterplan): la última unidad de Bloque 3 (B3-K) queda fuera de
        `availability.json`, y B3-J recibe el estado inventado "en_pausa".
+
+7. LOS RENDERS SON ESCENAS `floorplan`, NO UN TIPO DE ESCENA NUEVO.
+   `SceneKind` (packages/core) no tiene 'gallery' ni 'image', y agregarlo
+   sería tocar el contrato compartido con el panel y el editor. Un render
+   es exactamente lo que la escena `floorplan` ya sabe mostrar: una imagen
+   plana, paneable y zoomeable con Leaflet (`apps/viewer/src/floorplan.ts`),
+   con cero hotspots encima. Así la galería sale del manifiesto sin
+   inventar schema: 7 escenas más y la navegación por `goto`/hash que ya
+   existe. El visor las presenta agrupadas en una tira de miniaturas
+   ("Galería") porque son las escenas que NO son el masterplan.
+
+8. LAS MINIATURAS SE DERIVAN POR CONVENCIÓN DE NOMBRE, no por un campo nuevo.
+   Para cada imagen `X.webp` se emite también `X.thumb.webp`. Ni `Scene` ni
+   `units[].media` tienen dónde guardar una miniatura, y agregarles un campo
+   es, otra vez, tocar `packages/core`. El visor deriva la miniatura con un
+   `.replace(/\\.webp$/, '.thumb.webp')` y, si esa request falla, se queda
+   con la imagen grande (`onerror`): la convención se puede romper sin que
+   la galería se rompa.
+
+9. LAS PLANTAS SE APLANAN SOBRE BLANCO. Los PNG de `material/plantas/` son
+   RGBA con fondo transparente y trazos oscuros (verde/azul marino) para el
+   contorno de la unidad resaltada. Sobre el fondo oscuro del visor esos
+   contornos —que son justamente el dato -- desaparecen. Se componen sobre
+   blanco, que es el fondo con el que fueron diseñados (el del brochure), y
+   el visor les da un contenedor claro.
+
+10. QUÉ UNIDAD LE CORRESPONDE A CADA PLANTA: ver `UNIT_MEDIA`. El mapeo se
+   verificó una por una contra el brochure (`pdftotext` de las páginas 13-19
+   y 26-29) y mirando cada PNG. Las unidades para las que el material NO
+   trae imagen quedan sin `media` — no se les asigna la de otra unidad
+   "parecida" aunque las superficies coincidan.
 """
 from __future__ import annotations
 
@@ -83,17 +117,25 @@ import csv
 import json
 import os
 import re
+import shutil
 import sys
 from datetime import datetime, timezone
 
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR = os.path.join(HERE, "..", "out")
+BALEIA_DIR = os.path.normpath(os.path.join(HERE, ".."))
+REPO_DIR = os.path.normpath(os.path.join(BALEIA_DIR, "..", ".."))
+OUT_DIR = os.path.join(BALEIA_DIR, "out")
+MATERIAL_DIR = os.path.join(BALEIA_DIR, "material")
 GEOJSON_PATH = os.path.join(OUT_DIR, "baleia_hotspots.geojson")
 CSV_PATH = os.path.join(OUT_DIR, "baleia_unidades.csv")
 MASTERPLAN_SRC = os.path.join(OUT_DIR, "masterplan", "baleia_masterplan_300dpi_recortado.png")
 TOUR_DIR = os.path.join(OUT_DIR, "tour")
+# Destino de `--publish`: lo que sirve `apps/viewer` en dev (vite sirve
+# `public/` en la raíz). Está en .gitignore, igual que `out/`.
+PUBLISH_DIR = os.path.join(REPO_DIR, "apps", "viewer", "public", "baleia")
+PUBLISH_ROOT_TOUR = os.path.join(REPO_DIR, "apps", "viewer", "public", "tour.json")
 
 # Mismo contrato que packages/core/src/status.ts::UNIT_STATUSES (orden =
 # STATUS_TOKENS[...].order, del más vendible al menos).
@@ -107,6 +149,56 @@ AMENITY_LABELS = {
     "F": "Rincón de fuego",
     "G": "Laguna",
 }
+
+# --------------------------------------------------------------- material
+# Renders del complejo -> escenas de galería. El título es descriptivo de lo
+# que SE VE en el render (los miré uno por uno); no se le pone nombre de
+# amenity a un render donde ese amenity no aparece.
+RENDERS = [
+    ("back-acceso-v2.jpg", "acceso", "Acceso al complejo"),
+    ("complejo1-v2.jpg", "complejo-laguna", "El complejo desde la laguna"),
+    ("complejo2.jpg", "complejo-llegada", "Llegada por el camino interior"),
+    ("complejo3.jpg", "complejo-terrazas", "Terrazas y cubierta verde"),
+    ("complejo4.jpg", "complejo-fachada", "Fachada de un bloque al atardecer"),
+    ("complejo5.jpg", "complejo-pergola", "Pérgola junto a la piscina"),
+    ("back-amenities-v2.jpg", "amenities", "Amenities: piscina, fuego y laguna"),
+]
+
+# Amenity -> escena de render a la que salta su hotspot en el masterplan.
+# A = acceso tiene su propio render; D/E/F/G (piscina, piscina infantil,
+# rincón de fuego, laguna) aparecen los cuatro en el render de amenities.
+AMENITY_SCENE = {"A": "acceso", "D": "amenities", "E": "amenities", "F": "amenities", "G": "amenities"}
+
+# Planta (imagen del bloque con la unidad resaltada) -> unidades que cubre.
+# Verificado contra el brochure, página por página:
+#   pág.13-17  Bloque 2, unidades A..E (dúplex, una página cada una)
+#   pág.18     Bloque 2, unidad F (planta alta) y G (planta baja)
+#   pág.19     Bloque 2, unidad H (planta alta) e I (planta baja)
+#   pág.26     Bloque 3, unidad D (planta alta) y E (planta baja)
+#   pág.27     Bloque 3, unidad F (planta alta) y G (planta baja)
+# B3-A..C (dúplex) y B3-H..K NO tienen imagen en el material descargado:
+# quedan sin `media`. B3-H/I y B3-J/K tienen exactamente las mismas
+# superficies que B3-F/G y B3-D/E, pero son otro tramo del bloque: reusarles
+# la imagen sería mostrarle al visitante una unidad que no es la suya.
+UNIT_MEDIA = {
+    "unidad-a-vf.png": ["B2-A"],
+    "unidad-b-vf.png": ["B2-B"],
+    "unidad-c-vf.png": ["B2-C"],
+    "unidad-d-vf.png": ["B2-D"],
+    "unidad-e-vf.png": ["B2-E"],
+    "unidades-fyg-vf.png": ["B2-F", "B2-G"],
+    "unidades-hei-vf.png": ["B2-H", "B2-I"],
+    "b3-udye.png": ["B3-D", "B3-E"],
+    "b3-ufyg.png": ["B3-F", "B3-G"],
+}
+
+# Ancho máximo de publicación. Los originales son ~1920px; a 1600 no se nota
+# la diferencia en pantalla y pesan bastante menos. La miniatura sólo se usa
+# en la tira de la galería y en la ficha, donde nunca se dibuja más grande
+# que ~200px de ancho en pantalla (400 cubre pantallas 2x).
+RENDER_MAX_W, RENDER_Q = 1600, 76
+PLAN_MAX_W, PLAN_Q = 1400, 82
+THUMB_MAX_W, THUMB_Q = 400, 70
 
 # Casos de la "regla dura" (ver punto 6 del docstring).
 BLOCK_MISSING_FROM_AVAILABILITY = "B1"
@@ -192,10 +284,101 @@ def convert_masterplan(out_dir: str) -> dict:
     return {"path": out_path, "width": img.width, "height": img.height, "bytes": os.path.getsize(out_path)}
 
 
+def optimize_image(src: str, dst: str, max_w: int, quality: int, flatten: bool = False) -> dict:
+    """JPG/PNG -> WebP redimensionado + su miniatura `*.thumb.webp`.
+
+    `flatten=True` compone el RGBA sobre blanco (ver punto 9 del docstring).
+    Devuelve tamaños y bytes de las tres cosas (original, grande, miniatura)
+    para poder reportar el antes/después sin volver a medir a mano."""
+    img = Image.open(src)
+    if flatten and img.mode in ("RGBA", "LA", "P"):
+        img = img.convert("RGBA")
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=img.split()[-1])
+        img = bg
+    else:
+        img = img.convert("RGB")
+
+    big = img.copy()
+    if big.width > max_w:
+        big = big.resize((max_w, round(big.height * max_w / big.width)), Image.LANCZOS)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    big.save(dst, format="WEBP", quality=quality, method=6)
+
+    thumb = img.copy()
+    thumb.thumbnail((THUMB_MAX_W, THUMB_MAX_W), Image.LANCZOS)
+    thumb_path = re.sub(r"\.webp$", ".thumb.webp", dst)
+    thumb.save(thumb_path, format="WEBP", quality=THUMB_Q, method=6)
+
+    return {
+        "src": os.path.relpath(src, BALEIA_DIR),
+        "src_bytes": os.path.getsize(src),
+        "src_size": [img.width, img.height],
+        "out": os.path.relpath(dst, TOUR_DIR),
+        "bytes": os.path.getsize(dst),
+        "width": big.width,
+        "height": big.height,
+        "thumb_bytes": os.path.getsize(thumb_path),
+    }
+
+
+def build_media(tour_dir: str) -> dict:
+    """Convierte renders y plantas a WebP dentro de `out/tour/media/`."""
+    renders = {}
+    for filename, slug_, _title in RENDERS:
+        renders[slug_] = optimize_image(
+            os.path.join(MATERIAL_DIR, "renders", filename),
+            os.path.join(tour_dir, "media", "renders", f"{slug_}.webp"),
+            RENDER_MAX_W,
+            RENDER_Q,
+        )
+    plantas = {}
+    for filename, codes in UNIT_MEDIA.items():
+        name = filename.rsplit(".", 1)[0]
+        info = optimize_image(
+            os.path.join(MATERIAL_DIR, "plantas", filename),
+            os.path.join(tour_dir, "media", "plantas", f"{name}.webp"),
+            PLAN_MAX_W,
+            PLAN_Q,
+            flatten=True,
+        )
+        info["units"] = codes
+        plantas[name] = info
+    return {"renders": renders, "plantas": plantas}
+
+
+def publish(tour_dir: str) -> dict:
+    """Copia `out/tour/` a `apps/viewer/public/baleia/` y deja en
+    `public/tour.json` la misma cosa con las URLs prefijadas, que es lo que
+    abre el visor en dev sin parámetros (`main.ts` cae a `./tour.json`)."""
+    if os.path.isdir(PUBLISH_DIR):
+        shutil.rmtree(PUBLISH_DIR)
+    shutil.copytree(tour_dir, PUBLISH_DIR)
+
+    with open(os.path.join(tour_dir, "tour.json"), encoding="utf-8") as f:
+        tour = json.load(f)
+    # `./x` -> `./baleia/x`: el mismo manifiesto servido un nivel más arriba.
+    tour["availabilityUrl"] = "./baleia/availability.json"
+    for sc in tour["scenes"]:
+        sc["source"]["url"] = sc["source"]["url"].replace("./", "./baleia/", 1)
+    for u in tour["units"].values():
+        if u.get("media"):
+            u["media"] = [m.replace("./", "./baleia/", 1) for m in u["media"]]
+    with open(PUBLISH_ROOT_TOUR, "w", encoding="utf-8") as f:
+        json.dump(tour, f, indent=2, ensure_ascii=False)
+    return {"dir": PUBLISH_DIR, "root_tour": PUBLISH_ROOT_TOUR}
+
+
 def build(argv: list[str] | None = None) -> int:
+    argv = argv or []
     units = load_units(CSV_PATH)
     geoms = load_hotspot_geoms(GEOJSON_PATH)
     masterplan = convert_masterplan(TOUR_DIR)
+    media = build_media(TOUR_DIR)
+    media_by_unit: dict[str, list[str]] = {}
+    for name, info in media["plantas"].items():
+        for code in info["units"]:
+            media_by_unit.setdefault(code, []).append(f"./media/plantas/{name}.webp")
 
     block_codes: dict[str, list[str]] = {}
     for u in units:
@@ -218,6 +401,8 @@ def build(argv: list[str] | None = None) -> int:
                 "superficieCubiertaM2": u["superficie_cubierta_m2"],
             },
         }
+        if u["code"] in media_by_unit:
+            tour_units[u["code"]]["media"] = media_by_unit[u["code"]]
 
     block_names = {"B1": "Bloque 1", "B2": "Bloque 2", "B3": "Bloque 3", "B4": "Bloque 4", "B5": "Bloque 5"}
     for code, name in block_names.items():
@@ -277,9 +462,46 @@ def build(argv: list[str] | None = None) -> int:
                 "unitCode": None,
                 "geometryKind": "polygon_px",
                 "geometry": geoms[code],
-                # Informativo: sin `action` (ver nota en TERRENO más arriba).
+                # Informativo (sin `unitCode`), pero clickeable: lleva al
+                # render donde ese amenity efectivamente se ve. Es la única
+                # forma de "entrar" a un amenity sin panorámicas.
+                "action": {"kind": "goto", "sceneSlug": AMENITY_SCENE[code]},
                 "zIndex": 1,
                 "label": label,
+            }
+        )
+
+    # ------------------------------------------------------------ escenas
+    scenes = [
+        {
+            "id": "sc-masterplan",
+            "slug": "masterplan",
+            "kind": "floorplan",
+            "name": "Masterplan",
+            "source": {
+                "url": "./masterplan.webp",
+                "width": masterplan["width"],
+                "height": masterplan["height"],
+            },
+            "sort": 1,
+        }
+    ]
+    for i, (_filename, slug_, title) in enumerate(RENDERS):
+        info = media["renders"][slug_]
+        scenes.append(
+            {
+                "id": f"sc-{slug_}",
+                "slug": slug_,
+                # Ver punto 7 del docstring: un render es una escena
+                # `floorplan` sin hotspots, no un tipo de escena nuevo.
+                "kind": "floorplan",
+                "name": title,
+                "source": {
+                    "url": f"./media/renders/{slug_}.webp",
+                    "width": info["width"],
+                    "height": info["height"],
+                },
+                "sort": 10 + i,
             }
         )
 
@@ -290,20 +512,7 @@ def build(argv: list[str] | None = None) -> int:
         "tenant": "baleia",
         "availabilityUrl": "./availability.json",
         "start": "masterplan",
-        "scenes": [
-            {
-                "id": "sc-masterplan",
-                "slug": "masterplan",
-                "kind": "floorplan",
-                "name": "Masterplan",
-                "source": {
-                    "url": "./masterplan.webp",
-                    "width": masterplan["width"],
-                    "height": masterplan["height"],
-                },
-                "sort": 1,
-            }
-        ],
+        "scenes": scenes,
         "hotspots": hotspots,
         "units": tour_units,
     }
@@ -343,12 +552,31 @@ def build(argv: list[str] | None = None) -> int:
     with open(os.path.join(TOUR_DIR, "availability.json"), "w", encoding="utf-8") as f:
         json.dump(availability, f, indent=2, ensure_ascii=False)
 
+    published = publish(TOUR_DIR) if "--publish" in argv else None
+
+    all_media = list(media["renders"].values()) + list(media["plantas"].values())
+    peso = {
+        "originales_bytes": sum(m["src_bytes"] for m in all_media),
+        "webp_bytes": sum(m["bytes"] for m in all_media),
+        "miniaturas_bytes": sum(m["thumb_bytes"] for m in all_media),
+        "archivos": len(all_media),
+    }
+    peso["ahorro_pct"] = round(100 * (1 - peso["webp_bytes"] / peso["originales_bytes"]), 1)
+
     print(
         json.dumps(
             {
                 "tour": os.path.join(TOUR_DIR, "tour.json"),
                 "availability": os.path.join(TOUR_DIR, "availability.json"),
                 "masterplan": masterplan,
+                "media": media,
+                "peso_imagenes": peso,
+                "publicado": published,
+                "escenas": len(scenes),
+                "unidades_con_planta": sorted(media_by_unit),
+                "unidades_sin_planta": sorted(
+                    u["code"] for u in units if u["code"] not in media_by_unit
+                ),
                 "hotspots": len(hotspots),
                 "units_in_tour": len(tour_units),
                 "units_in_availability": len(availability_units),

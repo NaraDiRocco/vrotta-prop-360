@@ -56,3 +56,129 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; co
 }
 #legend span { display: flex; align-items: center; gap: 6px; }
 #legend i { width: 10px; height: 10px; border-radius: 2px; }
+
+/* --------------------------------------------------------------------------
+ * Interfaz (ui.ts): barra, galería, ficha y lightbox.
+ * Todo cuelga de `.r360-ui`, que es un hermano del canvas del recorrido: se
+ * puede no montar y el visor sigue funcionando.
+ * ------------------------------------------------------------------------ */
+.r360-ui { position: absolute; inset: 0; z-index: 50; pointer-events: none; }
+.r360-ui > * { pointer-events: auto; }
+/* `[hidden]` es sólo `display:none` de la hoja del navegador: cualquier
+ * `display` propio le gana por especificidad y el panel queda visible aunque
+ * el JS lo crea cerrado. Se reafirma acá, una vez, para toda la interfaz. */
+.r360-ui [hidden] { display: none !important; }
+/* La barra ocupa la franja donde Leaflet pone sus controles: se los corre. */
+.r360-plan .leaflet-top { top: 46px; }
+
+.r360-bar {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(to bottom, rgba(13, 17, 23, .82), rgba(13, 17, 23, 0));
+}
+.r360-scene-name { flex: 1; font-size: 14px; font-weight: 600; letter-spacing: .01em; }
+.r360-btn {
+  flex: none; padding: 7px 12px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--r360-fg);
+  background: var(--r360-panel); border: 1px solid var(--r360-border);
+  backdrop-filter: blur(6px);
+}
+.r360-btn:hover { border-color: rgba(255, 255, 255, .35); }
+.r360-btn.is-on { background: #1f6feb; border-color: #1f6feb; }
+
+/* Galería: tira horizontal, se desplaza con el dedo en móvil. */
+.r360-gallery {
+  position: absolute; top: 54px; left: 12px; right: 12px;
+  display: flex; gap: 8px; overflow-x: auto; padding: 10px;
+  border-radius: 12px; background: var(--r360-panel);
+  border: 1px solid var(--r360-border); backdrop-filter: blur(8px);
+  scrollbar-width: thin;
+}
+.r360-thumb {
+  flex: 0 0 auto; width: 148px; padding: 0; cursor: pointer;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left;
+}
+.r360-thumb img {
+  display: block; width: 148px; height: 92px; object-fit: cover;
+  border-radius: 8px; background: #1b222c; border: 1px solid var(--r360-border);
+}
+.r360-thumb:hover img { border-color: #1f6feb; }
+.r360-thumb span { display: block; margin-top: 5px; font-size: 11.5px; line-height: 1.3; opacity: .9; }
+
+/* Ficha. En escritorio es una columna a la derecha; en móvil, una hoja
+   inferior — la mitad de abajo de la pantalla es donde llega el pulgar. */
+.r360-panel {
+  position: absolute; top: 54px; right: 12px; width: 320px;
+  max-height: calc(100% - 120px); overflow-y: auto;
+  padding: 14px; border-radius: 12px;
+  background: var(--r360-panel); border: 1px solid var(--r360-border);
+  backdrop-filter: blur(8px); font-size: 13px;
+}
+.r360-panel__head { display: flex; align-items: flex-start; gap: 8px; }
+.r360-panel__head h2 { flex: 1; margin: 0; font-size: 16px; line-height: 1.25; }
+.r360-close {
+  flex: none; width: 26px; height: 26px; padding: 0; cursor: pointer;
+  font-size: 18px; line-height: 1; color: var(--r360-fg);
+  background: transparent; border: 1px solid var(--r360-border); border-radius: 6px;
+}
+.r360-panel__status { display: flex; align-items: center; gap: 6px; margin: 8px 0 2px; font-size: 12px; }
+.r360-panel__status i { width: 10px; height: 10px; border-radius: 2px; }
+.r360-panel__note { margin: 8px 0 0; font-size: 11.5px; line-height: 1.45; opacity: .7; }
+.r360-link {
+  margin: 0 0 8px; padding: 0; cursor: pointer; font: inherit; font-size: 12px;
+  color: #6ea8fe; background: none; border: 0;
+}
+
+.r360-facts {
+  display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
+  margin: 10px 0 0; padding: 10px 0 0; border-top: 1px solid var(--r360-border);
+}
+.r360-facts dt { opacity: .65; }
+.r360-facts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+.r360-units {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 6px;
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--r360-border);
+}
+.r360-unit {
+  display: grid; grid-template-columns: 10px 1fr; gap: 2px 6px; align-items: center;
+  padding: 6px 8px; cursor: pointer; text-align: left;
+  color: inherit; font: inherit; font-size: 12px;
+  background: rgba(255, 255, 255, .05); border: 1px solid var(--r360-border); border-radius: 8px;
+}
+.r360-unit:hover { border-color: #1f6feb; }
+.r360-unit i { width: 10px; height: 10px; border-radius: 2px; }
+.r360-unit span { grid-column: 2; font-size: 10.5px; opacity: .65; }
+
+/* Las plantas vienen aplanadas sobre blanco (fondo del brochure): el
+   contenedor también es claro, si no el dibujo flota sobre el fondo oscuro. */
+.r360-media { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--r360-border); }
+.r360-media__item {
+  display: block; width: 100%; padding: 6px; cursor: zoom-in;
+  background: #fff; border: 1px solid var(--r360-border); border-radius: 8px;
+}
+.r360-media__item + .r360-media__item { margin-top: 8px; }
+.r360-media__item img { display: block; width: 100%; height: auto; }
+
+.r360-lightbox {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center;
+  padding: 24px; background: rgba(3, 6, 10, .88); cursor: zoom-out;
+}
+.r360-lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; background: #fff; }
+.r360-lightbox .r360-close { position: absolute; top: 16px; right: 16px; background: var(--r360-panel); }
+
+@media (max-width: 640px) {
+  .r360-panel {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto;
+    max-height: 62%; border-radius: 14px 14px 0 0;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+  .r360-gallery { top: 50px; left: 8px; right: 8px; padding: 8px; }
+  .r360-thumb, .r360-thumb img { width: 132px; }
+  .r360-thumb img { height: 82px; }
+  .r360-scene-name { font-size: 13px; }
+  .r360-btn { padding: 6px 10px; font-size: 12px; }
+  /* La leyenda vive abajo a la izquierda, justo donde aparece la ficha. */
+  #legend { font-size: 11px; padding: 6px 8px; }
+}

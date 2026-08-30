@@ -30,18 +30,24 @@ export function MaterialScreen({
   projectSlug,
   projectName,
   projectKind,
+  initialStates,
+  initialLinks,
 }: {
   tenant: string;
   projectSlug: string;
   projectName: string;
   projectKind: ProjectKind;
+  /** Estado real leído en el servidor. Sin esto la pantalla cae a los datos
+   *  de ejemplo, que es como nació mientras la API no existía. */
+  initialStates?: MaterialItemState[];
+  initialLinks?: MaterialShareLink[];
 }) {
   const catalog = useMemo(() => catalogForKind(projectKind), [projectKind]);
 
   const [itemStates, setItemStates] = useState<Map<string, MaterialItemState>>(
-    () => new Map(initialMaterialState().map((s) => [s.itemId, s])),
+    () => new Map((initialStates ?? initialMaterialState()).map((s) => [s.itemId, s])),
   );
-  const [links, setLinks] = useState<MaterialShareLink[]>(() => initialShareLinks());
+  const [links, setLinks] = useState<MaterialShareLink[]>(() => initialLinks ?? initialShareLinks());
   const [filters, setFilters] = useState<MaterialFilters>({ soloPendientes: false, soloObligatorios: false, categoria: null });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);

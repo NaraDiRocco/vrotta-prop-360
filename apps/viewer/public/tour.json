@@ -17,6 +17,90 @@
         "height": 1960
       },
       "sort": 1
+    },
+    {
+      "id": "sc-acceso",
+      "slug": "acceso",
+      "kind": "floorplan",
+      "name": "Acceso al complejo",
+      "source": {
+        "url": "./baleia/media/renders/acceso.webp",
+        "width": 1600,
+        "height": 1067
+      },
+      "sort": 10
+    },
+    {
+      "id": "sc-complejo-laguna",
+      "slug": "complejo-laguna",
+      "kind": "floorplan",
+      "name": "El complejo desde la laguna",
+      "source": {
+        "url": "./baleia/media/renders/complejo-laguna.webp",
+        "width": 1600,
+        "height": 888
+      },
+      "sort": 11
+    },
+    {
+      "id": "sc-complejo-llegada",
+      "slug": "complejo-llegada",
+      "kind": "floorplan",
+      "name": "Llegada por el camino interior",
+      "source": {
+        "url": "./baleia/media/renders/complejo-llegada.webp",
+        "width": 1600,
+        "height": 900
+      },
+      "sort": 12
+    },
+    {
+      "id": "sc-complejo-terrazas",
+      "slug": "complejo-terrazas",
+      "kind": "floorplan",
+      "name": "Terrazas y cubierta verde",
+      "source": {
+        "url": "./baleia/media/renders/complejo-terrazas.webp",
+        "width": 1600,
+        "height": 1231
+      },
+      "sort": 13
+    },
+    {
+      "id": "sc-complejo-fachada",
+      "slug": "complejo-fachada",
+      "kind": "floorplan",
+      "name": "Fachada de un bloque al atardecer",
+      "source": {
+        "url": "./baleia/media/renders/complejo-fachada.webp",
+        "width": 1600,
+        "height": 900
+      },
+      "sort": 14
+    },
+    {
+      "id": "sc-complejo-pergola",
+      "slug": "complejo-pergola",
+      "kind": "floorplan",
+      "name": "Pérgola junto a la piscina",
+      "source": {
+        "url": "./baleia/media/renders/complejo-pergola.webp",
+        "width": 1600,
+        "height": 1071
+      },
+      "sort": 15
+    },
+    {
+      "id": "sc-amenities",
+      "slug": "amenities",
+      "kind": "floorplan",
+      "name": "Amenities: piscina, fuego y laguna",
+      "source": {
+        "url": "./baleia/media/renders/amenities.webp",
+        "width": 1600,
+        "height": 1238
+      },
+      "sort": 16
     }
   ],
   "hotspots": [
@@ -902,6 +986,10 @@
           0.18827
         ]
       ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "acceso"
+      },
       "zIndex": 1,
       "label": "Acceso"
     },
@@ -1020,6 +1108,10 @@
           0.62398
         ]
       ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "amenities"
+      },
       "zIndex": 1,
       "label": "Piscina"
     },
@@ -1190,6 +1282,10 @@
           0.49642
         ]
       ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "amenities"
+      },
       "zIndex": 1,
       "label": "Piscina infantil"
     },
@@ -1272,6 +1368,10 @@
           0.53316
         ]
       ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "amenities"
+      },
       "zIndex": 1,
       "label": "Rincón de fuego"
     },
@@ -1374,6 +1474,10 @@
           0.52806
         ]
       ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "amenities"
+      },
       "zIndex": 1,
       "label": "Laguna"
     }
@@ -1387,7 +1491,10 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 109.68
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-a-vf.webp"
+      ]
     },
     "B2-B": {
       "label": "B2-B",
@@ -1397,7 +1504,10 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-b-vf.webp"
+      ]
     },
     "B2-C": {
       "label": "B2-C",
@@ -1407,7 +1517,10 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-c-vf.webp"
+      ]
     },
     "B2-D": {
       "label": "B2-D",
@@ -1417,7 +1530,10 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-d-vf.webp"
+      ]
     },
     "B2-E": {
       "label": "B2-E",
@@ -1427,7 +1543,10 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-e-vf.webp"
+      ]
     },
     "B2-F": {
       "label": "B2-F",
@@ -1437,7 +1556,10 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 54.15
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidades-fyg-vf.webp"
+      ]
     },
     "B2-G": {
       "label": "B2-G",
@@ -1447,7 +1569,10 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 60.05
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidades-fyg-vf.webp"
+      ]
     },
     "B2-H": {
       "label": "B2-H",
@@ -1457,7 +1582,10 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 52.62
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidades-hei-vf.webp"
+      ]
     },
     "B2-I": {
       "label": "B2-I",
@@ -1467,7 +1595,10 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 52.62
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/unidades-hei-vf.webp"
+      ]
     },
     "B3-A": {
       "label": "B3-A",
@@ -1507,7 +1638,10 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 56.9
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/b3-udye.webp"
+      ]
     },
     "B3-E": {
       "label": "B3-E",
@@ -1517,7 +1651,10 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 67.6
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/b3-udye.webp"
+      ]
     },
     "B3-F": {
       "label": "B3-F",
@@ -1527,7 +1664,10 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 56.9
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/b3-ufyg.webp"
+      ]
     },
     "B3-G": {
       "label": "B3-G",
@@ -1537,7 +1677,10 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 55.0
-      }
+      },
+      "media": [
+        "./baleia/media/plantas/b3-ufyg.webp"
+      ]
     },
     "B3-H": {
       "label": "B3-H",
