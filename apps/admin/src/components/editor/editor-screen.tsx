@@ -11,11 +11,12 @@
  * 640 lotes sin usar el mouse para navegar.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { STATUS_TOKENS, type UnitStatus } from '@r360/core';
 import type { GroupRow, SceneRow, UnitRow } from '@/lib/data/types.ts';
 import { SAVE_LABEL } from '@/lib/editor/autosave.ts';
-import { ringCenter, selfIntersects } from '@/lib/editor/geom.ts';
+import { ringAreaApprox, selfIntersects } from '@/lib/editor/geom.ts';
 import type { HotspotRow, Pt } from '@/lib/editor/records.ts';
 import { resolveSceneImage } from '@/lib/editor/scene-image.ts';
 import { findSnap, type SnapHit, type SnapTarget } from '@/lib/editor/snap.ts';
@@ -26,12 +27,35 @@ import type { CanvasApi, RenderPoly } from './canvas.ts';
 import { EditOverlay } from './edit-overlay.tsx';
 import { HelpOverlay } from './help-overlay.tsx';
 import { ImportDialog } from './import-dialog.tsx';
-import { PanoCanvas } from './pano-canvas.tsx';
-import { PlanCanvas } from './plan-canvas.tsx';
 import { SelectionPanel } from './selection-panel.tsx';
 import { UnitsPanel } from './units-panel.tsx';
 import { useEditor } from './use-editor.ts';
 import './editor.css';
+
+/**
+ * Los dos lienzos se cargan SOLO en el navegador.
+ *
+ * Photo Sphere Viewer y Leaflet tocan `window` en la carga del módulo, y Next
+ * renderiza los componentes de cliente también en el servidor: con un import
+ * normal, la primera respuesta del editor es un 500. `ssr: false` también evita
+ * mandar al navegador el lienzo que esta escena no usa.
+ */
+const PanoCanvas = dynamic(() => import('./pano-canvas.tsx').then((m) => m.PanoCanvas), {
+  ssr: false,
+  loading: () => <CanvasLoading />,
+});
+const PlanCanvas = dynamic(() => import('./plan-canvas.tsx').then((m) => m.PlanCanvas), {
+  ssr: false,
+  loading: () => <CanvasLoading />,
+});
+
+function CanvasLoading() {
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'var(--ed-faint)' }}>
+      Cargando la escena…
+    </div>
+  );
+}
 
 export interface EditorScreenProps {
   tenant: string;
@@ -113,15 +137,27 @@ export function EditorScreen(props: EditorScreenProps) {
   const selectedUnit = state.selectedUnitCode ? unitByCode.get(state.selectedUnitCode) ?? null : null;
   const selectedHotspot = state.selectedHotspotId ? state.byId[state.selectedHotspotId] ?? null : null;
 
+  /**
+   * Los polígonos se dibujan de mayor a menor superficie.
+   *
+   * En un plano, el perímetro del terreno cubre a todos los lotes; si se
+   * dibujara al final, cada click caería sobre él y no habría forma de
+   * seleccionar un lote con el mouse. Ordenar por tamaño deja siempre arriba al
+   * más chico, que es el que uno quiso clickear.
+   */
   const polygons = useMemo<RenderPoly[]>(
     () =>
-      hotspotsOf(state).map((h) => ({
-        id: h.id,
-        ring: h.ring,
-        status: statusFor(h, unitByCode),
-        label: h.unitCode ?? h.label,
-        selected: h.id === state.selectedHotspotId,
-      })),
+      hotspotsOf(state)
+        .map((h) => ({
+          id: h.id,
+          ring: h.ring,
+          status: statusFor(h, unitByCode),
+          label: h.unitCode ?? h.label,
+          selected: h.id === state.selectedHotspotId,
+          area: ringAreaApprox(state.space, h.ring),
+        }))
+        .sort((a, b) => b.area - a.area)
+        .map(({ area: _area, ...poly }) => poly),
     [state, unitByCode],
   );
 
@@ -299,7 +335,7 @@ export function EditorScreen(props: EditorScreenProps) {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof HTMLElement ? e.target : null;
       // Mientras se escribe en un campo, las teclas sueltas son texto.
       if (target?.closest('[data-editor-input="true"], input, textarea, select')) {
         if (e.key === 'Escape') target.blur();
@@ -389,11 +425,21 @@ export function EditorScreen(props: EditorScreenProps) {
       if (e.key === ' ') setPanning(false);
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
+    /*
+     * En FASE DE CAPTURA, no de burbujeo.
+     *
+     * Este editor se opera con el teclado, y abajo hay dos bibliotecas con vida
+     * propia (Photo Sphere Viewer y Leaflet) más el navegador. Escuchando al
+     * final de la cadena, cualquiera de ellas puede quedarse con un atajo antes
+     * que nosotros y el síntoma es una tecla que "a veces no anda". Capturando
+     * primero, el editor decide siempre — y el filtro de arriba es el que le
+     * devuelve las teclas a los campos de texto cuando corresponde.
+     */
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('keyup', onKeyUp, true);
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('keyup', onKeyUp, true);
     };
   }, [
     closeRing,
@@ -448,6 +494,7 @@ export function EditorScreen(props: EditorScreenProps) {
             url={image.url}
             polygons={polygons}
             showLabels={state.showLabels}
+            drawing={state.mode === 'draw'}
             onReady={setApi}
             onViewChange={bumpView}
             onPick={onPick}
@@ -460,6 +507,7 @@ export function EditorScreen(props: EditorScreenProps) {
             height={image.height}
             polygons={polygons}
             showLabels={state.showLabels}
+            drawing={state.mode === 'draw'}
             onReady={setApi}
             onViewChange={bumpView}
             onPick={onPick}
@@ -572,8 +620,8 @@ export function EditorScreen(props: EditorScreenProps) {
           {panning ? ' (desplazando)' : ''}
         </span>
         <span>
-          {state.drawing
-            ? `${state.drawing.length} vértices en curso`
+          {state.mode === 'draw'
+            ? `${state.drawing?.length ?? 0} vértices en curso`
             : selectedHotspot
               ? `${selectedHotspot.ring.length} vértices`
               : '—'}
@@ -649,5 +697,3 @@ function newId(prefix: string): string {
   counter += 1;
   return `${prefix}-${Date.now().toString(36)}-${counter}`;
 }
-
-export { ringCenter };

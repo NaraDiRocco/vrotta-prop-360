@@ -11,7 +11,7 @@
  * dos veces y da lo mismo.
  */
 import { applyPatches, enablePatches, produceWithPatches, type Patch } from 'immer';
-import { clampPoint, deltaBetween, insertVertexAfter, removeVertexAt, ringCenter, translateRing, MIN_RING } from './geom.ts';
+import { clampPoint, insertVertexAfter, removeVertexAt, translateRing, MIN_RING } from './geom.ts';
 import type { GeomSpace, Pt } from './records.ts';
 
 enablePatches();
@@ -164,8 +164,11 @@ function mutate(s: EditorState, a: Action): void {
       return;
 
     case 'setMode': {
+      // Entrar en dibujo NO inicializa el trazo: `drawing` sigue en null hasta
+      // el primer vértice. Si se inicializara en [], cambiar de modo tocaría
+      // datos y se colaría como un paso deshacible — apretar `d` no es trabajo.
+      // Salir de dibujo con un trazo vivo sí lo descarta, y eso sí es un paso.
       if (a.mode !== 'draw') s.drawing = null;
-      if (a.mode === 'draw') s.drawing = s.drawing ?? [];
       if (a.mode === 'edit' && !s.selectedHotspotId) return;
       s.mode = a.mode;
       s.selectedVertex = null;
@@ -374,13 +377,26 @@ export function labelFor(action: Action, state: EditorState): string {
       return 'Agregar vértice';
     case 'popVertex':
       return 'Deshacer vértice';
+    case 'cancelDraw':
+      return 'Cancelar el trazo';
     default:
-      return action.type;
+      return 'Cambio';
   }
 }
 
 /** Rutas de estado que hay que guardar. El resto es UI y no ensucia nada. */
 const PERSISTED_ROOTS = new Set(['byId', 'order']);
+
+/**
+ * Rutas que SÍ entran al historial.
+ *
+ * ⌘Z deshace TRABAJO, no la vista. Cambiar de modo, de unidad seleccionada o
+ * apagar las etiquetas no son pasos que nadie quiera deshacer: si estuvieran en
+ * la pila, después de apretar cuatro teclas de modo harían falta cuatro ⌘Z
+ * para volver a deshacer el vértice que se movió mal. `drawing` sí entra
+ * aunque no se guarde: el trazo en curso es trabajo.
+ */
+const UNDOABLE_ROOTS = new Set(['byId', 'order', 'drawing']);
 
 export interface Applied {
   state: EditorState;
@@ -389,6 +405,8 @@ export interface Applied {
   label: string;
   /** true si el cambio toca geometría o asignación (dispara el autosave). */
   persists: boolean;
+  /** true si el paso merece entrar al historial de deshacer. */
+  undoable: boolean;
   changed: boolean;
 }
 
@@ -404,6 +422,7 @@ export function applyAction(state: EditorState, action: Action): Applied {
     label,
     changed: patches.length > 0,
     persists: patches.some((p) => PERSISTED_ROOTS.has(String(p.path[0]))),
+    undoable: patches.some((p) => UNDOABLE_ROOTS.has(String(p.path[0]))),
   };
 }
 

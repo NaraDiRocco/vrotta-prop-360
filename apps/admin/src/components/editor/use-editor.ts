@@ -148,7 +148,7 @@ export function useEditor({ projectId, sceneId, space, initial }: UseEditorOptio
 
       if (txnRef.current) {
         txnRef.current = txnAdd(txnRef.current, result.patches, result.inverse);
-      } else {
+      } else if (result.undoable) {
         setHistory((h) =>
           pushEntry(h, {
             label: result.label,

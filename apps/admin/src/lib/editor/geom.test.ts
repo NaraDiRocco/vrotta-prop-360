@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { angleBetween, normalizeYaw } from '@r360/core';
 import {
   clampPoint,
+  ringAreaApprox,
   distance,
   edgeMidpoint,
   insertVertexAfter,
@@ -98,6 +99,31 @@ describe('normalización y traslación', () => {
       [-179 * D, 0],
     ]);
     expect(un[1]![0]).toBeCloseTo(181 * D, 10);
+  });
+});
+
+describe('superficie aproximada', () => {
+  test('en plano es la fórmula del zapatero', () => {
+    expect(ringAreaApprox('px', [[0, 0], [0.4, 0], [0.4, 0.5], [0, 0.5]])).toBeCloseTo(0.2, 12);
+  });
+
+  test('no depende del sentido de giro', () => {
+    const cw: Pt[] = [[0, 0], [0, 0.5], [0.4, 0.5], [0.4, 0]];
+    expect(ringAreaApprox('px', cw)).toBeCloseTo(0.2, 12);
+  });
+
+  test('ordena de mayor a menor, que es para lo único que se usa', () => {
+    // El perímetro del terreno tiene que quedar DEBAJO de los lotes que
+    // contiene, o se come todos los clicks.
+    const terreno: Pt[] = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const lote: Pt[] = [[0.2, 0.2], [0.3, 0.2], [0.3, 0.3], [0.2, 0.3]];
+    expect(ringAreaApprox('px', terreno)).toBeGreaterThan(ringAreaApprox('px', lote));
+  });
+
+  test('en esfera un casquete grande mide más que uno chico', () => {
+    const grande: Pt[] = [[-0.4, -0.2], [0.4, -0.2], [0.4, 0.2], [-0.4, 0.2]];
+    const chico: Pt[] = [[-0.05, -0.02], [0.05, -0.02], [0.05, 0.02], [-0.05, 0.02]];
+    expect(ringAreaApprox('sph', grande)).toBeGreaterThan(ringAreaApprox('sph', chico));
   });
 });
 

@@ -27,7 +27,7 @@ export interface SceneImage {
 }
 
 const DEMO_PANO = { url: '/editor-demo/pano.png', width: 2048, height: 1024 };
-const DEMO_PLAN = { url: '/editor-demo/baleia-masterplan.jpg', width: 2400, height: 1350 };
+const DEMO_PLAN = { url: '/editor-demo/baleia-masterplan.jpg', width: 3000, height: 740 };
 
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() ? v : null;

@@ -180,6 +180,43 @@ describe('reducer — asignación', () => {
   });
 });
 
+describe('qué entra al historial y qué ensucia', () => {
+  test('⌘Z deshace TRABAJO, no la vista', () => {
+    const s = base();
+    // Cambiar de modo, de unidad o apagar etiquetas no son pasos deshacibles:
+    // si lo fueran, después de apretar cuatro teclas de modo harían falta
+    // cuatro ⌘Z para volver a deshacer el vértice que se movió mal.
+    for (const action of [
+      { type: 'setMode', mode: 'draw' },
+      { type: 'toggleLabels' },
+      { type: 'toggleSnap' },
+      { type: 'toggleOnlyWithout' },
+      { type: 'selectUnit', code: 'B2-A' },
+      { type: 'selectVertex', index: 2 },
+    ] as Action[]) {
+      const r = applyAction(s, action);
+      expect({ action: action.type, undoable: r.undoable }).toEqual({ action: action.type, undoable: false });
+    }
+  });
+
+  test('el trazo en curso SÍ es deshacible aunque no se guarde', () => {
+    const drawing = applyAction(base(), { type: 'addVertex', point: [0, 0] });
+    expect(drawing.undoable).toBe(true);
+    expect(drawing.persists).toBe(false);
+  });
+
+  test('la geometría es deshacible y además ensucia', () => {
+    const s = createState({
+      sceneId: 's1',
+      space: 'sph',
+      hotspots: [{ id: 'a', unitCode: 'B2-A', ring: SQUARE, label: null, zIndex: 1 }],
+    });
+    const r = applyAction(s, { type: 'moveVertex', id: 'a', index: 0, point: [0.5, 0.5] });
+    expect(r.undoable).toBe(true);
+    expect(r.persists).toBe(true);
+  });
+});
+
 describe('persistencia del cambio', () => {
   test('los cambios de UI no marcan sucio; los de geometría sí', () => {
     const s = base();

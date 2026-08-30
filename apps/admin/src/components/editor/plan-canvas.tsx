@@ -27,6 +27,7 @@ export function PlanCanvas({
   height,
   polygons,
   showLabels,
+  drawing: _drawing,
   onReady,
   onViewChange,
   onPick,
@@ -98,7 +99,12 @@ export function PlanCanvas({
     // El contenedor puede nacer con tamaño 0 dentro del grid: primero se le
     // informa el tamaño real y recién después se encuadra, o el fitBounds sale
     // calculado sobre 0x0 y el plano aparece del tamaño de una estampilla.
-    requestAnimationFrame(() => {
+    //
+    // El handle se guarda para cancelarlo: en desarrollo React desmonta y
+    // vuelve a montar cada efecto, y un rAF que sobreviva al `map.remove()`
+    // llama a `invalidateSize` sobre un mapa ya destruido — que es un
+    // `_leaflet_pos of undefined` en consola cada vez que se abre el editor.
+    const frame = requestAnimationFrame(() => {
       map.invalidateSize({ animate: false });
       map.fitBounds(bounds);
       cb.current.onReady(api);
@@ -112,6 +118,7 @@ export function PlanCanvas({
     observer.observe(host);
 
     return () => {
+      cancelAnimationFrame(frame);
       observer.disconnect();
       map.remove();
       mapRef.current = null;

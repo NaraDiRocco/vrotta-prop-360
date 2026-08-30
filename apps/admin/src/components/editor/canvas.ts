@@ -56,4 +56,13 @@ export interface CanvasEvents {
 export interface CanvasProps extends CanvasEvents {
   polygons: readonly RenderPoly[];
   showLabels: boolean;
+  /**
+   * true mientras se está dibujando.
+   *
+   * El lienzo lo necesita porque en modo dibujo el click tiene que ser
+   * INMEDIATO: Photo Sphere Viewer retrasa su evento `click` 300 ms para poder
+   * distinguirlo de un doble click, y con ese retraso marcar cuatro esquinas
+   * seguidas pierde la mitad de los vértices.
+   */
+  drawing: boolean;
 }

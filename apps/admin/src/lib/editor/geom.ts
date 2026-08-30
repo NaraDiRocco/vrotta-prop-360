@@ -12,6 +12,7 @@ import {
   clamp,
   normalize,
   normalizeYaw,
+  ringAreaApprox as sphRingArea,
   ringSelfIntersects,
   slerp,
   sphToVec3,
@@ -115,6 +116,24 @@ export function translateRing(space: GeomSpace, ring: readonly Pt[], dx: number,
 export function deltaBetween(space: GeomSpace, from: Pt, to: Pt): readonly [number, number] {
   if (space === 'sph') return [normalizeYaw(to[0] - from[0]), to[1] - from[1]];
   return [to[0] - from[0], to[1] - from[1]];
+}
+
+/**
+ * Superficie aproximada del anillo, en las unidades del espacio.
+ *
+ * No pretende ser exacta: sirve para ORDENAR. El editor dibuja de mayor a menor
+ * para que el perímetro del terreno no le tape el click a los lotes que
+ * contiene.
+ */
+export function ringAreaApprox(space: GeomSpace, ring: readonly Pt[]): number {
+  if (space === 'sph') return sphRingArea(ring as readonly Sph[]);
+  let sum = 0;
+  for (let i = 0; i < ring.length; i += 1) {
+    const [x1, y1] = ring[i]!;
+    const [x2, y2] = ring[(i + 1) % ring.length]!;
+    sum += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(sum / 2);
 }
 
 /** Centro del anillo: centroide esférico en `sph`, promedio simple en `px`. */

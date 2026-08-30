@@ -14,3 +14,4 @@ out/
 coverage/
 packages/pipeline/out/
 packages/pipeline/*.egg-info/
+*.tsbuildinfo

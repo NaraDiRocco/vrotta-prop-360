@@ -75,6 +75,14 @@
   position: relative;
   min-width: 0;
   background: #05070a;
+  /*
+   * Leaflet apila sus paneles en z-index 400..700 y Photo Sphere Viewer tiene
+   * los suyos. `isolation` los encierra en este contenedor: sin esto, el mapa
+   * se dibuja por encima del diálogo de importación, que vive fuera del lienzo.
+   * Los z-index de acá adentro son relativos a este contexto y no compiten con
+   * los del resto de la pantalla.
+   */
+  isolation: isolate;
 }
 
 .ed-status {
@@ -278,6 +286,9 @@
 .ed-overlay {
   position: absolute;
   inset: 0;
+  /* Por encima de los paneles de Leaflet (400..700): los tiradores de vértice
+     tienen que quedar sobre los polígonos, no debajo. */
+  z-index: 800;
   /* Por defecto NO intercepta: la panorámica tiene que poder rotarse
      arrastrando. Sólo los tiradores reactivan el puntero. */
   pointer-events: none;
@@ -357,7 +368,7 @@
   border-radius: 7px;
   background: rgba(11, 14, 18, 0.86);
   backdrop-filter: blur(6px);
-  z-index: 3;
+  z-index: 900;
 }
 
 .ed-toast {
@@ -370,7 +381,7 @@
   border-radius: 999px;
   background: rgba(11, 14, 18, 0.92);
   font-size: 11px;
-  z-index: 5;
+  z-index: 910;
   pointer-events: none;
 }
 
@@ -387,7 +398,7 @@
   border-radius: 7px;
   background: rgba(18, 22, 28, 0.96);
   font-size: 11px;
-  z-index: 6;
+  z-index: 920;
 }
 
 /* ── diálogos ──────────────────────────────────────────────────────────── */
@@ -398,7 +409,7 @@
   background: rgba(4, 6, 9, 0.66);
   display: grid;
   place-items: center;
-  z-index: 20;
+  z-index: 2000;
   padding: 24px;
 }
 
