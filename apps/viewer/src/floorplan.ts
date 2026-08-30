@@ -5,6 +5,7 @@
  * propio sistema de coordenadas. Los vértices llegan normalizados 0..1 sobre
  * el master, así que el mismo dato sirve para cualquier resolución publicada.
  */
+import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import type { AvailabilityFile, Hotspot, Px, Scene, TourManifest } from '@r360/core';
 import { svgStyleFor, tokenFor, tooltipHtml, unitFacts, type MarkerMeta } from './polygons.ts';
@@ -21,6 +22,7 @@ export class FloorplanRenderer implements SceneRenderer {
   private layers = new Map<string, L.Path>();
   private meta = new Map<string, MarkerMeta>();
   private codeToIds = new Map<string, string[]>();
+  private highlighted: string | null = null;
   private readonly el: HTMLElement;
 
   constructor(
@@ -51,7 +53,6 @@ export class FloorplanRenderer implements SceneRenderer {
       maxBounds: bounds.pad(0.25),
     });
     L.imageOverlay(url, bounds).addTo(this.map);
-    this.map.fitBounds(bounds);
 
     for (const h of hotspots) {
       if (h.geometryKind !== 'polygon_px' && h.geometryKind !== 'point_px') continue;
@@ -77,8 +78,13 @@ export class FloorplanRenderer implements SceneRenderer {
         this.codeToIds.set(h.unitCode, list);
       }
     }
-    // El contenedor nace con tamaño 0 si la escena se monta oculta.
-    requestAnimationFrame(() => this.map?.invalidateSize());
+    // El contenedor puede nacer con tamaño 0: primero se le informa el tamaño
+    // real y recién después se encuadra, o el fitBounds sale calculado sobre
+    // 0x0 y el plano aparece del tamaño de una estampilla.
+    requestAnimationFrame(() => {
+      this.map?.invalidateSize({ animate: false });
+      this.map?.fitBounds(bounds);
+    });
   }
 
   /** Repinta sólo las unidades cambiadas: no se recrea ninguna capa. */
@@ -102,21 +108,25 @@ export class FloorplanRenderer implements SceneRenderer {
   }
 
   focusUnit(code: string): void {
+    const prev = this.highlighted ? this.layers.get(this.highlighted) : undefined;
+    prev?.setStyle({ weight: 2 });
+    this.highlighted = null;
     const id = this.codeToIds.get(code)?.[0];
     const layer = id ? this.layers.get(id) : undefined;
     if (!layer || !this.map) return;
+    this.highlighted = id!;
     if ('getBounds' in layer) this.map.fitBounds((layer as L.Polygon).getBounds(), { maxZoom: 2 });
     layer.setStyle({ weight: 4 });
     layer.openTooltip();
   }
 
   show(): void {
-    this.el.hidden = false;
+    this.el.classList.remove('r360-hidden');
     requestAnimationFrame(() => this.map?.invalidateSize());
   }
 
   hide(): void {
-    this.el.hidden = true;
+    this.el.classList.add('r360-hidden');
   }
 
   destroy(): void {
@@ -127,11 +137,9 @@ export class FloorplanRenderer implements SceneRenderer {
   private destroyMap(): void {
     this.map?.remove();
     this.map = null;
+    this.highlighted = null;
     this.layers.clear();
     this.meta.clear();
     this.codeToIds.clear();
   }
 }
-
-/** Reexport para que main.ts no tenga que importar leaflet directamente. */
-export { svgStyleFor };

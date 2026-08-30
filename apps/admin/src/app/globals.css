@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+/*
+ * Sistema de diseño del panel.
+ *
+ * Densidad propia, a propósito distinta de los defaults de Tailwind: lo opera
+ * una persona experta sobre tablas de cientos/miles de unidades. Base 13px,
+ * fila de tabla 32px, control 28px. En una tabla de 1.000 lotes eso significa
+ * ver ~28 filas en vez de ~20.
+ *
+ * NOTA IMPORTANTE: los colores de estado NO están acá. Se inyectan en runtime
+ * desde STATUS_TOKENS de @r360/core (ver src/components/status-styles.tsx).
+ * Redefinirlos en CSS es exactamente lo que hace que panel, editor y visor
+ * diverjan.
+ */
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+
+  --spacing-row: 32px;
+  --spacing-control: 28px;
+  --spacing-rail: 56px;
+  --spacing-projbar: 220px;
+  --spacing-tree: 200px;
+  --spacing-sheet: 420px;
+}
+
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f7f8f9;
+  --bg-sunken: #f1f3f5;
+  --bg-hover: #eef1f4;
+  --bg-sel: #e6efff;
+  --border: #e3e6ea;
+  --border-strong: #cbd1d8;
+  --fg: #14181d;
+  --fg-muted: #64707d;
+  --fg-faint: #94a0ac;
+  --accent: #1f6feb;
+  --accent-fg: #ffffff;
+  --danger: #dc2626;
+  --warn: #d97706;
+  --ok: #16a34a;
+  --row-h: 32px;
+  --control-h: 28px;
+}
+
+html {
+  font-size: 13px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Números alineados en columna: obligatorio en cualquier celda numérica. */
+.tnum,
+td.num,
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ── primitivas ────────────────────────────────────────────────────────── */
+
+.r-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.r-btn:hover:not(:disabled) { background: var(--bg-hover); }
+.r-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.r-btn[data-variant="primary"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+.r-btn[data-variant="primary"]:hover:not(:disabled) { filter: brightness(1.08); }
+.r-btn[data-variant="ghost"] { border-color: transparent; background: transparent; }
+.r-btn[data-variant="ghost"]:hover:not(:disabled) { background: var(--bg-hover); }
+
+.r-input {
+  height: var(--control-h);
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  width: 100%;
+}
+.r-input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: -1px; }
+
+.r-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.r-chip[data-on="true"] { border-color: var(--accent); background: var(--bg-sel); }
+
+.r-kbd {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-align: center;
+  color: var(--fg-muted);
+}
+
+/* ── tabla densa ───────────────────────────────────────────────────────── */
+
+.r-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.r-th {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-align: left;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+}
+.r-td {
+  height: var(--row-h);
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.r-row:hover { background: var(--bg-hover); }
+.r-row[data-selected="true"] { background: var(--bg-sel); }
+.r-row[data-cursor="true"] { box-shadow: inset 2px 0 0 var(--accent); }
+.r-row[data-pending="true"] { opacity: 0.55; }
+.r-row[data-failed="true"] { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+
+.r-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: none;
+}
+
+.r-stack { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--bg-sunken); }
+
+*:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --bg-subtle: #151a20;
+    --bg-sunken: #1b2229;
+    --bg-hover: #1d242c;
+    --bg-sel: #16273f;
+    --border: #232a33;
+    --border-strong: #333c47;
+    --fg: #e6ebf1;
+    --fg-muted: #93a1b0;
+    --fg-faint: #6b7885;
+    --accent: #4c8dff;
+    --accent-fg: #0b0e12;
+  }
+}

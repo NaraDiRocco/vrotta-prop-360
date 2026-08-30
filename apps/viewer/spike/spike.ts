@@ -162,7 +162,10 @@ interface BuiltMarkers {
 
 function toMarkers(polys: SynthPoly[], densify: boolean, stepDeg: number): BuiltMarkers {
   const t0 = performance.now();
-  const rings = polys.map((p) => (densify ? densifyRing(p.ring, stepDeg) : p.ring));
+  // `stepDeg <= 0` haría que densifyEdge calcule Infinity pasos y cuelgue la
+  // pestaña. Es un pie de bala fácil de pisar desde la query string.
+  const step = Math.max(0.05, stepDeg);
+  const rings = polys.map((p) => (densify ? densifyRing(p.ring, step) : p.ring));
   const densifyMs = performance.now() - t0;
 
   let totalVertices = 0;
@@ -221,6 +224,8 @@ const viewer = new Viewer({
 const markersPlugin = viewer.getPlugin<MarkersPlugin>(MarkersPlugin);
 
 let polys: SynthPoly[] = [];
+/** Ids realmente montados en PSV. Con culling activo es un subconjunto. */
+let mountedIds = new Set<string>();
 let built: BuiltMarkers = { markers: [], totalVertices: 0, densifyMs: 0 };
 
 function mount(): void {
@@ -229,7 +234,9 @@ function mount(): void {
 
   markersPlugin.clearMarkers();
   const t0 = performance.now();
-  markersPlugin.setMarkers(cfg.cull ? cullToView(built.markers) : built.markers);
+  const initial = cfg.cull ? cullToView(built.markers) : built.markers;
+  mountedIds = new Set(initial.map((mk) => String(mk.id)));
+  markersPlugin.setMarkers(initial);
   viewer.needsUpdate();
   const mountMs = performance.now() - t0;
 
@@ -271,7 +278,8 @@ function bulkUpdate(): void {
     const p = polys[i]!;
     const s = UNIT_STATUSES[(i + flip) % UNIT_STATUSES.length]!;
     p.status = s;
-    markersPlugin.updateMarker({ id: p.id, svgStyle: styleFor(s) }, false);
+    // Con culling, el que no está montado toma su color al entrar en vista.
+    if (mountedIds.has(p.id)) markersPlugin.updateMarker({ id: p.id, svgStyle: styleFor(s) }, false);
   }
   viewer.needsUpdate();
   m.lastBulkUpdateNoRenderMs = performance.now() - t0;
@@ -279,7 +287,9 @@ function bulkUpdate(): void {
   // (b) con render por marcador — el camino ingenuo, para tener el contraste
   const t1 = performance.now();
   for (let i = 0; i < polys.length; i++) {
-    markersPlugin.updateMarker({ id: polys[i]!.id, svgStyle: styleFor(polys[i]!.status) }, true);
+    if (mountedIds.has(polys[i]!.id)) {
+      markersPlugin.updateMarker({ id: polys[i]!.id, svgStyle: styleFor(polys[i]!.status) }, true);
+    }
   }
   m.lastBulkUpdateMs = performance.now() - t1;
   render();
@@ -311,7 +321,9 @@ let cullTimer = 0;
 function recull(): void {
   if (performance.now() - cullTimer < 250) return;
   cullTimer = performance.now();
-  markersPlugin.setMarkers(cullToView(built.markers));
+  const next = cullToView(built.markers);
+  mountedIds = new Set(next.map((mk) => String(mk.id)));
+  markersPlugin.setMarkers(next);
 }
 
 function stats(): void {
@@ -398,11 +410,14 @@ viewer.addEventListener('ready', () => mount(), { once: true });
 function syncBench(frames = 120): { msPerFrame: number; p95: number; frames: number } {
   const samples: number[] = [];
   let onScreen = 0;
-  let yaw = 0;
   for (let i = 0; i < frames; i++) {
-    yaw += 0.02;
-    viewer.rotate({ yaw, pitch: Math.sin(yaw) * 0.2 });
+    // Barrido dentro del sector, como un visitante paneando el loteo: si el
+    // barrido saliera del sector, el culling mediría una escena vacía y el
+    // número quedaría inflado a favor de la mitigación.
+    viewer.rotate({ yaw: Math.sin(i * 0.031) * 0.9, pitch: -0.3 + Math.sin(i * 0.017) * 0.18 });
     const t = performance.now();
+    // El re-culling es trabajo real por frame: entra en la medición.
+    if (cfg.cull) recull();
     markersPlugin.renderMarkers();
     samples.push(performance.now() - t);
     onScreen += document.querySelectorAll('.psv-marker--visible').length;
@@ -422,6 +437,7 @@ function syncBench(frames = 120): { msPerFrame: number; p95: number; frames: num
   setN: (n: number) => { cfg.n = n; mount(); },
   setDensify: (v: boolean) => { cfg.densify = v; mount(); },
   setLayout: (v: 'patch' | 'sphere') => { cfg.layout = v; mount(); },
+  setStep: (deg: number) => { cfg.stepDeg = deg; mount(); },
   setCull: (v: boolean) => { cfg.cull = v; mount(); },
   bulkUpdate,
   syncBench,

@@ -16,7 +16,6 @@ import {
   STATUS_TOKENS,
   type AvailabilityFile,
   type Hotspot,
-  type Px,
   type Sph,
   type TourManifest,
   type UnitStatus,
@@ -252,9 +251,4 @@ export function buildMarkers(
   }
 
   return { markers, meta, fallbackCount };
-}
-
-/** Convierte geometría normalizada 0..1 a coordenadas de plano (px del master). */
-export function pxToPlane(p: Px, width: number, height: number): [number, number] {
-  return [p[0] * width, p[1] * height];
 }

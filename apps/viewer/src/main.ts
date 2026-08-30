@@ -8,7 +8,6 @@
  */
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import 'leaflet/dist/leaflet.css';
 import './styles.css';
 
 import { STATUS_TOKENS, UNIT_STATUSES, type AvailabilityFile, type TourManifest } from '@r360/core';

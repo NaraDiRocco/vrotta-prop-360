@@ -12,7 +12,7 @@
       "kind": "panorama",
       "name": "Entrada al loteo",
       "source": {
-        "url": "./demo/pano.svg",
+        "url": "./demo/pano.png",
         "width": 4096,
         "height": 2048
       },
@@ -30,7 +30,7 @@
       "kind": "floorplan",
       "name": "Plano general",
       "source": {
-        "url": "./demo/plan.svg",
+        "url": "./demo/plan.png",
         "width": 1600,
         "height": 1000
       },

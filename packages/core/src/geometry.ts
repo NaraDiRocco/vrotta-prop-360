@@ -61,14 +61,25 @@ export function angleBetween(a: Sph, b: Sph): number {
  * incluye `b` (lo aporta la arista siguiente).
  */
 export function densifyEdge(a: Sph, b: Sph, stepDeg = 2): Sph[] {
+  // Un stepDeg de 0 o negativo daría Infinity pasos y colgaría el hilo.
+  // Se valida acá, en el borde, y no en cada llamador.
+  if (!Number.isFinite(stepDeg) || stepDeg <= 0) {
+    throw new RangeError(`densifyEdge: stepDeg debe ser > 0, se recibió ${stepDeg}`);
+  }
   const va = sphToVec3(a);
   const vb = sphToVec3(b);
   const omega = Math.acos(clamp(dot(va, vb), -1, 1));
-  const steps = Math.max(1, Math.ceil((omega * 180) / Math.PI / stepDeg));
+  const raw = Math.ceil((omega * 180) / Math.PI / stepDeg);
+  // Tope de seguridad: ni el polígono más grande necesita más que esto, y evita
+  // que un stepDeg minúsculo por error genere millones de vértices.
+  const steps = clamp(Math.max(1, raw), 1, MAX_STEPS_PER_EDGE);
   const out: Sph[] = [];
   for (let i = 0; i < steps; i++) out.push(vec3ToSph(slerp(va, vb, i / steps)));
   return out;
 }
+
+/** Tope de subdivisiones por arista. 360 = una muestra por grado de esfera completa. */
+export const MAX_STEPS_PER_EDGE = 360;
 
 /** Densifica un anillo cerrado completo. */
 export function densifyRing(ring: readonly Sph[], stepDeg = 2): Sph[] {

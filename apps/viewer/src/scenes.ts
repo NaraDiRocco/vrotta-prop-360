@@ -28,7 +28,7 @@ import {
   type MarkerMeta,
   type UnitFacts,
 } from './polygons.ts';
-import { FloorplanRenderer } from './floorplan.ts';
+import type { FloorplanRenderer } from './floorplan.ts';
 
 export interface UnitClickPayload {
   hotspotId: string;
@@ -87,6 +87,8 @@ export class PanoramaRenderer implements SceneRenderer {
   private codeToIds = new Map<string, string[]>();
   private anchors = new Map<string, Sph>();
   private mounted = false;
+  /** Único hotspot resaltado a la vez: si no, se acumulan bordes gruesos. */
+  private highlighted: string | null = null;
 
   constructor(
     host: HTMLElement,
@@ -115,6 +117,7 @@ export class PanoramaRenderer implements SceneRenderer {
   }
 
   mount(scene: Scene, hotspots: readonly Hotspot[], availability: AvailabilityFile | null): void {
+    this.highlighted = null;
     const built = buildMarkers(hotspots, this.tour, availability);
     this.meta = built.meta;
     this.codeToIds = new Map();
@@ -184,16 +187,26 @@ export class PanoramaRenderer implements SceneRenderer {
   focusUnit(code: string): void {
     const id = this.codeToIds.get(code)?.[0];
     if (!id) return;
+    this.clearHighlight();
     const at = this.anchors.get(id);
     if (at) this.viewer.animate({ yaw: normalizeYaw(at[0]), pitch: at[1], speed: '10rpm' });
     const meta = this.meta.get(id);
     if (meta) {
       this.markers.updateMarker({ id, svgStyle: svgStyleFor(meta.facts.status, this.tour, { highlighted: true }) });
+      this.highlighted = id;
     }
   }
 
-  show(): void { this.el.hidden = false; this.viewer.needsUpdate(); }
-  hide(): void { this.el.hidden = true; }
+  private clearHighlight(): void {
+    const prev = this.highlighted;
+    this.highlighted = null;
+    if (!prev) return;
+    const meta = this.meta.get(prev);
+    if (meta) this.markers.updateMarker({ id: prev, svgStyle: svgStyleFor(meta.facts.status, this.tour) });
+  }
+
+  show(): void { this.el.classList.remove('r360-hidden'); this.viewer.needsUpdate(); }
+  hide(): void { this.el.classList.add('r360-hidden'); }
   destroy(): void { this.viewer.destroy(); this.el.remove(); }
 }
 
@@ -263,9 +276,9 @@ export class SceneController {
         this.pano.mount(scene, hotspots, this.availability);
       } else {
         this.pano?.hide();
-        this.plan ??= new FloorplanRenderer(this.host, this.tour, (p) => this.emitUnit(p));
-        this.plan.show();
-        this.plan.mount(scene, hotspots, this.availability);
+        // Leaflet se descarga sólo si el tour tiene alguna escena de plano.
+        // En un embed, 40 KB gzip que la mayoría de los recorridos no usa.
+        void this.mountPlan(scene, hotspots);
       }
     }
 
@@ -290,6 +303,17 @@ export class SceneController {
     window.removeEventListener('hashchange', this.onHashChange);
     this.pano?.destroy();
     this.plan?.destroy();
+  }
+
+  private async mountPlan(scene: Scene, hotspots: readonly Hotspot[]): Promise<void> {
+    if (!this.plan) {
+      const { FloorplanRenderer } = await import('./floorplan.ts');
+      // Mientras se descargaba el chunk el usuario pudo cambiar de escena.
+      if (this.currentSlug !== scene.slug) return;
+      this.plan = new FloorplanRenderer(this.host, this.tour, (p) => this.emitUnit(p));
+    }
+    this.plan.show();
+    this.plan.mount(scene, hotspots, this.availability);
   }
 
   private active(): SceneRenderer | null {

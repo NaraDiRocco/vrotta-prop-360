@@ -9,7 +9,14 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; co
 
 .r360-root { position: relative; width: 100%; height: 100%; overflow: hidden; }
 .r360-pano, .r360-plan { position: absolute; inset: 0; }
-.r360-pano[hidden], .r360-plan[hidden] { display: none; }
+/*
+ * Ocultar con `display:none` colapsa la caja a 0x0 y PSV empieza a proyectar
+ * NaN en el `d` de cada polígono (la consola se llena de errores de SVG y los
+ * marcadores quedan corruptos al volver). `visibility` conserva la geometría.
+ */
+.r360-hidden { visibility: hidden; pointer-events: none; }
+.r360-plan { z-index: 2; }
+.r360-plan.r360-hidden { z-index: 0; }
 .r360-plan { background: #11161d; }
 
 .r360-boot {

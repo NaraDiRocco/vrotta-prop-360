@@ -72,3 +72,20 @@ test('deteccion de auto-interseccion', () => {
   assert.equal(ringSelfIntersects(simple), false);
   assert.equal(ringSelfIntersects(bowtie), true);
 });
+
+test('densifyEdge rechaza stepDeg <= 0 en vez de colgar el hilo', () => {
+  // Regresion: stepDeg=0 daba Infinity pasos y el for() nunca terminaba,
+  // congelando la pestaña. Detectado en el spike de rendimiento del visor.
+  assert.throws(() => densifyEdge([0, 0], [1, 0], 0), RangeError);
+  assert.throws(() => densifyEdge([0, 0], [1, 0], -1), RangeError);
+  assert.throws(() => densifyEdge([0, 0], [1, 0], NaN), RangeError);
+});
+
+test('densifyEdge acota la cantidad de puntos con stepDeg minusculo', () => {
+  const pts = densifyEdge([0, 0], [Math.PI / 2, 0], 1e-9);
+  assert.ok(pts.length <= 360, `esperaba <=360 puntos, hubo ${pts.length}`);
+});
+
+test('densifyRing propaga la validacion', () => {
+  assert.throws(() => densifyRing([[0, 0], [0.1, 0], [0.1, 0.1]], 0), RangeError);
+});
