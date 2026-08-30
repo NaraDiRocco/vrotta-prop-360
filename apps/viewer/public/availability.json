@@ -1,74 +1,97 @@
 {
   "v": 1,
-  "generated_at": "2026-08-30T05:33:00.212Z",
+  "generated_at": "2026-08-30T06:38:30.097Z",
   "units": {
-    "A-01": {
+    "B2-A": {
       "s": "disponible",
-      "p": {
-        "a": 18000,
-        "c": "USD"
-      }
+      "p": null
     },
-    "A-02": {
+    "B2-B": {
       "s": "reservado",
       "p": null
     },
-    "A-03": {
+    "B2-C": {
       "s": "vendido",
       "p": null
     },
-    "A-04": {
+    "B2-D": {
       "s": "bloqueado",
       "p": null
     },
-    "A-05": {
+    "B2-E": {
       "s": "no_disponible",
       "p": null
     },
-    "A-06": {
+    "B2-F": {
       "s": "disponible",
-      "p": {
-        "a": 22750,
-        "c": "USD"
-      }
+      "p": null
     },
-    "A-07": {
+    "B2-G": {
       "s": "reservado",
       "p": null
     },
-    "A-08": {
+    "B2-H": {
       "s": "vendido",
       "p": null
     },
-    "A-09": {
+    "B2-I": {
       "s": "bloqueado",
       "p": null
     },
-    "A-10": {
+    "B3-A": {
       "s": "no_disponible",
       "p": null
     },
-    "A-11": {
+    "B3-B": {
       "s": "disponible",
-      "p": {
-        "a": 27500,
-        "c": "USD"
-      }
+      "p": null
     },
-    "A-12": {
+    "B3-C": {
       "s": "reservado",
       "p": null
     },
-    "A-13": {
+    "B3-D": {
       "s": "vendido",
       "p": null
     },
-    "A-14": {
+    "B3-E": {
       "s": "bloqueado",
       "p": null
     },
-    "A-15": {
+    "B3-F": {
+      "s": "no_disponible",
+      "p": null
+    },
+    "B3-G": {
+      "s": "disponible",
+      "p": null
+    },
+    "B3-H": {
+      "s": "reservado",
+      "p": null
+    },
+    "B3-I": {
+      "s": "vendido",
+      "p": null
+    },
+    "B3-J": {
+      "s": "en_pausa",
+      "p": null
+    },
+    "B2": {
+      "s": "disponible",
+      "p": null
+    },
+    "B3": {
+      "s": "disponible",
+      "p": null
+    },
+    "B4": {
       "s": "en_promocion",
+      "p": null
+    },
+    "B5": {
+      "s": "reservado",
       "p": null
     }
   }

@@ -15,3 +15,5 @@ coverage/
 packages/pipeline/out/
 packages/pipeline/*.egg-info/
 *.tsbuildinfo
+supabase/.temp/
+apps/viewer/public/baleia/
