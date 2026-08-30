@@ -37,6 +37,13 @@ const cfg = {
   stepDeg: num('step', 2),
   stress: bool('stress', true),
   cull: bool('cull', false),
+  /**
+   * 'sphere' = repartidos por toda la esfera (sólo ~1/8 en pantalla a la vez).
+   * 'patch'  = todos dentro de un sector de 140°x55° por debajo del horizonte,
+   *            que es cómo se ve un loteo real desde el drone: el peor caso,
+   *            porque casi todos los polígonos están visibles al mismo tiempo.
+   */
+  layout: (qs.get('layout') === 'sphere' ? 'sphere' : 'patch') as 'sphere' | 'patch',
 };
 
 // ------------------------------------------------------- polígonos sintéticos
@@ -92,10 +99,28 @@ function mulberry32(a: number) {
   };
 }
 
+/** Grilla de lotes dentro de un sector: el layout de un loteo visto de frente. */
+function patchGrid(n: number): { centers: Sph[]; radius: number } {
+  const yawSpan = 140 * (Math.PI / 180);
+  const pitchSpan = 55 * (Math.PI / 180);
+  const cols = Math.max(1, Math.round(Math.sqrt((n * yawSpan) / pitchSpan)));
+  const rows = Math.ceil(n / cols);
+  const dy = yawSpan / cols;
+  const dp = pitchSpan / rows;
+  const centers: Sph[] = [];
+  for (let i = 0; i < n; i++) {
+    const c = i % cols;
+    const r = Math.floor(i / cols);
+    centers.push([-yawSpan / 2 + (c + 0.5) * dy, -0.62 + (r + 0.5) * dp]);
+  }
+  return { centers, radius: Math.min(dy, dp) * 0.45 };
+}
+
 function buildPolys(n: number): SynthPoly[] {
-  const centers = fibonacciSphere(n);
+  const patch = cfg.layout === 'patch' ? patchGrid(n) : null;
+  const centers = patch ? patch.centers : fibonacciSphere(n);
   // Radio ≈ mitad del espaciamiento medio, para que se toquen sin superponerse.
-  const radius = Math.sqrt((4 * Math.PI) / n) * 0.42;
+  const radius = patch ? patch.radius : Math.sqrt((4 * Math.PI) / n) * 0.42;
   const rnd = mulberry32(1337);
   return centers.map((center, i) => {
     const k = 6 + Math.floor(rnd() * 5); // 6..10 vértices
@@ -170,13 +195,14 @@ interface Metrics {
   fpsMin: number;
   frameP95: number;
   visible: number;
+  onScreen: number;
   heapMB: number | null;
 }
 
 const m: Metrics = {
   n: 0, vertices: 0, densifyMs: 0, mountMs: 0,
   lastBulkUpdateMs: 0, lastBulkUpdateNoRenderMs: 0,
-  fps: 0, fpsMin: Infinity, frameP95: 0, visible: 0, heapMB: null,
+  fps: 0, fpsMin: Infinity, frameP95: 0, visible: 0, onScreen: 0, heapMB: null,
 };
 
 // ------------------------------------------------------------------- montaje
@@ -298,6 +324,7 @@ function stats(): void {
   const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
   m.heapMB = mem ? mem.usedJSHeapSize / 1048576 : null;
   m.visible = document.querySelectorAll('.psv-marker').length;
+  m.onScreen = document.querySelectorAll('.psv-marker--visible').length;
   render();
 }
 setInterval(stats, 500);
@@ -318,6 +345,8 @@ function render(): void {
       <tr><td>Vértices / polígono</td><td>${m.n ? (m.vertices / m.n).toFixed(1) : '—'}</td></tr>
       <tr><td>Densificación</td><td>${cfg.densify ? `sí (${cfg.stepDeg}°)` : 'no'}</td></tr>
       <tr><td>Culling por FOV</td><td>${cfg.cull ? 'sí' : 'no'}</td></tr>
+      <tr><td>Distribución</td><td>${cfg.layout === 'patch' ? 'sector 140°x55°' : 'esfera completa'}</td></tr>
+      <tr><td>Marcadores en pantalla</td><td>${m.onScreen}</td></tr>
       <tr><td>Nodos .psv-marker en DOM</td><td>${m.visible}</td></tr>
     </table>
     <hr />
@@ -368,6 +397,7 @@ viewer.addEventListener('ready', () => mount(), { once: true });
  */
 function syncBench(frames = 120): { msPerFrame: number; p95: number; frames: number } {
   const samples: number[] = [];
+  let onScreen = 0;
   let yaw = 0;
   for (let i = 0; i < frames; i++) {
     yaw += 0.02;
@@ -375,7 +405,12 @@ function syncBench(frames = 120): { msPerFrame: number; p95: number; frames: num
     const t = performance.now();
     markersPlugin.renderMarkers();
     samples.push(performance.now() - t);
+    onScreen += document.querySelectorAll('.psv-marker--visible').length;
   }
+  m.onScreen = Math.round(onScreen / frames);
+  m.visible = document.querySelectorAll('.psv-marker').length;
+  const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+  m.heapMB = mem ? mem.usedJSHeapSize / 1048576 : null;
   samples.sort((a, b) => a - b);
   const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
   return { msPerFrame: mean, p95: samples[Math.floor(samples.length * 0.95)] ?? 0, frames };
@@ -386,6 +421,7 @@ function syncBench(frames = 120): { msPerFrame: number; p95: number; frames: num
   metrics: () => ({ ...m }),
   setN: (n: number) => { cfg.n = n; mount(); },
   setDensify: (v: boolean) => { cfg.densify = v; mount(); },
+  setLayout: (v: 'patch' | 'sphere') => { cfg.layout = v; mount(); },
   setCull: (v: boolean) => { cfg.cull = v; mount(); },
   bulkUpdate,
   syncBench,
