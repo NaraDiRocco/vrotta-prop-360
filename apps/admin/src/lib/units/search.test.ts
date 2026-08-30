@@ -34,7 +34,7 @@ describe('parseUnitQuery', () => {
     expect(q.m2.max).toBeCloseTo(91.3);
   });
 
-  it('precio>150.000 trata el punto como separador de miles cuando hay coma', () => {
+  it('precio>150.000 lee el punto como separador de miles', () => {
     expect(parseUnitQuery('precio>150.000').price.min).toBe(150000);
     expect(parseUnitQuery('precio>150.000,50').price.min).toBeCloseTo(150000.5);
   });

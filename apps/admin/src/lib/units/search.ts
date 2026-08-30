@@ -94,12 +94,15 @@ const MISSING_ALIASES: Record<string, MissingFlag> = {
 };
 
 /**
- * `1.234,56` → separador de miles + coma decimal (es-AR/es-UY).
- * `300.5`    → punto decimal. Si hay coma, el punto es de miles.
+ * Números como los escribe un rioplatense, sin obligarlo a cambiar de teclado:
+ *   `1.234,56` → coma decimal, el punto es de miles.
+ *   `150.000`  → grupos de exactamente 3 dígitos ⇒ miles (= 150000).
+ *   `300.5`    → punto decimal.
  */
 function parseNumber(raw: string): number {
-  const cleaned = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
-  return Number(cleaned);
+  if (raw.includes(',')) return Number(raw.replace(/\./g, '').replace(',', '.'));
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(raw)) return Number(raw.replace(/\./g, ''));
+  return Number(raw);
 }
 
 function applyComparison(range: NumRange, op: string, value: number): void {
