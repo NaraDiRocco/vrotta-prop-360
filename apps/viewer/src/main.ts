@@ -57,6 +57,7 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
   ]);
 
   if (tour.schema !== 1) console.warn(`[r360] schema ${tour.schema} desconocido; se intenta igual.`);
+  resolveManifestUrls(tour, new URL(tourUrl, location.href));
   status.remove();
 
   const controller = new SceneController(container, tour, availability);
@@ -81,6 +82,26 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
     poller,
     destroy() { poller.stop(); controller.destroy(); },
   };
+}
+
+/**
+ * Las URLs del manifiesto (`./masterplan.webp`, `./media/...`) son relativas
+ * AL `tour.json`, no al documento que lo carga. Mientras el recorrido se
+ * sirve desde la raíz del sitio da igual, pero en cuanto vive en un
+ * subdirectorio (`/baleia/tour.json`, un embed, un preview del panel) el
+ * navegador las resuelve contra la página y la imagen de la escena da 404.
+ * Se absolutizan una sola vez, acá, para que ningún consumidor (Leaflet, PSV,
+ * la ficha) tenga que acordarse de hacerlo.
+ */
+function resolveManifestUrls(tour: TourManifest, base: URL): void {
+  const abs = (u: string) => new URL(u, base).href;
+  for (const scene of tour.scenes) {
+    if ('url' in scene.source) scene.source.url = abs(scene.source.url);
+    else scene.source.base = abs(scene.source.base);
+  }
+  for (const unit of Object.values(tour.units)) {
+    if (unit.media) unit.media = unit.media.map(abs);
+  }
 }
 
 /**

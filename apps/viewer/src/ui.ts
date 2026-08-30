@@ -53,7 +53,6 @@ const THUMB = (url: string) => url.replace(/\.webp$/i, '.thumb.webp');
 
 export class ViewerUi {
   private readonly root: HTMLElement;
-  private readonly bar: HTMLElement;
   private readonly sceneName: HTMLElement;
   private readonly backBtn: HTMLButtonElement;
   private readonly galleryBtn: HTMLButtonElement;
@@ -77,7 +76,6 @@ export class ViewerUi {
       <div class="r360-lightbox" hidden></div>`;
     opts.container.appendChild(this.root);
 
-    this.bar = this.root.querySelector('.r360-bar')!;
     this.sceneName = this.root.querySelector('.r360-scene-name')!;
     this.backBtn = this.root.querySelector('.r360-back')!;
     this.galleryBtn = this.root.querySelector('.r360-gallery-btn')!;
@@ -93,6 +91,10 @@ export class ViewerUi {
     this.backBtn.addEventListener('click', () => this.go(this.opts.tour.start));
     this.galleryBtn.addEventListener('click', () => this.toggleGallery());
     opts.container.addEventListener('r360:unit-click', this.onUnitClick as EventListener);
+    // `r360:scene` cubre los saltos que hace el propio recorrido (un hotspot
+    // `goto` de amenity); `hashchange`, los que hace el visitante con el
+    // botón Atrás del navegador o pegando una URL.
+    opts.container.addEventListener('r360:scene', this.syncScene);
     window.addEventListener('hashchange', this.syncScene);
     document.addEventListener('keydown', this.onKey);
 
@@ -105,6 +107,7 @@ export class ViewerUi {
 
   destroy(): void {
     this.opts.container.removeEventListener('r360:unit-click', this.onUnitClick as EventListener);
+    this.opts.container.removeEventListener('r360:scene', this.syncScene);
     window.removeEventListener('hashchange', this.syncScene);
     document.removeEventListener('keydown', this.onKey);
     this.root.remove();
@@ -157,7 +160,11 @@ export class ViewerUi {
     const slug = this.opts.controller.slug ?? this.opts.tour.start;
     const scene = this.opts.tour.scenes.find((s) => s.slug === slug);
     this.sceneName.textContent = scene?.name ?? '';
-    this.backBtn.hidden = slug === this.opts.tour.start;
+    const isStart = slug === this.opts.tour.start;
+    this.backBtn.hidden = isStart;
+    // En un render no hay polígonos: la leyenda de estados no explica nada
+    // de lo que se está viendo, así que se guarda hasta volver al plano.
+    document.body.classList.toggle('r360-no-legend', !isStart);
   };
 
   // ----------------------------------------------------------------- ficha
@@ -268,6 +275,9 @@ export class ViewerUi {
 
   private showPanel(): void {
     this.panel.hidden = false;
+    // En móvil la ficha es una hoja inferior y cae justo encima de la
+    // leyenda de estados: se la esconde mientras la ficha está abierta.
+    document.body.classList.add('r360-panel-open');
     this.panel.scrollTop = 0;
     this.panel.onclick = (e) => {
       const el = e.target as HTMLElement;
@@ -283,6 +293,7 @@ export class ViewerUi {
 
   private closePanel(): void {
     this.panel.hidden = true;
+    document.body.classList.remove('r360-panel-open');
   }
 
   // -------------------------------------------------------------- lightbox

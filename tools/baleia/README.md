@@ -192,7 +192,11 @@ Esto es lo que **no estaba en el material disponible** y bloquea pasar de
    nota en la sección del CSV) contra lo que va a usar el equipo comercial,
    antes de que se generen materiales con esos códigos (fichas, carteles,
    nombres de archivo de renders/panorámicas).
-8. Los polígonos de bloques y amenities están calibrados sobre el
+8. **Las plantas acotadas por unidad como imagen suelta** (PNG/JPG o PDF de
+   una página). Hoy sólo existen dentro del brochure; lo que hay en
+   `material/plantas/` son axonometrías de ubicación, no plantas. Faltan
+   además las de B3-A/B/C y B3-H/I/J/K en cualquier formato.
+9. Los polígonos de bloques y amenities están calibrados sobre el
    masterplan de la **página 6**. Si el cliente termina usando otro plano
    (por ejemplo una versión más nueva o de otra escala) como imagen final
    de la escena `floorplan`, esta geometría hay que re-extraerla o
@@ -223,7 +227,8 @@ genera `out/tour/`:
 
 ```bash
 cd tools/baleia && source .venv/bin/activate
-python3 scripts/build_tour.py
+python3 scripts/build_tour.py            # sólo out/tour/
+python3 scripts/build_tour.py --publish  # además, copia a apps/viewer/public/
 ```
 
 - `tour.json` — `TourManifest`: una escena `floorplan` (el masterplan
@@ -242,8 +247,38 @@ python3 scripts/build_tour.py
   gris con warning en consola. El mismo patrón se repite a nivel unidad
   individual con `B3-K` (ausente) y `B3-J` (`en_pausa`).
 - El detalle completo de cada decisión (por qué imagen única, por qué los
-  bloques son "unidad-grupo", por qué los amenities salen en gris con
-  "(sin dato)") está en el docstring de `scripts/build_tour.py` — no se
-  repite acá para no desincronizarse.
+  bloques son "unidad-grupo", por qué los renders son escenas y no un tipo
+  nuevo) está en el docstring de `scripts/build_tour.py` — no se repite acá
+  para no desincronizarse.
 - `out/tour/` no está versionado (mismo `.gitignore` que el resto de
   `out/`); correr el script siempre lo regenera.
+
+### El material real dentro del recorrido (Nivel 1: brochure + renders)
+
+Baleia no tiene panorámicas (ver `docs/04-PRODUCCION/2-Escalera-de-Niveles-de-Material.md`),
+así que el recorrido se arma con lo que sí hay, todo desde `material/`:
+
+- **Galería de renders.** Los 7 renders de `material/renders/` entran como 7
+  escenas `floorplan` más (una imagen plana paneable, sin hotspots). El visor
+  las junta en la tira "Galería" con su miniatura. Títulos descriptivos de lo
+  que se ve en cada uno, mirados uno por uno.
+- **Amenities clickeables.** El hotspot A (acceso) salta al render del acceso;
+  D/E/F/G (piscina, piscina infantil, rincón de fuego, laguna) saltan al
+  render de amenities, que es donde los cuatro se ven.
+- **Planta por unidad.** Ojo con el nombre de la carpeta: los archivos de
+  `material/plantas/` **no son plantas acotadas**, son axonometrías del bloque
+  con la unidad resaltada (dónde está la unidad dentro del edificio). La
+  planta acotada de cada unidad existe sólo adentro del brochure, como página
+  de PDF. La ficha del visor lo dice con todas las letras ("Ubicación de la
+  unidad dentro del bloque"). Las 9 imágenes de `material/plantas/` van a
+  `units[].media` de las 13 unidades que cubren (`UNIT_MEDIA` en el script
+  tiene el mapeo verificado contra el brochure página por página). **7
+  unidades quedan sin imagen a propósito**: B3-A/B/C (dúplex) y B3-H/I/J/K no
+  están en el material descargado. Aunque B3-H/I y B3-J/K tienen exactamente
+  las mismas superficies que B3-F/G y B3-D/E, son otro tramo del bloque: la
+  ficha dice "sin imagen" en vez de mostrar la unidad de al lado.
+- **Peso.** Todo se recomprime a WebP (renders a 1600px de ancho, calidad 76;
+  plantas a 1400px, calidad 82, aplanadas sobre blanco) más una miniatura
+  `*.thumb.webp` de 400px. 6,5 MB de originales → 1,9 MB de WebP (-71%) +
+  154 KB de miniaturas. La galería carga sólo las miniaturas (~100 KB) hasta
+  que se abre un render.

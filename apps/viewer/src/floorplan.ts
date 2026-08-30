@@ -52,7 +52,11 @@ export class FloorplanRenderer implements SceneRenderer {
     const bounds = L.latLngBounds([0, 0], [height, width]);
     this.map = L.map(this.el, {
       crs: L.CRS.Simple,
-      minZoom: -4,
+      // Piso provisorio: el definitivo se calcula abajo contra el tamaño real
+      // del contenedor. Un masterplan de 7945px de ancho NO entra en 375px
+      // con `minZoom:-4` (ese piso da 496px de ancho mínimo) y el plano
+      // aparecía cortado en móvil.
+      minZoom: -10,
       maxZoom: 4,
       zoomControl: true,
       attributionControl: false,
@@ -95,8 +99,14 @@ export class FloorplanRenderer implements SceneRenderer {
     // real y recién después se encuadra, o el fitBounds sale calculado sobre
     // 0x0 y el plano aparece del tamaño de una estampilla.
     requestAnimationFrame(() => {
-      this.map?.invalidateSize({ animate: false });
-      this.map?.fitBounds(bounds);
+      if (!this.map) return;
+      this.map.invalidateSize({ animate: false });
+      // "Todo el plano visible" es el zoom mínimo útil: más lejos sólo se
+      // agrega fondo vacío. Se calcula acá porque depende del tamaño del
+      // contenedor, que recién ahora es el real (y cambia entre móvil y
+      // escritorio, y entre el masterplan y un render).
+      this.map.setMinZoom(this.map.getBoundsZoom(bounds));
+      this.map.fitBounds(bounds);
     });
   }
 

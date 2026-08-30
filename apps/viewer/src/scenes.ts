@@ -326,6 +326,13 @@ export class SceneController {
       // La escena puede estar cargando la textura todavía.
       setTimeout(() => this.active()?.focusUnit(unitCode), changingScene ? 350 : 0);
     }
+
+    // `history.pushState` NO dispara `hashchange`: cualquier interfaz que se
+    // sincronice sólo con el hash se queda mostrando la escena anterior
+    // cuando el salto lo hace un hotspot `goto`. Este evento es el aviso.
+    this.host.dispatchEvent(
+      new CustomEvent<Route>('r360:scene', { detail: { slug, unitCode }, bubbles: true }),
+    );
   }
 
   applyAvailability(next: AvailabilityFile, changedCodes: readonly string[]): void {

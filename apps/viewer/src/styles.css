@@ -54,6 +54,7 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; co
   background: var(--r360-panel); border: 1px solid var(--r360-border);
   font-size: 12px; backdrop-filter: blur(6px);
 }
+body.r360-no-legend #legend { display: none; }
 #legend span { display: flex; align-items: center; gap: 6px; }
 #legend i { width: 10px; height: 10px; border-radius: 2px; }
 
@@ -181,4 +182,5 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; co
   .r360-btn { padding: 6px 10px; font-size: 12px; }
   /* La leyenda vive abajo a la izquierda, justo donde aparece la ficha. */
   #legend { font-size: 11px; padding: 6px 8px; }
+  body.r360-panel-open #legend { display: none; }
 }
