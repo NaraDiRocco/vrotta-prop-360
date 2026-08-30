@@ -183,8 +183,14 @@ td.num,
 
 *:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* El panel es CLARO por decisión de producto: se mira ocho horas seguidas
+   sobre tablas densas, y el claro sostiene mejor la lectura prolongada de
+   datos. El modo oscuro queda disponible con [data-theme="dark"] en <html>,
+   pero ya no se activa solo por la preferencia del sistema operativo.
+   (El editor de hotspots es la excepción y fuerza oscuro por su cuenta: el
+   marco claro falsea la percepción del color de los polígonos sobre una
+   panorámica.) */
+:root[data-theme="dark"] {
     --bg: #0f1216;
     --bg-subtle: #151a20;
     --bg-sunken: #1b2229;
@@ -197,5 +203,4 @@ td.num,
     --fg-faint: #6b7885;
     --accent: #4c8dff;
     --accent-fg: #0b0e12;
-  }
 }
