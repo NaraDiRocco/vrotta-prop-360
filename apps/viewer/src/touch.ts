@@ -122,6 +122,45 @@ export function findTouchCandidates(
   return out.sort((a, b) => (a.inside === b.inside ? a.distance - b.distance : a.inside ? -1 : 1));
 }
 
+
+/**
+ * ¿El polígono `outer` contiene por completo a `inner`?
+ *
+ * Se usa para descartar contenedores en la desambiguación: el perímetro del
+ * terreno envuelve a los cinco bloques, así que un toque sobre el Bloque 2
+ * caía "dentro" de los dos y preguntaba cuál. Preguntar ahí es absurdo — nadie
+ * apunta al perímetro teniendo un bloque debajo del dedo. Se resuelve por
+ * geometría y no listando excepciones: si un candidato contiene a otro, el
+ * contenedor pierde, sea el perímetro, una manzana sobre sus lotes o una torre
+ * sobre sus pisos.
+ */
+export function polygonContains(outer: readonly ScreenPoint[], inner: readonly ScreenPoint[]): boolean {
+  if (outer.length < 3 || inner.length < 3) return false;
+  return inner.every((pt) => pointInPolygon(pt, outer));
+}
+
+/**
+ * Quita de la lista los candidatos que contienen a otro candidato.
+ * Deja siempre al menos uno: si todos se contienen entre sí (mismo polígono
+ * repetido), se conserva el primero.
+ */
+export function dropContainers(
+  candidates: readonly TouchCandidate[],
+  ringById: (id: string) => readonly ScreenPoint[] | undefined,
+): TouchCandidate[] {
+  if (candidates.length < 2) return [...candidates];
+  const kept = candidates.filter((cand) => {
+    const outer = ringById(cand.id);
+    if (!outer) return true;
+    return !candidates.some((other) => {
+      if (other.id === cand.id) return false;
+      const inner = ringById(other.id);
+      return inner ? polygonContains(outer, inner) : false;
+    });
+  });
+  return kept.length > 0 ? kept : [candidates[0]!];
+}
+
 export type TouchResult =
   | { kind: 'none' }
   | { kind: 'zoom' }
@@ -144,6 +183,12 @@ export function resolveTouch(
   const minTouchPx = opts.minTouchPx ?? MIN_TOUCH_PX;
   if (opts.avgSizePx < minTouchPx) return { kind: 'zoom' };
 
-  if (candidates.length === 1) return { kind: 'select', id: candidates[0]!.id };
-  return { kind: 'ambiguous', ids: candidates.map((c) => c.id) };
+  // Un contenedor no compite con lo que contiene: preguntar entre el
+  // perímetro del terreno y un bloque que está adentro no es desambiguar,
+  // es hacerle elegir al usuario algo que ya eligió.
+  const ringById = (id: string) => polys.find((p) => p.id === id)?.ring;
+  const narrowed = dropContainers(candidates, ringById);
+
+  if (narrowed.length === 1) return { kind: 'select', id: narrowed[0]!.id };
+  return { kind: 'ambiguous', ids: narrowed.map((c) => c.id) };
 }

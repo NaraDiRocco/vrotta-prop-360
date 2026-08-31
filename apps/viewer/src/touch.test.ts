@@ -9,6 +9,8 @@ import {
   resolveTouch,
   MIN_TOUCH_PX,
   TOLERANCE_PX,
+  polygonContains,
+  dropContainers,
 } from './touch.ts';
 
 const SQUARE = [
@@ -128,4 +130,45 @@ test('resolveTouch: dos candidatos con lotes ya grandes -> desambiguación hones
   );
   assert.equal(r.kind, 'ambiguous');
   if (r.kind === 'ambiguous') assert.deepEqual(r.ids.sort(), ['lot-1', 'lot-2']);
+});
+
+// ── Contenedores: el perímetro no compite con lo que envuelve ──────────────
+
+const PERIMETRO = { id: 'TERRENO', ring: [{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}] };
+const BLOQUE   = { id: 'B2',      ring: [{x:20,y:20},{x:40,y:20},{x:40,y:40},{x:20,y:40}] };
+const OTRO_BLOQUE = { id: 'B3',   ring: [{x:60,y:20},{x:80,y:20},{x:80,y:40},{x:60,y:40}] };
+
+test('polygonContains: el perímetro contiene al bloque, no al revés', () => {
+  assert.equal(polygonContains(PERIMETRO.ring, BLOQUE.ring), true);
+  assert.equal(polygonContains(BLOQUE.ring, PERIMETRO.ring), false);
+});
+
+test('tocar un bloque dentro del perímetro NO pregunta: elige el bloque', () => {
+  // Este era el bug: el toque caía dentro del bloque Y del perímetro, y el
+  // visor preguntaba cuál de los dos, cuando la respuesta es evidente.
+  const r = resolveTouch({ x: 30, y: 30 }, [PERIMETRO, BLOQUE], { avgSizePx: 100 });
+  assert.deepEqual(r, { kind: 'select', id: 'B2' });
+});
+
+test('tocar el perímetro donde no hay bloque sí lo selecciona', () => {
+  const r = resolveTouch({ x: 90, y: 90 }, [PERIMETRO, BLOQUE], { avgSizePx: 100 });
+  assert.deepEqual(r, { kind: 'select', id: 'TERRENO' });
+});
+
+test('dos bloques vecinos bajo el dedo SÍ desambiguan (ninguno contiene al otro)', () => {
+  const juntos = { id: 'B3', ring: [{x:41,y:20},{x:60,y:20},{x:60,y:40},{x:41,y:40}] };
+  const r = resolveTouch({ x: 40.5, y: 30 }, [BLOQUE, juntos], { avgSizePx: 100, tolerancePx: 2 });
+  assert.equal(r.kind, 'ambiguous');
+});
+
+test('dropContainers nunca deja la lista vacía', () => {
+  const ring = (id: string) => (id === 'A' ? PERIMETRO.ring : PERIMETRO.ring);
+  const out = dropContainers([{ id: 'A', distance: 0, inside: true }, { id: 'B', distance: 0, inside: true }], ring);
+  assert.ok(out.length >= 1);
+});
+
+test('tres capas: perímetro + bloque + amenity adentro -> gana el más específico', () => {
+  const amenity = { id: 'D', ring: [{x:25,y:25},{x:30,y:25},{x:30,y:30},{x:25,y:30}] };
+  const r = resolveTouch({ x: 27, y: 27 }, [PERIMETRO, BLOQUE, amenity], { avgSizePx: 100 });
+  assert.deepEqual(r, { kind: 'select', id: 'D' });
 });
