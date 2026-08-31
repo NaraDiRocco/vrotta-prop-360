@@ -282,3 +282,35 @@ así que el recorrido se arma con lo que sí hay, todo desde `material/`:
   `*.thumb.webp` de 400px. 6,5 MB de originales → 1,9 MB de WebP (-71%) +
   154 KB de miniaturas. La galería carga sólo las miniaturas (~100 KB) hasta
   que se abre un render.
+
+### Panorámicas 360° (Nivel 2): el sistema ya está listo para recibirlas
+
+`scripts/integrate_panoramas.py` toma una carpeta de panorámicas entregadas,
+las valida contra la especificación de Baleia (2:1 exacto, ≥ 8192 px de
+ancho) con `packages/pipeline`, genera los tiles de cubemap multiresolución y
+las suma al `out/tour/tour.json` que produjo `build_tour.py` como escenas
+`panorama`, re-enlazando los hotspots del masterplan que corresponden.
+
+```bash
+cd tools/baleia
+python3 scripts/build_tour.py                     # el recorrido base, primero
+
+# ojo: este corre con el venv del PIPELINE, no con el de tools/baleia
+../../packages/pipeline/.venv/bin/python scripts/integrate_panoramas.py \
+    --in <carpeta-de-la-entrega> --dry-run        # ver el plan sin tocar nada
+../../packages/pipeline/.venv/bin/python scripts/integrate_panoramas.py \
+    --in <carpeta-de-la-entrega> --publish        # integrar y publicar
+```
+
+Probado de punta a punta con panorámicas sintéticas de `pano-make-test`: 6
+archivos → 5 integradas, 1 rechazada por resolución insuficiente, 126 tiles
+por panorámica, navegación masterplan ↔ panorámica verificada en el navegador
+sin errores de consola ni tiles fallidas. Las decisiones (por qué el `base`
+de los tiles es relativo y no el absoluto que emite `pano-run`, por qué los
+hotspots de bloque NO se re-enlazan por defecto, qué pasa con un archivo mal
+nombrado) están en el docstring del script.
+
+**El paquete completo — lista de tomas punto por punto, los tres caminos para
+conseguirlas con costo y plazo, los mails listos para mandarle a Dacal y al
+estudio, y la especificación técnica para el renderista — está en
+`docs/07-BALEIA-360/`.**

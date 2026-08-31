@@ -386,7 +386,16 @@ export class ViewerUi {
     const grid = this.gallery.querySelector('.r360-gallery__grid')!;
     grid.innerHTML = scenes
       .map((s) => {
-        const url = 'url' in s.source ? this.resolve(s.source.url) : '';
+        // Una escena de panorámica no trae `source.url`: su imagen vive
+        // troceada en tiles bajo `source.base`. Sin este caso la miniatura
+        // quedaba con `src` vacío y la galería mostraba un hueco justo para
+        // las escenas 360, que son las que más ganas dan de mirar.
+        // El pipeline emite `poster.webp` + `poster.thumb.webp` al lado de
+        // los tiles, con la misma convención de nombre que el resto.
+        const url =
+          'url' in s.source
+            ? this.resolve(s.source.url)
+            : this.resolve(`${s.source.base}/poster.webp`);
         return `<button class="r360-thumb" data-slug="${escapeHtml(s.slug)}">
             <img loading="lazy" alt="" src="${escapeHtml(THUMB(url))}"
                  data-full="${escapeHtml(url)}" />
