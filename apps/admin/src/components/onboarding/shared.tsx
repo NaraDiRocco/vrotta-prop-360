@@ -8,6 +8,7 @@ export const STATUS_LABEL: Record<UnitStatus, string> = {
   vendido: STATUS_TOKENS.vendido.label,
   bloqueado: STATUS_TOKENS.bloqueado.label,
   no_disponible: STATUS_TOKENS.no_disponible.label,
+  proximamente: STATUS_TOKENS.proximamente.label,
 };
 
 export const FIELD_LABEL: CSSProperties = { fontSize: 11, color: 'var(--fg-muted)' };

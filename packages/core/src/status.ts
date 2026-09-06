@@ -10,6 +10,7 @@ export const UNIT_STATUSES = [
   'vendido',
   'bloqueado',
   'no_disponible',
+  'proximamente',
 ] as const;
 
 export type UnitStatus = (typeof UNIT_STATUSES)[number];
@@ -21,7 +22,7 @@ export interface StatusToken {
   fill: number;
   label: string;
   /** Trama para accesibilidad no cromática e impresión. */
-  pattern: 'solid' | 'diagonal' | 'cross' | 'dots';
+  pattern: 'solid' | 'diagonal' | 'cross' | 'dots' | 'outline';
   order: number;
 }
 
@@ -31,6 +32,18 @@ export const STATUS_TOKENS: Record<UnitStatus, StatusToken> = {
   vendido:       { base: '#DC2626', fill: 0.26, label: 'Vendido',       pattern: 'solid',    order: 3 },
   bloqueado:     { base: '#7C3AED', fill: 0.24, label: 'Bloqueado',     pattern: 'cross',    order: 4 },
   no_disponible: { base: '#64748B', fill: 0.20, label: 'No disponible', pattern: 'dots',     order: 5 },
+  // Estado de primera clase (plan de experiencia, docs/06-BENCHMARK/5-EXPERIENCIA-BALEIA.md
+  // §5.3): un bloque que todavía no está a la venta pero SÍ tiene fecha
+  // pública de "próximamente" (a diferencia de B4/B5, que no tienen ni eso y
+  // quedan directamente fuera de `availability.json`, sin token). No es
+  // "no_disponible" (eso implica una unidad que existe y no se puede
+  // comprar hoy) ni un fallback (el dato no falló: se sabe con certeza que
+  // es "próximamente", lo dice el brochure). `fill: 0` + `pattern: 'outline'`
+  // es la contraparte exacta de INFO_TOKEN para el caso "no es ni disponible
+  // ni vendido, pero SÍ es una unidad/bloque vendible en el futuro": el
+  // polígono se dibuja sólo con el trazo (chip de contorno), nunca relleno,
+  // para no confundirlo visualmente con "disponible" ni con "vendido".
+  proximamente:  { base: '#0D9488', fill: 0,    label: 'Próximamente',  pattern: 'outline',  order: 6 },
 };
 
 export function isUnitStatus(v: unknown): v is UnitStatus {

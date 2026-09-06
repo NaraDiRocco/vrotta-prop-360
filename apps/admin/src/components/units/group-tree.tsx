@@ -26,6 +26,7 @@ function addCounts(a: StatusCounts, b: StatusCounts): StatusCounts {
     vendido: a.vendido + b.vendido,
     bloqueado: a.bloqueado + b.bloqueado,
     no_disponible: a.no_disponible + b.no_disponible,
+    proximamente: a.proximamente + b.proximamente,
   };
 }
 

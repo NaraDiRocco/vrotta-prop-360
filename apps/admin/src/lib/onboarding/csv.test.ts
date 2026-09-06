@@ -156,11 +156,14 @@ describe('buildImportPlan', () => {
     expect(first?.groupCode).toBe('Bloque 2');
     expect(first?.typeCode).toBe('duplex');
     expect(first?.typeName).toBe('Dúplex');
-    expect(first?.areaTotalM2).toBe(175.92);
+    // 163.42 = precio real del brochure "BLOQUE 2 - DISPONIBLE" (set-2026),
+    // sin cochera (se cobra aparte a USD 10.000 fijo). Antes de cargar el
+    // dato comercial real, esta columna tenía 175.92 (con cochera incluida).
+    expect(first?.areaTotalM2).toBe(163.42);
     expect(first?.attrs['sup_cubierta']).toBe(109.68);
-    // La columna `estado` viene vacía en el archivo real.
+    // La columna `estado` ahora trae el dato real del brochure (disponible).
     expect(first?.status).toBe('disponible');
-    expect(first?.price).toBeNull();
+    expect(first?.price).toEqual({ amount: 364861, currency: 'USD', visibility: 'public' });
     // Las notas con comas van entre comillas: tienen que llegar enteras.
     expect(String(first?.attrs['notas_internas'])).toContain('brochure pag.13');
 
@@ -168,9 +171,22 @@ describe('buildImportPlan', () => {
     expect(plan.missingTypes.map((t) => t.code)).toEqual(['duplex', '1-dormitorio']);
   });
 
-  it('respeta el estado por defecto que elige el operador', () => {
+  it('respeta el estado por defecto que elige el operador, sólo donde no hay dato real', () => {
     const plan = buildImportPlan(readFileSync(BALEIA_CSV, 'utf8'), { defaultStatus: 'no_disponible' });
-    expect(plan.units.every((u) => u.status === 'no_disponible')).toBe(true);
+    // Bloque 2 (9 unidades) ya trae estado real del brochure y no debe pisarse
+    // con el default. Bloque 3 (11 unidades) sigue sin dato -> usa el default.
+    const bloque2 = plan.units.filter((u) => u.code.startsWith('B2-'));
+    const bloque3 = plan.units.filter((u) => u.code.startsWith('B3-'));
+    // B2-F/B2-G (206/207) pasaron de 'disponible' a 'bloqueado' el 06/09/2026:
+    // 3 de las 4 listas de precios del cliente dicen que esas unidades ya
+    // están vendidas (ver tools/baleia/material/INVENTARIO.md §3 y
+    // tools/baleia/README.md §3.2) y mientras no se confirme con Caetano el
+    // recorrido no afirma disponibilidad ni publica precio para ellas.
+    expect(bloque2.map((u) => u.status)).toEqual([
+      'disponible', 'disponible', 'disponible', 'disponible', 'disponible',
+      'bloqueado', 'bloqueado', 'vendido', 'vendido',
+    ]);
+    expect(bloque3.every((u) => u.status === 'no_disponible')).toBe(true);
   });
 
   it('no inventa unidades con la plantilla en blanco', () => {

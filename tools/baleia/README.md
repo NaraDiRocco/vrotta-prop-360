@@ -115,9 +115,154 @@ find-and-replace trivial sobre la columna `codigo_unidad` — pero hay que
 decidirlo antes de que el equipo comercial empiece a usar los códigos, para
 que el matching automático con los polígonos del mapa no se rompa.
 
-**Lo que NO está en el brochure** (columnas `estado`, `precio`, `moneda`,
-`mostrar_precio_publico`, `financiacion`, `orientacion` quedaron vacías a
-propósito, no inventadas): ver sección siguiente.
+**Lo que NO está en el brochure vectorial** (columnas `estado`, `precio`,
+`moneda`, `mostrar_precio_publico`, `financiacion`, `orientacion` quedaron
+vacías a propósito, no inventadas): ver sección siguiente para lo que sí
+apareció después, en septiembre 2026.
+
+### 3.1. Datos comerciales REALES de Bloque 2 (septiembre 2026)
+
+`elementos baleia/Baleia prueba brochure (1).pdf` trae dos páginas finales
+que no existían en ningún lado del repo hasta esta carga: una lista de
+precios real, **"BLOQUE 2 — DISPONIBLE · Entrega Diciembre 2026"**, fechada
+septiembre 2026 y firmada por Caetano Negocios Inmobiliarios
+(`dcaetano@caetano.com.uy`, `+598 95 559 230`, junto con Dacal Bienes
+Raíces). El análisis completo está en
+`docs/08-MATERIAL-REAL/README.md`, sección 5 — acá sólo el resultado de
+cargarlo al CSV.
+
+**El problema a resolver:** el CSV usa códigos `B2-A`..`B2-I` (letra de
+unidad, heredados del brochure vectorial), pero la lista de precios nueva
+numera las unidades `201`..`209`. Ninguno de los dos documentos trae una
+tabla de equivalencia explícita — hubo que reconstruirla.
+
+**Cómo se resolvió (por aritmética de superficie, no por adivinar el orden):**
+la "superficie total" de la lista de precios resultó ser el total del CSV
+**sin la cochera** (el brochure cobra la cochera aparte, USD 10.000 fijo:
+"total lista" = `cubierta + semicubierta + descubierto`, mientras que el
+`superficie_total_m2` que ya tenía el CSV sumaba también los 12.5 m² de
+cochera). Restando la cochera a cada unidad del CSV, el resultado calza
+**exacto** contra la lista de precios en 7 de las 9 unidades:
+
+| Código CSV | Total CSV (con cochera) | − cochera (12.5) | Total lista de precios | Unidad | Confianza |
+|---|---|---|---|---|---|
+| B2-A | 175.92 | **163.42** | 163.42 | 201 | Alta — univoco, ninguna otra unidad da 163.42 |
+| B2-B/C/D/E | 173.0 (las 4 iguales) | **160.50** | 160.50 | 202/203/204/205 | Alta en el precio y la superficie (calzan exacto); el orden exacto B→202, C→203, D→204, E→205 es una asunción posicional (orden alfabético = orden de página en el brochure), no verificable porque las 4 unidades son idénticas en precio y superficie |
+| B2-F | 96.95 | **84.45** | 84.45 | 206 ("2 amb., reventa") | Alta — univoco |
+| B2-G | 95.0 | **82.50** | 82.50 | 207 ("2 amb., reventa") | Alta — univoco |
+| B2-H | 94.4 | 81.9 | — (vendida, sin m² publicado) | 208 (asumido) | **Media-baja** — mapeo posicional (orden alfabético), no verificable: el brochure no publica m² ni precio de las unidades vendidas |
+| B2-I | 86.85 | 74.35 | — (vendida, sin m² publicado) | 209 (asumido) | **Media-baja**, misma razón que B2-H |
+
+El detalle de cada unidad quedó en `notas_internas` del CSV (columna
+interna, nunca sale al `tour.json` público).
+
+**Discrepancia de definición de `superficie_total_m2` (no de dato):** el
+CSV originalmente guardaba el total *con* cochera; la lista de precios
+mide el total *sin* cochera (la cochera se vende aparte, a precio fijo). No
+es un número inventado contra otro — es el mismo dato con un criterio de
+suma distinto. Se actualizó `superficie_total_m2` de las 7 unidades con
+match exacto al criterio del brochure de precios (sin cochera), porque es
+el número que el cliente va a mostrarle al comprador. El desglose completo
+(cubierta/semicubierta/descubierto/cochera) sigue íntegro en
+`notas_internas` para poder reconstruir cualquiera de los dos criterios.
+
+**Lo que se cargó por unidad (columnas `estado`/`precio`/`moneda`/
+`mostrar_precio_publico`/`financiacion`):**
+
+| Unidad (lista) | Código CSV | Estado | Precio (USD, cochera incl.) |
+|---|---|---|---|
+| 201 | B2-A | disponible | 364.861 |
+| 202–205 | B2-B, B2-C, B2-D, B2-E | disponible | 358.638 c/u |
+| 206 | B2-F | **bloqueado** (ver 3.2 — pendiente de confirmar) | no se publica |
+| 207 | B2-G | **bloqueado** (ver 3.2 — pendiente de confirmar) | no se publica |
+| 208 | B2-H | **vendido** | — (no se publica precio de una unidad vendida) |
+| 209 | B2-I | **vendido** | — |
+
+**Condiciones comerciales** (nuevas, no estaban documentadas en ningún
+lado — columna `financiacion` de cada unidad de Bloque 2 apunta acá):
+- Precio = m² cubierto USD 2.700 + m² semicubierto USD 1.350 + m²
+  descubierto USD 675 + cochera USD 10.000 fijo.
+- Forma de pago: 50% anticipo + 12 cuotas mensuales al 6% anual.
+- Gastos de ocupación: 4% aparte.
+- Entrega: diciembre 2026.
+- **Precios sujetos a modificación sin previo aviso** (textual del brochure
+  — no tratar el precio cargado como definitivo en ninguna comunicación).
+
+**Bloque 1 y Bloque 3: "PRÓXIMAMENTE"**, según el mismo cartel del
+brochure ("PRÓXIMAMENTE: BLOQUE 1 Y BLOQUE 3") — no están a la venta hoy.
+
+> **Actualización (06/09/2026 — implementado):** el plan de experiencia
+> (`docs/06-BENCHMARK/5-EXPERIENCIA-BALEIA.md`, §5.3) confirmó que
+> "próximamente" es un estado permanente de la experiencia (chip de
+> contorno en el plano), no un caso de laboratorio. Se dio de alta como
+> token real: `packages/core/src/status.ts` (`UNIT_STATUSES`/
+> `STATUS_TOKENS.proximamente`, `fill: 0` + `pattern: 'outline'` — el chip
+> se dibuja SÓLO con el trazo, nunca relleno, para no confundirse con
+> "disponible" ni con "vendido") y
+> `supabase/migrations/0017_unit_status_proximamente.sql` (agrega el valor
+> al enum `unit_status`). Se auditó cada consumidor de `UNIT_STATUSES` en
+> `apps/admin` (panel, editor, onboarding, CSV) — todos lo resuelven
+> genéricamente iterando el array o el `Record<UnitStatus, …>`, salvo dos
+> objetos armados a mano (`emptyCounts()` en
+> `apps/admin/src/lib/units/query.ts` y `STATUS_LABEL` en
+> `apps/admin/src/components/onboarding/shared.tsx`), que se actualizaron
+> con la clave nueva. `scripts/build_tour.py` ya no necesita el truco del
+> valor no reconocido: emite `"proximamente"` como estado real y punto.
+
+**Bloque 4 y Bloque 5: sin ningún dato**, ni siquiera "próximamente" (el
+cartel del brochure sólo nombra Bloque 1 y 3). Quedan directamente afuera
+de `availability.json` — la misma regla dura, por el motivo más honesto
+posible: no hay nada que decir de ellos todavía. Esto no cambió: siguen sin
+chip y sin dato, como pide el plan (§5.3, Bloques 4 y 5).
+
+### 3.2. Unidades 206 y 207: bloqueadas hasta confirmar con Caetano (06/09/2026)
+
+`tools/baleia/material/INVENTARIO.md` §3 detectó una contradicción real
+entre las cuatro listas de precios del cliente: **3 de las 4 dicen
+textualmente que las unidades 206 a 209 ya están vendidas** — incluida
+`lista-precios-1_sep2026.pdf`, fechada el mismo mes que
+`lista-precios-2-VIGENTE_sep2026.pdf` (la que se usó para cargar 206/207
+como disponibles a USD 235.000 en 3.1, ver tabla arriba). No hay forma de
+resolver la contradicción desde el material disponible: puede que la lista
+"1" sea una plantilla vieja reusada sin actualizar el texto fijo, o puede
+que 206/207 se hayan vendido después de armar la lista "2" y ésta haya
+quedado desactualizada.
+
+**Decisión implementada:** mientras no se confirme con Caetano, 206 y 207
+(`B2-F`, `B2-G` en el CSV) **no publican precio ni afirman disponibilidad**.
+Publicar como disponible algo que puede estar vendido es el peor error que
+puede cometer este recorrido (ver el plan de experiencia, §0 y §5). El
+tratamiento, en `tools/baleia/out/baleia_unidades.csv`:
+
+- `mostrar_precio_publico`: `SI` → `NO`. Con esto `availability.json` nunca
+  publica el precio de estas dos unidades — el visor muestra "Consultar"
+  (`apps/viewer/src/polygons.ts::PRICE_ON_REQUEST`) para un estado que lo
+  admita, o nada si el estado no lo admite (ver el punto siguiente).
+- `estado`: `disponible` → `bloqueado`. Esto es lo que de verdad resuelve
+  "no afirmar disponibilidad": `mostrar_precio_publico=NO` por sí solo
+  sólo oculta el precio, pero el chip del mapa y el tooltip seguirían
+  diciendo "Disponible" en verde — que es exactamente el dato en disputa.
+  De los tokens que ya existen en `packages/core/src/status.ts`,
+  `bloqueado` es el único que no afirma ninguna de las dos cosas en pugna
+  (ni "disponible", ni "vendido") y sigue dibujando el hotspot (regla
+  dura: ningún polígono desaparece). Con `estado=bloqueado`, además,
+  `apps/viewer/src/polygons.ts::priceText()` no ofrece "Consultar" —
+  correcto acá: invitar a preguntar precio por una unidad que 3 de 4
+  fuentes dicen vendida sería una invitación falsa.
+- `precio`/`moneda` se dejan tal cual (235.000 USD) como registro interno
+  de la lista vigente — nunca llegan a `availability.json` mientras
+  `mostrar_precio_publico=NO`.
+- El razonamiento completo, con la cita de las 4 listas, quedó en
+  `notas_internas` de `B2-F`/`B2-G` — esa columna **nunca** sale a
+  `tour.json` (es pública) ni a `availability.json`.
+
+**Pregunta abierta para Caetano:** ¿cuál es el estado real de las unidades
+206 y 207 — disponibles en reventa a USD 235.000 (como dice la lista "2",
+la más completa y de fecha más reciente) o vendidas (como dicen las otras
+tres, incluida una de la misma fecha)? Hasta que conteste, el recorrido las
+muestra bloqueadas y sin precio público. Si confirma "disponibles", el
+cambio es trivial: `estado=disponible` + `mostrar_precio_publico=SI` en esas
+dos filas y correr `build_tour.py --publish` de nuevo.
 
 ### 4. Imagen del masterplan (300dpi)
 
@@ -172,15 +317,19 @@ Esto es lo que **no estaba en el material disponible** y bloquea pasar de
 1. **Panorámicas 360°** de cada escena (no había ningún panorama entre el
    material descargado, solo renders estáticos en `imgs/` y el brochure
    vectorial). Sin esto no hay recorrido, solo el floorplan con hotspots.
-2. **Disponibilidad real** (`estado`: disponible/reservado/vendido) de las
-   20 unidades de Bloque 2 y 3 — el brochure es un documento de venta, no
-   tiene estado de stock. Las columnas `estado` quedaron vacías en el CSV,
-   no en `disponible` por defecto (sería inventar dato).
-3. **Precios y moneda** por unidad, y si se muestran públicamente o solo on
-   request (columnas `precio`, `moneda`, `mostrar_precio_publico`) —
-   tampoco están en el brochure.
-4. **Condiciones de financiación** (columna `financiacion`) — no aparece en
-   ninguna página del PDF (se revisaron todas las 37 páginas de texto).
+2. ~~**Disponibilidad real** (`estado`)~~ **RESUELTO para Bloque 2** en
+   septiembre 2026 (ver sección 3.1 más arriba): `disponible`/`vendido`
+   reales de las 9 unidades de Bloque 2. **Sigue faltando** para Bloque 1, 3,
+   4 y 5 — Bloque 1 y 3 quedan como "próximamente" (el brochure lo dice
+   explícitamente), Bloque 4 y 5 sin ningún dato.
+3. ~~**Precios y moneda** por unidad~~ **RESUELTO para Bloque 2** (ver
+   sección 3.1): 7 de 9 unidades con precio público en USD, cochera
+   incluida. Las 2 unidades vendidas (208/209) no tienen precio publicado
+   por el brochure. **Sigue faltando** para Bloque 1, 3, 4 y 5.
+4. ~~**Condiciones de financiación**~~ **RESUELTO**: 50% anticipo + 12
+   cuotas mensuales al 6% anual + 4% de gastos de ocupación aparte, precio
+   = m² cubierto USD 2.700 + semicubierto USD 1.350 + descubierto USD 675 +
+   cochera USD 10.000 fijo, entrega diciembre 2026. Ver sección 3.1.
 5. **Orientación** de cada unidad (columna `orientacion`) — el brochure no
    la indica explícitamente por unidad (a diferencia del ejemplo de la
    plantilla, que sí trae "Frente Norte", "Contrafrente", etc.).
@@ -192,15 +341,26 @@ Esto es lo que **no estaba en el material disponible** y bloquea pasar de
    nota en la sección del CSV) contra lo que va a usar el equipo comercial,
    antes de que se generen materiales con esos códigos (fichas, carteles,
    nombres de archivo de renders/panorámicas).
-8. **Las plantas acotadas por unidad como imagen suelta** (PNG/JPG o PDF de
-   una página). Hoy sólo existen dentro del brochure; lo que hay en
-   `material/plantas/` son axonometrías de ubicación, no plantas. Faltan
-   además las de B3-A/B/C y B3-H/I/J/K en cualquier formato.
+8. ~~**Las plantas acotadas por unidad como imagen suelta**~~ **RESUELTO
+   para Bloque 2** (06/09/2026): `tools/baleia/material/planos/unidad/`
+   tiene las 9 unidades (7 imágenes WebP, ver
+   `tools/baleia/material/INVENTARIO.md` §2) extraídas de los PDF reales
+   del cliente, publicadas y referenciadas en `tour.json`
+   (`units[].media`), además de las axonometrías IA de `material/plantas/`
+   que ya estaban. **Sigue faltando** B3-A/B/C y B3-H/I/J/K en cualquier
+   formato — Bloque 3 no tiene plano acotado propio en ningún documento.
 9. Los polígonos de bloques y amenities están calibrados sobre el
    masterplan de la **página 6**. Si el cliente termina usando otro plano
    (por ejemplo una versión más nueva o de otra escala) como imagen final
    de la escena `floorplan`, esta geometría hay que re-extraerla o
    re-alinearla contra esa imagen — no es portable a ciegas a otro archivo.
+10. **Confirmar el estado real de las unidades 206 y 207** — ver la sección
+    3.2 más arriba. Bloqueadas y sin precio público mientras tanto.
+11. **Confirmar que ese teléfono comercial atiende leads del recorrido**:
+    `tour.json` ya carga `contact.whatsapp = "+59895559230"` (Caetano
+    Negocios Inmobiliarios + Dacal, el que publica el brochure), pero nadie
+    del cliente confirmó todavía que sea el número al que hay que mandar
+    los WhatsApp que salgan del visor (plan de experiencia, §6, punto 1).
 
 ## Honestidad sobre la calidad de la extracción
 
@@ -237,15 +397,22 @@ python3 scripts/build_tour.py --publish  # además, copia a apps/viewer/public/
   apuntan a sí mismos como "unidad" para heredar el pipeline de colores de
   estado sin tocar `packages/core`; los amenities son informativos, sin
   `unitCode`) y las 20 unidades del CSV en `units`.
-- `availability.json` — `AvailabilityFile` con estados de DEMOSTRACIÓN
-  (round-robin sintético, no reales: el brochure no trae stock, ver arriba)
-  y precios siempre en `null`.
+- `availability.json` — `AvailabilityFile`. Desde septiembre 2026 **ya no es
+  demostración para Bloque 2**: trae el `estado`/`precio` reales de las 9
+  unidades (ver sección 3.1). Bloque 3, 1, 4 y 5 siguen sin dato real — ver
+  el punto siguiente.
 - Demuestra la regla dura del visor (un hotspot nunca desaparece por dato
-  ausente/raro, ver `apps/viewer/src/polygons.ts`) en dos capas: **Bloque 1**
-  queda fuera de `availability.json` y **Bloque 4** recibe un estado
-  inventado (`en_promocion`) que el visor no conoce — ambos deben verse en
-  gris con warning en consola. El mismo patrón se repite a nivel unidad
-  individual con `B3-K` (ausente) y `B3-J` (`en_pausa`).
+  ausente/raro, ver `apps/viewer/src/polygons.ts`), ahora con motivos reales
+  en vez de casos de laboratorio: **Bloque 1 y Bloque 3** (y las 11 unidades
+  de Bloque 3) llevan el estado `"proximamente"` — el brochure los marca
+  "PRÓXIMAMENTE" pero ese token no existe en `UNIT_STATUSES`, así que caen
+  en la regla dura (gris + warning) en vez de sumar un token nuevo a
+  `packages/core` sin auditar su impacto en admin/Supabase (ver sección
+  3.1). **Bloque 4 y Bloque 5** quedan directamente fuera de
+  `availability.json` (ni el brochure dice "próximamente" de ellos). A nivel
+  unidad, `B3-K` también queda fuera (no "proximamente" como el resto de
+  Bloque 3) para seguir demostrando la otra mitad de la regla: una unidad
+  de la que ni siquiera llegó un estado inválido.
 - El detalle completo de cada decisión (por qué imagen única, por qué los
   bloques son "unidad-grupo", por qué los renders son escenas y no un tipo
   nuevo) está en el docstring de `scripts/build_tour.py` — no se repite acá

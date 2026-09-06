@@ -686,5 +686,5 @@ function applyPatch(row: UnitRow, patch: UnitPatch): UnitRow {
 }
 
 function emptyCountsView() {
-  return { disponible: 0, reservado: 0, vendido: 0, bloqueado: 0, no_disponible: 0 };
+  return { disponible: 0, reservado: 0, vendido: 0, bloqueado: 0, no_disponible: 0, proximamente: 0 };
 }

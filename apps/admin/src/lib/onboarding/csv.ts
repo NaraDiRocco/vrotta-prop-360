@@ -259,6 +259,9 @@ const STATUS_SYNONYMS: Record<string, UnitStatus> = {
   nodisponible: 'no_disponible',
   no_a_la_venta: 'no_disponible',
   retirado: 'no_disponible',
+  proximamente: 'proximamente',
+  proximo: 'proximamente',
+  a_confirmar: 'proximamente',
 };
 
 export function parseStatus(raw: string): UnitStatus | null | undefined {

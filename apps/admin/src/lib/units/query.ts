@@ -49,6 +49,7 @@ export function emptyCounts(): StatusCounts {
     vendido: 0,
     bloqueado: 0,
     no_disponible: 0,
+    proximamente: 0,
   };
 }
 

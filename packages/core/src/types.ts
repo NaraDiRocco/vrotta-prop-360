@@ -44,6 +44,30 @@ export interface TiledSource {
   format: 'webp' | 'jpg';
 }
 
+/**
+ * De dónde salió una imagen (plan de experiencia, §5.1: "la honestidad como
+ * diferenciador"). Tres y sólo tres valores — no se agregan más sin volver a
+ * ese documento:
+ *  - `foto`: fotografía o video real del predio. Lleva `capturedAt`.
+ *  - `render`: imagen del proyecto arquitectónico (renders, masterplan).
+ *  - `ia`: recreación generada con IA sobre una foto real (mobiliario,
+ *    paisajismo). Nunca es portada ni miniatura fuera de su slider (§3.1).
+ */
+export type ProcedenciaKind = 'foto' | 'render' | 'ia';
+
+export interface Procedencia {
+  kind: ProcedenciaKind;
+  /**
+   * Sólo para `kind: 'foto'`. Fecha de captura (`YYYY-MM-DD`), leída del
+   * EXIF `DateTimeOriginal` del archivo original — NUNCA escrita a mano: la
+   * fecha es la prueba de que es una foto y no un render (§5.1, "la fecha
+   * en la chapa de foto no es decoración: fecha = prueba").
+   */
+  capturedAt?: string;
+  /** Sólo para `kind: 'ia'`: el `id` (en `photoTour`) de la foto real de base. */
+  basedOn?: string;
+}
+
 export interface Scene {
   id: string;
   slug: string;
@@ -53,7 +77,76 @@ export interface Scene {
   initialView?: { yaw: number; pitch: number; fov: number };
   /** Desfase del norte, en radianes, para brújula y minimapa. */
   northOffset?: number;
+  /**
+   * Chapa de procedencia de la escena (plan §5.1). Campo OPCIONAL y aditivo:
+   * una escena sin `procedencia` sigue siendo válida y el visor de hoy no la
+   * lee. Hoy la emite `build_tour.py` para el masterplan y los renders
+   * (siempre `{ kind: 'render' }`) — ninguna escena panorámica real existe
+   * todavía (ver README, "Qué falta pedirle al cliente").
+   */
+  procedencia?: Procedencia;
   sort: number;
+  /**
+   * Sólo para `kind: 'video'` (Tramo 4, decisión 15 de `build_tour.py`).
+   * Campos OPCIONALES y aditivos: una escena sin ellos sigue siendo válida.
+   *  - `poster`: el cuadro de apertura, para no mostrar un rectángulo negro
+   *    mientras el archivo no cargó (mismo problema que resuelve el thumb
+   *    del masterplan, ver `build_tour.py::convert_masterplan`).
+   *  - `mobileUrl`: versión liviana (menor bitrate/resolución) que el visor
+   *    sirve en pantallas angostas vía `<source media>`; `source.url` sigue
+   *    siendo la versión de escritorio. Sin `mobileUrl` el visor sirve
+   *    `source.url` en cualquier pantalla.
+   */
+  poster?: { url: string; width: number; height: number };
+  mobileUrl?: string;
+}
+
+/**
+ * Una foto (o recreación) curada del recorrido narrativo del plan de
+ * experiencia (Tramo 1 y Tramo 2, `docs/06-BENCHMARK/5-EXPERIENCIA-BALEIA.md`
+ * §1 y §3.2) — no es una `Scene` navegable: es material de la secuencia con
+ * sentido ("paseo por la unidad") y de los deslizadores antes/después.
+ */
+export interface PhotoTourItem {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  width: number;
+  height: number;
+  procedencia: Procedencia;
+  /** Caption tal como está escrita en el plan de experiencia (texto exacto, no resumido). */
+  caption?: string;
+  /** Rótulo de ambiente para la tira del paseo (Tramo 2, Mitad B): "Living", "Cocina", "La vista", etc. */
+  ambiente?: string;
+  /**
+   * true si la imagen NO puede usarse como portada, miniatura ni imagen de
+   * vista previa (OG) fuera de su contexto original — hoy sólo las
+   * recreaciones de IA (plan §3.1: "la imagen de IA no existe fuera del
+   * slider").
+   */
+  restricted?: boolean;
+}
+
+/** Un deslizador antes/después (plan §1 Tramo 2, mecánica en §3.1). */
+export interface BeforeAfterPair {
+  id: string;
+  /** "Hoy · foto real". */
+  before: PhotoTourItem;
+  /** "Recreación IA sobre la foto" — SIEMPRE `restricted: true`. */
+  after: PhotoTourItem;
+  label?: string;
+}
+
+/**
+ * Material narrativo curado del recorrido (plan de experiencia): las fotos
+ * reales en su orden con sentido y los pares antes/después. Campo OPCIONAL y
+ * aditivo en `TourManifest` — sin `photoTour` el visor de hoy sigue
+ * funcionando exactamente igual; es la capa de datos que el Tramo 1 y el
+ * Tramo 2 de la experiencia van a consumir.
+ */
+export interface PhotoTour {
+  items: PhotoTourItem[];
+  pairs?: BeforeAfterPair[];
 }
 
 export interface Hotspot {
@@ -129,6 +222,8 @@ export interface TourManifest {
   };
   /** Ver `ContactInfo`. Ausente = el visor no muestra CTA de contacto. */
   contact?: ContactInfo;
+  /** Ver `PhotoTour`. Ausente = el visor no dibuja el recorrido narrativo de fotos. */
+  photoTour?: PhotoTour;
   availabilityUrl: string;
   start: string;
   scenes: Scene[];

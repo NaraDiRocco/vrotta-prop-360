@@ -75,6 +75,7 @@ const STATUS_KEYS: Record<string, UnitStatus> = {
   '3': 'vendido',
   '4': 'bloqueado',
   '5': 'no_disponible',
+  '6': 'proximamente',
 };
 
 export function EditorScreen(props: EditorScreenProps) {
