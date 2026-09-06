@@ -1,0 +1,39 @@
+# Baleia — Video Higgsfield: el masterplan se materializa
+Frame inicial: `bloque 1.jpg` (aérea real de dron)
+
+---
+
+## 1) PROMPT PRINCIPAL
+
+Cinematic aerial drone shot, real photograph as the opening frame: a low-rise two-story concrete block in raw construction stands in a rectangular clearing inside a dense eucalyptus forest on a coastal hillside in Uruguay, exposed board-formed concrete slabs, flat roof with parapets, blue formwork still visible between floors, red earth, a dirt access road and a white pickup truck beside it, and in the upper half of the frame a wide silver bay reflecting the sun, an immense arc of sandy beach, a small town hidden among trees and a range of soft blue hills under a clear sky. Over the shot the masterplan quietly materializes: on the already-leveled terraces around the first block, sister buildings rise as long, low horizontal bands of concrete, one clean slab settling onto the next, walls and columns emerging in calm successive layers, shadows adjusting as each floor appears, never faster than the eye can follow. As the new blocks complete, the first block sheds its construction state: formwork dissolves, slim black window frames slide into the openings, large glass panes fill with reflected sky, frameless tempered-glass railings line the terraces, linear concrete planters fill with native grasses, fresh lawn and gravel paths knit the terraces together, and warm interior light glows softly behind the glass. Camera: a very slow, steady aerial pull-back and gentle rise, drifting upward and backward a few meters over the whole take, horizon perfectly level, no rotation, no shake, revealing the finished ensemble of low concrete bands stepping down the wooded slope toward the bay. Mid-morning warm sunlight from the left, long soft shadows across the terraces, faint haze veiling the distant hills, atmosphere completely still. Palette of warm grey board-formed concrete, deep eucalyptus green, red-ochre earth, silver-blue water, pale sky. Style of a contemplative architecture film, Nowness / Bêka & Lemoine sensibility, natural color grading, subtle filmic grain, shot on a full-frame cinema camera with a 35mm lens from a drone, photorealistic, hyper-detailed, seamless transformation, silent and inevitable.
+
+## 2) NEGATIVE PROMPT
+
+text, captions, watermark, logo, UI, people, crowds, workers, vehicles moving, skyscrapers, high-rise towers, glowing particles, sparkles, magic effects, golden dust, holograms, wireframes, blueprint lines, fast time-lapse, flicker, jitter, camera shake, warping, morphing geometry, distorted buildings, extra floors, cartoon, oversaturated colors, lens flare, HDR look, blur, low quality
+
+## 3) AJUSTES
+
+- **Frame inicial:** `bloque 1.jpg` sin retoque. Recortar solo al aspect ratio, con el bloque en el tercio inferior y la bahía arriba. No usar la foto del bloque terminado como primer frame.
+- **Duración:** 10 s por clip. Si el modelo solo da 5 s, encadenar dos generaciones.
+- **16:9** para presentación · **9:16** para redes (en vertical cambiar el movimiento a "slow vertical tilt-up and rise").
+- **Motion/strength:** bajo-medio. Kling: modo Professional, motion ≈0.3–0.4, CFG 0.5–0.6. Minimax/Hailuo: prompt optimizer OFF. Veo: máxima calidad, sin audio.
+- **Start frame** con fidelidad máxima. Si hay **end frame** disponible, usar una foto del bloque terminado con encuadre similar para forzar la transformación real.
+- Generar 3–4 variaciones y elegir la que no deforme la geometría de las losas.
+
+---
+
+## 4A) VARIANTE — "Respiración" (casi quieta, contemplativa)
+
+Near-static cinematic aerial frame from a real drone photograph: a low two-story board-formed concrete block under construction sits in a rectangular clearing carved into a dense eucalyptus forest on a coastal hillside, red earth around it, a white pickup and a dirt track, and beyond, filling the upper half of the frame, a luminous silver bay, an endless arc of sandy beach, a small town among trees and a line of hazy blue hills under a clear morning sky. Time breathes rather than rushes: on the leveled terraces beside the first block, long horizontal concrete bands emerge one slab at a time, each layer surfacing softly from the ground like a tide coming in, pausing, then the next, columns and walls appearing in quiet order while their shadows lengthen gently across the earth. In the same breath the first block completes itself: formwork fades, slender black frames and large panes of glass settle into the openings and catch the sky, frameless glass railings edge the terraces, linear concrete planters fill with native grasses, and lawn spreads over the raw soil. The camera is almost still, a barely perceptible drift upward of less than a meter over the full take, horizon level, absolutely no shake, as if the drone were holding its breath. Warm mid-morning light, soft long shadows, thin haze over the distant hills, the water glittering faintly. Warm grey concrete, deep green eucalyptus, ochre earth, silver-blue water. Contemplative architecture film aesthetic in the spirit of Nowness and Bêka & Lemoine, natural muted grade, subtle filmic grain, full-frame cinema camera with a 40mm lens on a drone, photorealistic, seamless, serene.
+
+## 4B) VARIANTE — "Recorrido" (push-in aéreo desde la bahía)
+
+Cinematic aerial sequence starting from a real drone photograph: a low-rise two-story concrete block in raw construction stands in a clearing within a dense eucalyptus forest on a coastal hillside, red earth and a dirt road around it, a white pickup parked nearby, and in the upper half of the frame a wide silver bay reflecting the morning sun, a long arc of sandy beach, a coastal town tucked among trees and soft blue hills at the horizon. The camera begins a slow, continuous aerial push-in: it lifts slightly toward the bay, then glides forward and gently descends over the treetops toward the clearing, a smooth curving dolly of several dozen meters over the whole take, horizon kept level, no roll, no shake. As the camera travels, the masterplan takes form beneath it: on the prepared terraces around the first block, sister buildings rise as long, low horizontal concrete bands, slabs stacking in clean successive layers, walls and columns resolving with calm precision, shadows settling as each floor appears. By the time the camera arrives closer and lower, the first block has finished itself: formwork gone, slim black window frames and tall glass panes reflecting the sky, frameless glass railings along the terraces, linear concrete planters with native grasses, fresh lawn and gravel paths linking the buildings, warm light glowing softly behind the glass. The final frame holds on the complete ensemble of low concrete bands stepping down the wooded slope, the bay glinting behind. Warm mid-morning sunlight from the left, long soft shadows, faint haze over the hills, still air. Warm grey board-formed concrete, deep eucalyptus green, red-ochre soil, silver-blue water, pale clear sky. Contemplative architecture film aesthetic, Nowness / Bêka & Lemoine sensibility, natural color grade, subtle filmic grain, full-frame cinema camera with a 28mm lens on a drone, photorealistic, hyper-detailed, seamless and inevitable.
+
+---
+
+## 5) Criterio y encadenado
+
+La construcción se trata como un fenómeno natural y silencioso — losas que se asientan, sombras que se acomodan, vidrio que se llena de reflejo — no como un time-lapse de obra. Por eso la cámara casi no se mueve, la luz no cambia y el negative prompt bloquea partículas, textos y gente.
+
+Para una secuencia larga: **(4A) apertura** → **principal** (el conjunto creciendo) → **(4B) cierre** llegando al conjunto terminado. Usar siempre el último frame de un clip como start frame del siguiente, y la foto del bloque terminado como end frame del último.
