@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { canPublish, getSession } from '@/lib/auth.ts';
+import { canPublish, getSession, requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 
 /**
@@ -12,11 +12,22 @@ import { getRepo } from '@/lib/data/index.ts';
 export async function POST(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
-  if (!session.memberships.some((m) => canPublish(m.role))) {
+
+  // Mismo bug que en publish/route.ts: el rol se valida contra el tenant
+  // DUEÑO de ESTE proyecto, no contra cualquier membership del usuario.
+  const { project } = await ctx.params;
+  const projectRow = await getRepo().getProjectById(project);
+  if (!projectRow) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+
+  const ownerMembership = session.memberships.find((m) => m.tenantId === projectRow.tenantId);
+  if (!ownerMembership) {
+    return NextResponse.json({ error: 'Sólo el dueño del tenant puede revertir' }, { status: 403 });
+  }
+  const { membership } = await requireAdmin(ownerMembership.tenantSlug);
+  if (!canPublish(membership.role)) {
     return NextResponse.json({ error: 'Sólo el dueño del tenant puede revertir' }, { status: 403 });
   }
 
-  const { project } = await ctx.params;
   let raw: unknown;
   try {
     raw = await request.json();

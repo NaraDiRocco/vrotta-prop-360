@@ -91,6 +91,15 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
+/**
+ * Misma comparación en tiempo constante, pero para strings (p.ej. un bearer
+ * token contra un secreto de entorno) — se reusa acá en vez de reimplementar
+ * el mismo cuidado en cada lugar que compara un secreto.
+ */
+export function timingSafeEqualString(a: string, b: string): boolean {
+  return constantTimeEqual(new TextEncoder().encode(a), new TextEncoder().encode(b));
+}
+
 export async function signEmbedToken(
   payload: EmbedTokenPayload,
   secret: string,

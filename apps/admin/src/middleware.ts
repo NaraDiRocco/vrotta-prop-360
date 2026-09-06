@@ -9,19 +9,40 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
  * compartible no serviría para nada. La autorización de esas dos rutas no la
  * da una sesión sino el token del link, que se valida en el propio endpoint
  * (ver `lib/material/share.ts`).
+ *
+ * `/signup`, `/forgot-password` y `/reset-password` son, junto con `/login`,
+ * los únicos lugares del panel donde por definición todavía no hay sesión.
  */
-const PUBLIC_PATHS = ['/login', '/auth', '/m', '/api/material'];
+const PUBLIC_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password', '/auth', '/m', '/api/material'];
 
 /**
  * Renueva la sesión de Supabase en cada request y saca del panel a quien no
- * esté logueado. En modo mock no hace nada: no hay sesión que renovar.
+ * esté logueado.
+ *
+ * (Hallazgo I6) El default es CERRADO: sólo se salta el chequeo si el modo
+ * mock está prendido explícitamente (`=== '1'`). Antes era al revés
+ * (`!== '0'`), así que si esta variable faltaba en el deploy — un `.env` mal
+ * copiado, una var que no llegó a la imagen — el panel quedaba abierto de
+ * par en par en producción. Olvidarse una variable ahora deja el panel
+ * cerrado, no abierto.
  */
 export async function middleware(request: NextRequest) {
-  if (process.env['NEXT_PUBLIC_R360_MOCK'] !== '0') return NextResponse.next();
+  if (process.env['NEXT_PUBLIC_R360_MOCK'] === '1') return NextResponse.next();
+
+  const path = request.nextUrl.pathname;
+  const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
 
   const url = process.env['NEXT_PUBLIC_SUPABASE_URL'];
   const key = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'];
-  if (!url || !key) return NextResponse.next();
+  if (!url || !key) {
+    // Sin mock y sin Supabase configurado no hay forma de autenticar a
+    // nadie: mismo criterio de I6, esto también cierra en vez de abrir.
+    if (isPublic) return NextResponse.next();
+    const login = request.nextUrl.clone();
+    login.pathname = '/login';
+    login.searchParams.set('next', path);
+    return NextResponse.redirect(login);
+  }
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {
@@ -38,8 +59,6 @@ export async function middleware(request: NextRequest) {
   });
 
   const { data } = await supabase.auth.getUser();
-  const path = request.nextUrl.pathname;
-  const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
 
   if (!data.user && !isPublic) {
     const login = request.nextUrl.clone();

@@ -149,6 +149,12 @@ max_indexes = 5
 
 [auth]
 enabled = true
+# (R360) En el VPS `site_url` y `additional_redirect_urls` tienen que apuntar
+# al dominio real del panel (https), no a localhost — si no, Supabase rechaza
+# el `emailRedirectTo`/`redirectTo` que manda el signup, el magic link y el
+# reset de contraseña, y el correo enlaza a una URL que no sirve. Agregar ahí
+# el dominio + `/auth/callback` (mismo callback para los tres flujos: magic
+# link, confirmación de signup y recuperación de contraseña).
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
 site_url = "http://localhost:3001"
@@ -172,10 +178,17 @@ enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
-minimum_password_length = 6
+# (R360) Subido de 6 a 8 y con password_requirements abajo: ahora el panel
+# tiene login con contraseña de verdad (no sólo magic link), y esto tiene que
+# ser coherente con la validación del lado del cliente en
+# `apps/admin/src/lib/auth/password.ts` — si se cambia acá, cambiar allá.
+# REPLICAR en el Supabase autoalojado del VPS (`supabase/config.toml` allá, o
+# las env vars `GOTRUE_PASSWORD_MIN_LENGTH` / `GOTRUE_PASSWORD_REQUIRED_CHARACTERS`
+# si se corre gotrue suelto sin el CLI).
+minimum_password_length = 8
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
-password_requirements = ""
+password_requirements = "letters_digits"
 
 # Configure passkey sign-ins.
 # [auth.passkey]
@@ -188,8 +201,14 @@ password_requirements = ""
 # rp_origins = ["http://127.0.0.1:3000"]
 
 [auth.rate_limit]
+# (R360) 2/hora alcanzaba cuando la única salida de correo era el magic link
+# del fundador. Con registro self-serve + confirmación de email + recuperar
+# contraseña, un equipo real (altas, gente que se olvida la contraseña) lo
+# agota en minutos y queda bloqueado sin aviso claro. 30/hora da margen sin
+# abrir la puerta a spam masivo. REPLICAR en el VPS: `GOTRUE_RATE_LIMIT_EMAIL_SENT`
+# si no se usa este config.toml directamente allá.
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+email_sent = 30
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -215,8 +234,15 @@ enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
+# (R360) Con contraseña propia, sin confirmar el correo cualquiera se registra
+# con un email ajeno y entra. Antes daba lo mismo (sólo entraba quien
+# recibiera el magic link, que ya prueba que el correo es suyo). REPLICAR en
+# el VPS: `GOTRUE_MAILER_AUTOCONFIRM=false` (o el flag equivalente de la
+# versión de gotrue que corra ahí) — y ahí SÍ hace falta SMTP real: sin
+# `[auth.email.smtp]` configurado (ver más abajo) el correo de confirmación
+# no sale y nadie puede terminar de registrarse.
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -226,6 +252,13 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
+# (R360) Comentado acá porque el `pass = "env(...)"` sólo lo resuelve el CLI
+# local con `supabase secrets`/`.env`. En el VPS este bloque hay que
+# descomentarlo y completarlo (o el equivalente `GOTRUE_SMTP_*` si se
+# levanta gotrue directo) con un SMTP de verdad: sin esto, `enable_confirmations`
+# y el reset de contraseña no mandan ningún correo y el registro / "olvidé mi
+# contraseña" quedan rotos en silencio (Inbucket, que sí anda en local, no
+# existe en producción).
 # Use a production-ready SMTP server
 # [auth.email.smtp]
 # enabled = true

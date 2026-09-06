@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/auth.ts';
+import { getSession, requireAdmin } from '@/lib/auth.ts';
 import { canPublish } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 
@@ -13,20 +13,28 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ projec
   return NextResponse.json(state);
 }
 
-/** Publica el borrador actual. Sólo `owner` puede publicar. */
+/** Publica el borrador actual. Sólo `owner` DEL TENANT DUEÑO DEL PROYECTO puede publicar. */
 export async function POST(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
 
-  // `project` es el id, no el slug (ver convención del resto de /api/p/[project]/*),
-  // y Repo no expone "tenant de este projectId" sin resolver por slug primero.
-  // Alcanza con exigir que AL MENOS una membership del usuario sea owner: en
-  // el modelo actual un usuario pertenece a un solo tenant por sesión.
-  if (!session.memberships.some((m) => canPublish(m.role))) {
+  // `project` es el id, no el slug (ver convención del resto de /api/p/[project]/*).
+  // El rol se valida contra el tenant DUEÑO de este proyecto, no contra
+  // cualquier membership del usuario: ser owner de OTRO tenant no alcanza
+  // (bug corregido — antes bastaba con `session.memberships.some(canPublish)`).
+  const { project } = await ctx.params;
+  const projectRow = await getRepo().getProjectById(project);
+  if (!projectRow) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+
+  const ownerMembership = session.memberships.find((m) => m.tenantId === projectRow.tenantId);
+  if (!ownerMembership) {
+    return NextResponse.json({ error: 'Sólo el dueño del tenant puede publicar' }, { status: 403 });
+  }
+  const { membership } = await requireAdmin(ownerMembership.tenantSlug);
+  if (!canPublish(membership.role)) {
     return NextResponse.json({ error: 'Sólo el dueño del tenant puede publicar' }, { status: 403 });
   }
 
-  const { project } = await ctx.params;
   let raw: unknown;
   try {
     raw = await request.json();

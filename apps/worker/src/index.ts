@@ -6,8 +6,16 @@ import { publish } from './routes/publish.ts';
 import { rollback } from './routes/rollback.ts';
 import { availability } from './routes/availability.ts';
 import { leads } from './routes/leads.ts';
+import { requirePublishSecret } from './lib/publish-auth.ts';
 
 const app = new Hono<{ Bindings: Env }>();
+
+// Sólo las rutas de escritura que actúan con la service key de Supabase
+// exigen el secreto de publish — /t/*, /api/leads y el resto siguen
+// públicas. Registrado ANTES de montar las rutas para que corra primero.
+app.use('/api/publish', requirePublishSecret);
+app.use('/api/rollback', requirePublishSecret);
+app.use('/api/availability/:tenant/:project/regenerate', requirePublishSecret);
 
 app.route('/', health);
 app.route('/', serve);

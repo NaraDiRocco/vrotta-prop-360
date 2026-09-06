@@ -33,7 +33,7 @@ export const EXAMPLE_PROJECT: MaterialProjectSummary = {
 };
 
 export const EXAMPLE_CONTACT: MaterialContact = {
-  nombre: 'Nara — Recorrido 360',
+  nombre: 'Nara — Vrotta Prop 360',
   medio: 'whatsapp',
   valor: '+54 9 11 5555-0100',
 };

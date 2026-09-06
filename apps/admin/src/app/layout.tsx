@@ -24,7 +24,7 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'Recorrido 360 — Panel',
+  title: 'Vrotta Prop 360 — Panel',
   description: 'Panel de administración de recorridos y disponibilidad.',
 };
 

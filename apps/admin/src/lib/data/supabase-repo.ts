@@ -1,4 +1,5 @@
 import type { UnitStatus } from '@r360/core';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from '../supabase/server.ts';
 import { countByStatus } from '../units/query.ts';
 import type { HotspotRow } from '../editor/records.ts';
@@ -102,6 +103,53 @@ function orderedByDepth(groups: readonly NewGroupInput[]): NewGroupInput[][] {
     levels.push(level);
   }
   return levels;
+}
+
+/** El slug de tenant vive en `tenants`, no en `projects` — hace falta un viaje aparte. */
+async function tenantSlugById(supabase: SupabaseClient, tenantId: string): Promise<string> {
+  const { data } = await supabase.from('tenants').select('slug').eq('id', tenantId).maybeSingle();
+  return data ? String(asRecord(data)['slug']) : '';
+}
+
+/**
+ * Publicar y revertir de verdad (armar tour.json, escribirlo en R2, mover el
+ * puntero de versión activa) lo hace apps/worker, con la service key de
+ * Supabase — el panel no tiene esas credenciales ni debería tenerlas. Este
+ * helper llama al Worker con el secreto compartido (ver
+ * apps/worker/src/lib/publish-auth.ts) y traduce cualquier falla en un
+ * mensaje legible para la UI en vez de dejar pasar un stack de fetch.
+ */
+async function callPublishWorker<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const workerUrl = process.env['WORKER_URL'];
+  const secret = process.env['R360_PUBLISH_SECRET'];
+  if (!workerUrl || !secret) {
+    throw new Error(
+      'Falta configurar WORKER_URL y/o R360_PUBLISH_SECRET en el entorno del panel (ver apps/admin/.env.example).',
+    );
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${workerUrl}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+      body: JSON.stringify(body),
+    });
+  } catch (cause) {
+    throw new Error(
+      `No se pudo contactar al Worker en ${workerUrl}: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
+  }
+
+  const json: unknown = await res.json().catch(() => null);
+  if (!res.ok) {
+    const record = json && typeof json === 'object' ? asRecord(json) : {};
+    const message = isString(record['message'] as string | null) ? String(record['message']) : null;
+    const error = isString(record['error'] as string | null) ? String(record['error']) : null;
+    throw new Error(message ?? error ?? `El Worker respondió ${res.status}`);
+  }
+
+  return json as T;
 }
 
 export class SupabaseRepo implements Repo {
@@ -930,21 +978,59 @@ export class SupabaseRepo implements Repo {
 
   /**
    * Publicar de verdad (armar tour.json, escribirlo en R2, mover el puntero)
-   * lo hace `apps/worker` (`POST /api/publish`) — acá el panel sólo dispara
-   * ese endpoint. La URL del Worker no está en el alcance de este repo de
-   * datos (no hay `WORKER_URL` en las env vars actuales de apps/admin), así
-   * que dejamos la interfaz lista y documentado el enganche pendiente.
+   * lo hace `apps/worker` (`POST /api/publish`) — acá el panel arma
+   * tenant/project (el Worker no conoce `projectId`, sólo slugs) y dispara
+   * ese endpoint con el secreto compartido.
    */
-  async publish(_projectId: string, _note: string | null): Promise<PublicationRow> {
-    throw new Error(
-      'Publicar contra Supabase requiere invocar POST /api/publish en apps/worker (no implementado desde apps/admin todavía: falta configurar WORKER_URL).',
-    );
+  async publish(projectId: string, note: string | null): Promise<PublicationRow> {
+    const project = await this.getProjectById(projectId);
+    if (!project) throw new Error(`El proyecto ${projectId} no existe`);
+
+    const supabase = await createSupabaseServerClient();
+    const tenantSlug = await tenantSlugById(supabase, project.tenantId);
+    if (!tenantSlug) throw new Error(`No se pudo resolver el tenant del proyecto ${projectId}`);
+
+    const result = await callPublishWorker<{ ok: true; version: number }>('/api/publish', {
+      tenant: tenantSlug,
+      project: project.slug,
+    });
+
+    // El Worker ya dejó constancia en `publications` (sin nota: no la
+    // conoce). La completamos acá — best effort, no aborta el publish si
+    // falla: el contenido ya quedó publicado igual.
+    if (note) {
+      const { error: noteError } = await supabase
+        .from('publications')
+        .update({ note })
+        .eq('project_id', projectId)
+        .eq('version', result.version);
+      if (noteError) console.error(`No se pudo guardar la nota de la publicación v${result.version}:`, noteError.message);
+    }
+
+    const { data: userData } = await supabase.auth.getUser();
+    return {
+      id: `${projectId}-v${result.version}`,
+      projectId,
+      version: result.version,
+      note,
+      publishedByEmail: userData.user?.email ?? null,
+      publishedAt: new Date().toISOString(),
+    };
   }
 
-  async revertPublication(_projectId: string, _version: number): Promise<void> {
-    throw new Error(
-      'Revertir contra Supabase requiere invocar POST /api/rollback en apps/worker (no implementado desde apps/admin todavía: falta configurar WORKER_URL).',
-    );
+  async revertPublication(projectId: string, version: number): Promise<void> {
+    const project = await this.getProjectById(projectId);
+    if (!project) throw new Error(`El proyecto ${projectId} no existe`);
+
+    const supabase = await createSupabaseServerClient();
+    const tenantSlug = await tenantSlugById(supabase, project.tenantId);
+    if (!tenantSlug) throw new Error(`No se pudo resolver el tenant del proyecto ${projectId}`);
+
+    await callPublishWorker('/api/rollback', {
+      tenant: tenantSlug,
+      project: project.slug,
+      toVersion: version,
+    });
   }
 
   async listPreviewTokens(projectId: string): Promise<PreviewTokenRow[]> {

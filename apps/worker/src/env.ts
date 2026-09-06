@@ -14,4 +14,6 @@ export interface Env {
   EMBED_HMAC_SECRET: string;
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
+  /** Secreto compartido con apps/admin para autorizar publish/rollback/regenerate. */
+  PUBLISH_SECRET: string;
 }

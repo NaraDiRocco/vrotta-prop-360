@@ -1,7 +1,7 @@
 # pano-pipeline
 
 Pipeline de producción de tiles para panoramas equirectangulares (cubemap
-multiresolución) y planos gigapíxel (deep-zoom / DZI), para Recorrido 360.
+multiresolución) y planos gigapíxel (deep-zoom / DZI), para Vrotta Prop 360.
 
 Python **3.9** (verificado con Python 3.9.6 del sistema — no se usa sintaxis
 de 3.10+ como `X | Y` en anotaciones ni `match`).

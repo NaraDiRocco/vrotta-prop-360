@@ -1,6 +1,6 @@
 # @r360/worker
 
-API de Recorrido 360 en Cloudflare Workers (Hono + TypeScript). Sirve el
+API de Vrotta Prop 360 en Cloudflare Workers (Hono + TypeScript). Sirve el
 visor y `tour.json` desde R2 vía un puntero de versión en KV, publica nuevas
 versiones, regenera `availability.json`, registra leads, y protege el embed
 (CSP `frame-ancestors`, tokens de embed HMAC, anti-hotlink de tiles).

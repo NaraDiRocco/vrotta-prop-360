@@ -1,4 +1,4 @@
-# Supabase — esquema de Recorrido 360
+# Supabase — esquema de Vrotta Prop 360
 
 Esquema multi-tenant completo: tenants → proyectos → estructura (grupos,
 tipos de unidad, unidades) → escenas/hotspots → publicaciones/leads/jobs.

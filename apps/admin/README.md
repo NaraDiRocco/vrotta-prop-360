@@ -30,13 +30,17 @@ No hay autenticación: entrás como `owner` del tenant `baleia`.
 
 Para hablar con Supabase de verdad: `NEXT_PUBLIC_R360_MOCK=0` +
 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Ahí se activan el
-middleware de sesión y el login por magic link.
+middleware de sesión y el login por contraseña o magic link (el middleware
+exige sesión salvo `NEXT_PUBLIC_R360_MOCK=1` explícito; si la variable falta
+directamente, el panel queda cerrado, no abierto).
 
 ## Rutas
 
 | Ruta | Qué es |
 | --- | --- |
-| `/login` · `/auth/callback` | Magic link |
+| `/login` · `/auth/callback` | Contraseña o magic link |
+| `/signup` | Alta de cuenta (email + contraseña, con confirmación por correo) |
+| `/forgot-password` · `/reset-password` | Recuperar contraseña |
 | `/t/[tenant]/p` | Listado de proyectos (banda "requiere atención" + cards) |
 | `/t/[tenant]/p/[project]` | Resumen + checklist de salud (`project_health`) |
 | `/t/[tenant]/p/[project]/units` | **Gestor de unidades** |
