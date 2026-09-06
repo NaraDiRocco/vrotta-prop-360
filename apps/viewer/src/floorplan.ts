@@ -78,6 +78,14 @@ export class FloorplanRenderer implements SceneRenderer {
   private readonly priceLegendEl: HTMLElement;
   private filterMatch: Set<string> | null = null;
   private priceMode = false;
+  /**
+   * Último `mount()` y la rotación con la que se pintó. Girar el teléfono
+   * cambia qué orientación conviene (ver `shouldRotate`), pero el plano se
+   * arma una sola vez: sin esto, quien rota la pantalla se queda con el
+   * masterplan mal encuadrado hasta recargar.
+   */
+  private lastMount: { scene: Scene; hotspots: readonly Hotspot[] } | null = null;
+  private appliedRotation: boolean | null = null;
   private priceBands: PriceBand[] = [];
   private touchPickEl: HTMLElement | null = null;
   private readonly legendObserver: MutationObserver;
@@ -128,6 +136,7 @@ export class FloorplanRenderer implements SceneRenderer {
     // agrega o cambia la barra inferior.
     this.syncLegendOffset();
     window.addEventListener('resize', this.scheduleLegendSync);
+    window.addEventListener('resize', this.scheduleOrientationCheck);
     // `subtree:true` sobre `document.body` puede disparar en ráfaga (tooltips
     // de Leaflet, refrescos de disponibilidad): se agrupa en un solo rAF por
     // tanda en vez de re-escanear el DOM en cada mutación suelta.
@@ -140,6 +149,46 @@ export class FloorplanRenderer implements SceneRenderer {
     if (this.legendSyncScheduled) return;
     this.legendSyncScheduled = true;
     requestAnimationFrame(() => { this.legendSyncScheduled = false; this.syncLegendOffset(); });
+  };
+
+  private orientationCheckTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * Redimensionar dispara en ráfaga mientras se arrastra la ventana, y
+   * rehacer el plano es caro (gira una imagen de 15 megapíxeles). Se espera a
+   * que el tamaño se quede quieto.
+   */
+  private scheduleOrientationCheck = (): void => {
+    if (this.orientationCheckTimer) clearTimeout(this.orientationCheckTimer);
+    this.orientationCheckTimer = setTimeout(this.checkOrientation, 150);
+  };
+
+  /**
+   * Rehace el plano sólo si la orientación que corresponde ahora es distinta
+   * de la que está pintada. Un resize que no cruza el umbral de
+   * `shouldRotate` no cuesta nada: Leaflet ya reencuadra solo.
+   */
+  private checkOrientation = (): void => {
+    this.orientationCheckTimer = null;
+    const last = this.lastMount;
+    if (!last || !this.map) return;
+    const src = last.scene.source;
+    if (!isPlanSource(src)) return;
+    const want = shouldRotate(src.width, src.height, this.el.clientWidth, this.el.clientHeight);
+    if (want === this.appliedRotation) {
+      this.map.invalidateSize({ animate: false });
+      return;
+    }
+    // Se conserva la unidad resaltada: rotar la pantalla no es motivo para
+    // perder lo que el visitante estaba mirando.
+    const keep = this.highlighted ? this.meta.get(this.highlighted)?.unitCode ?? null : null;
+    this.mount(last.scene, last.hotspots, this.availability);
+    if (keep) {
+      const id = this.codeToIds.get(keep)?.[0];
+      if (id) {
+        this.highlighted = id;
+        this.paintLayer(id);
+      }
+    }
   };
 
   /** Elementos propios: se excluyen de la medición de "chrome ajeno" para no auto-empujarse. */
@@ -181,12 +230,14 @@ export class FloorplanRenderer implements SceneRenderer {
     }
     const { url, width, height } = scene.source;
     this.destroyMap();
+    this.lastMount = { scene, hotspots };
     this.availability = availability;
     this.recomputePriceBands();
 
     // Girar el plano cuando es apaisado y la pantalla vertical (ver
     // `shouldRotate`). Al girar, alto y ancho del lienzo se intercambian.
     const rot = shouldRotate(width, height, this.el.clientWidth, this.el.clientHeight);
+    this.appliedRotation = rot;
     const planW = rot ? height : width;
     const planH = rot ? width : height;
 
@@ -311,6 +362,8 @@ export class FloorplanRenderer implements SceneRenderer {
     this.priceLegendEl.remove();
     this.closeDisambiguation();
     window.removeEventListener('resize', this.scheduleLegendSync);
+    window.removeEventListener('resize', this.scheduleOrientationCheck);
+    if (this.orientationCheckTimer) clearTimeout(this.orientationCheckTimer);
     this.legendObserver.disconnect();
   }
 
