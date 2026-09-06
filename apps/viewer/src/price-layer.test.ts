@@ -119,3 +119,44 @@ test('bandLabel: extremos usan "hasta"/"más de", el medio usa rango', () => {
   assert.match(bandLabel(bands[2]!, 2, 3), /^más de /);
   assert.doesNotMatch(bandLabel(bands[1]!, 1, 3), /^(hasta|más de)/);
 });
+
+// Caso real de Baleia hoy: 5 unidades disponibles, sólo DOS precios
+// distintos (358.638 y 364.861). Pedir 3 tramos igual daba "hasta USD 359 k
+// · USD 359 k–359 k · más de USD 359 k" — ambos límites redondeaban al
+// mismo millar y el tramo del medio no representaba nada (auditoría §2.1).
+const BALEIA_PRICES = [358638, 358638, 358638, 358638, 364861];
+
+test('deriveBands: con 2 precios distintos y 3 tramos pedidos, colapsa a 2 tramos exactos', () => {
+  const bands = deriveBands(BALEIA_PRICES, 3);
+  assert.equal(bands.length, 2);
+  assert.deepEqual(bands.map((b) => [b.min, b.max]), [
+    [358638, 358638],
+    [364861, 364861],
+  ]);
+});
+
+test('bandLabel: dos precios distintos, "hasta" y "más de" no colisionan en el mismo millar redondeado', () => {
+  const bands = deriveBands(BALEIA_PRICES, 3);
+  const hasta = bandLabel(bands[0]!, 0, bands.length);
+  const masDe = bandLabel(bands[1]!, 1, bands.length);
+  assert.equal(hasta, 'hasta USD 359 k');
+  assert.equal(masDe, 'más de USD 365 k');
+  assert.notEqual(hasta.replace('hasta ', ''), masDe.replace('más de ', ''));
+});
+
+test('deriveBands: un único precio publicado da un único tramo', () => {
+  const bands = deriveBands([358638, 358638, 358638], 3);
+  assert.equal(bands.length, 1);
+  assert.deepEqual([bands[0]!.min, bands[0]!.max], [358638, 358638]);
+});
+
+test('bandLabel: un único tramo no dice "hasta" ni "más de", dice el precio', () => {
+  const bands = deriveBands([358638], 3);
+  assert.equal(bandLabel(bands[0]!, 0, bands.length), 'USD 359 k');
+});
+
+test('deriveBands: con precios distintos suficientes, mantiene el reparto por cuantiles de siempre', () => {
+  const prices = [100, 120, 150, 200, 210, 220, 300, 310, 320];
+  const bands = deriveBands(prices, 3);
+  assert.equal(bands.length, 3);
+});

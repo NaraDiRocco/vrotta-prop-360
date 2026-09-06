@@ -264,6 +264,44 @@ muestra bloqueadas y sin precio público. Si confirma "disponibles", el
 cambio es trivial: `estado=disponible` + `mostrar_precio_publico=SI` en esas
 dos filas y correr `build_tour.py --publish` de nuevo.
 
+### 3.3. B3-K sin estado en `availability.json`: a propósito, no un olvido (06/09/2026)
+
+`docs/06-BENCHMARK/6-AUDITORIA-EXPERIENCIA.md` (§2.2) volvió a levantar
+`B3-K` como hallazgo: en la grilla del Tramo 5 y en la pestaña Unidades, la
+celda de `B3-K` sale sin texto y más baja que las demás (49px contra 63),
+al lado de diez "Próximamente" — se lee como un dato roto, no como una
+decisión. **Se revisó y se decide dejarlo así**, por lo siguiente:
+
+- `UNIT_MISSING_FROM_AVAILABILITY = "B3-K"` (`scripts/build_tour.py`,
+  sección "regla dura") es intencional desde que se cargó el Bloque 3: las
+  otras 10 unidades de Bloque 3 (`B3-A`..`B3-J`) llevan el estado real
+  `"proximamente"` (ver 3.1); `B3-K` queda **totalmente ausente** de
+  `availability.json`, ni siquiera con ese valor. Son dos niveles de la
+  regla dura y hoy sólo hay evidencia real de uno solo con datos de
+  producción: "el estado llegó pero es uno que el visor no conoce"
+  (Bloque 1 y 3 antes de `0017_unit_status_proximamente.sql`, ya resuelto)
+  y "el estado no llegó ni siquiera intentado" — que sin `B3-K` no tendría
+  ningún caso real en Baleia, y la regla ("ningún hotspot desaparece nunca")
+  es la única que este proyecto no se puede dar el lujo de dejar sin probar
+  con datos reales.
+- La confusión que señala la auditoría es real y vale la pena separarla del
+  disparador: el CÓDIGO está bien documentado (este archivo y el docstring
+  de `build_tour.py`), lo que falta es que la PANTALLA diga lo mismo. Hoy
+  una celda vacía y una celda "Próximamente" se distinguen sólo por altura
+  — nada le dice al comprador (ni a quien audita mirando la pantalla, sin
+  leer el código) que son dos cosas distintas a propósito. Eso es un
+  tratamiento visual de la grilla (`tour-rail.ts`/`units-panel.ts`), fuera
+  del alcance de este agente (ver reparto de archivos de la auditoría,
+  §5) — la corrección sugerida ahí es un texto corto tipo "Sin dato" en la
+  celda de `B3-K`, visualmente distinto del chip de contorno de
+  "Próximamente", en vez de dejarla en blanco.
+- Si en algún momento deja de ser útil como demostración (por ejemplo,
+  porque Caetano informa que B3-K tampoco tiene fecha comercial y por lo
+  tanto es indistinguible de sus vecinas), lo correcto es sumarla a
+  `BLOCKS_PROXIMAMENTE`-equivalente a nivel unidad, no borrar el caso sin
+  reemplazo: la regla dura necesita seguir teniendo un ejemplo real de
+  "estado completamente ausente" en algún lado del dataset.
+
 ### 4. Imagen del masterplan (300dpi)
 
 **Resultado:**

@@ -14,6 +14,21 @@
  */
 :root { --r360-legend-h: 0px; }
 
+/*
+ * Fondo del plano (idea 4, auditoría §4): `styles.css` ya pinta `.r360-plan`
+ * y `.leaflet-container` de `#11161d` (mismo tono que el resto de la
+ * interfaz oscura), pero ambas clases conviven en el MISMO elemento —
+ * Leaflet monta directo sobre el div que ya tiene `.r360-plan` y le agrega
+ * `.leaflet-container` — y `leaflet/dist/leaflet.css` (importado en
+ * `floorplan.ts`, que es un chunk que carga DESPUÉS de `styles.css`) trae su
+ * propio `.leaflet-container { background: #ddd; ... }` con la misma
+ * especificidad: por orden de carga, el gris de Leaflet ganaba (medido:
+ * `rgb(221,221,221)`, exactamente `#ddd`). Esta regla es la última en cargar
+ * (esta hoja se importa después de `leaflet.css` en `floorplan.ts`), así que
+ * es la que efectivamente se ve, sin tocar `styles.css`.
+ */
+.r360-plan.leaflet-container { background: #11161d; }
+
 .r360-units-mount { position: absolute; inset: 0; z-index: 61; pointer-events: none; }
 .r360-units-mount [hidden] { display: none !important; }
 [hidden].r360-price-legend { display: none !important; }
@@ -174,4 +189,58 @@ body.r360-panel-open .r360-price-legend { display: none; }
     line-height: 44px;
     font-size: 22px;
   }
+}
+
+/* ── Etiquetas permanentes de bloque (idea 4, auditoría §4) ──────────────
+   "B1".."B5" con su chip de estado, siempre visibles sobre el polígono del
+   bloque — antes sólo aparecían en un tooltip al pasar el mouse, o sea
+   nunca en un teléfono. `interactive:false` en el bind (floorplan.ts): el
+   toque lo sigue resolviendo `handleMapClick` sobre el polígono, no la
+   etiqueta. */
+.leaflet-tooltip.r360-plan-label {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  pointer-events: none;
+}
+.leaflet-tooltip.r360-plan-label::before { display: none; }
+.r360-plan-label__name {
+  font-weight: 800;
+  font-size: 13px;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85), 0 0 6px rgba(0, 0, 0, .55);
+}
+.r360-plan-label__chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 3px auto 0;
+  padding: 2px 7px;
+  width: max-content;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+  background: rgba(13, 17, 23, .8);
+  border: 1px solid rgba(255, 255, 255, .2);
+}
+.r360-plan-label__chip i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+/* ── B2 pulsa una vez al llegar (idea 4) ──────────────────────────────────
+   Un solo destello para ubicar al que recién entra, no una animación en
+   loop que distraiga. `pulseUnit()` en floorplan.ts agrega y saca la
+   clase; acá sólo vive el keyframe. Envuelto en la media query: con
+   `prefers-reduced-motion: reduce` no hay animación en absoluto (regla
+   dura del visor), no sólo una versión más corta. */
+@media (prefers-reduced-motion: no-preference) {
+  .r360-pulse-once { animation: r360-plan-pulse 1.2s ease-out 1; }
+}
+@keyframes r360-plan-pulse {
+  0% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
+  35% { filter: drop-shadow(0 0 16px rgba(255, 255, 255, .95)) brightness(1.6); }
+  100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
 }

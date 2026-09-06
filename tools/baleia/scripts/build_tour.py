@@ -422,6 +422,15 @@ BLOCKS_MISSING_FROM_AVAILABILITY = ["B4", "B5"]
 # B3-K en particular se deja afuera de `availability.json` (no "proximamente"
 # como el resto) para seguir demostrando la otra mitad de la regla dura:
 # una unidad de la que ni siquiera llegó un estado inválido.
+#
+# Revisado el 06/09/2026 contra `docs/06-BENCHMARK/6-AUDITORIA-EXPERIENCIA.md`
+# (§2.2), que vuelve a señalarlo como confuso en pantalla (celda vacía y más
+# baja, al lado de diez "Próximamente"). SIGUE SIENDO A PROPÓSITO: el detalle
+# completo de por qué se decide mantenerlo así, en vez de sumarlo a
+# `BLOCKS_PROXIMAMENTE`, está en `tools/baleia/README.md` §3.3. Lo que sí
+# falta —y no es cosa de este dato sino de cómo la grilla de unidades pinta
+# un estado ausente (`tour-rail.ts`/`units-panel.ts`)— es que la pantalla
+# diga "Sin dato" en vez de dejar la celda en blanco.
 UNIT_MISSING_FROM_AVAILABILITY = "B3-K"
 
 

@@ -63,6 +63,21 @@ export function deriveBands(prices: readonly number[], bandCount = 3): PriceBand
   const sorted = [...prices].filter((p) => Number.isFinite(p)).sort((a, b) => a - b);
   if (sorted.length === 0) return [];
 
+  // Con menos precios DISTINTOS que tramos pedidos, los cuantiles no
+  // aportan nada: con dos precios (358.638 y 364.861, el caso real de
+  // Baleia hoy) el reparto por cantidad de unidades igual arma 3 tramos y
+  // dos de ellos comparten el mismo límite — "hasta USD 359 k · USD
+  // 359 k–359 k · más de USD 359 k" (medido). Un tramo por precio distinto,
+  // sin promediar ni inventar límites que no existen.
+  const distinct = [...new Set(sorted)];
+  if (distinct.length < bandCount) {
+    return distinct.map((price, i) => ({
+      min: price,
+      max: price,
+      color: rampColor(distinct.length === 1 ? 0 : i / (distinct.length - 1)),
+    }));
+  }
+
   const n = Math.max(1, Math.min(bandCount, sorted.length));
   const bands: PriceBand[] = [];
   for (let i = 0; i < n; i++) {
@@ -110,8 +125,14 @@ export function availablePrices(availability: AvailabilityFile | null): number[]
 /** Etiqueta legible de un tramo para la leyenda ("hasta USD 160 k", "160-220 k", "más de..."). */
 export function bandLabel(band: PriceBand, index: number, total: number, currency = 'USD'): string {
   const fmt = (v: number) => `${Math.round(v / 1000)} k`;
-  if (index === 0 && total > 1) return `hasta ${currency} ${fmt(band.max)}`;
-  if (index === total - 1 && total > 1) return `más de ${currency} ${fmt(band.min)}`;
+  // Un solo tramo (un único precio publicado): ni "hasta" ni "más de" dicen
+  // nada con un solo valor.
+  if (total <= 1) return `${currency} ${fmt(band.min)}`;
+  if (index === 0) return `hasta ${currency} ${fmt(band.max)}`;
+  if (index === total - 1) return `más de ${currency} ${fmt(band.min)}`;
+  // Tramo intermedio de un solo precio exacto (colapsado más arriba, o un
+  // cuantil que cayó en un único valor): "USD 359 k–359 k" es ruido.
+  if (band.min === band.max) return `${currency} ${fmt(band.min)}`;
   return `${currency} ${fmt(band.min)}–${fmt(band.max)}`;
 }
 

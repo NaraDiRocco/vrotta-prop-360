@@ -16,9 +16,9 @@ import 'leaflet/dist/leaflet.css';
 import './units.css';
 import L from 'leaflet';
 import type { AvailabilityFile, Hotspot, Px, Scene, TourManifest } from '@r360/core';
-import { shouldRotate, toLatLng as planToLatLng } from './plan-orientation.ts';
+import { shouldRotate, toLatLng as planToLatLng, fitWidthView, legendOffsetFrom } from './plan-orientation.ts';
 import { svgStyleFor, tokenFor, tooltipHtml, unitFacts, escapeHtml, type MarkerMeta, type UnitFacts } from './polygons.ts';
-import { INFO_TOKEN } from '@r360/core';
+import { INFO_TOKEN, STATUS_TOKENS } from '@r360/core';
 import { mountUnitsPanel, type UnitsPanel } from './units-panel.ts';
 import { availablePrices, bandForPrice, bandLabel, deriveBands, minAvailablePrice, unitCodesFor, type PriceBand } from './price-layer.ts';
 import { averagePolygonSize, resolveTouch, GATE_ZOOM_FACTOR, type ScreenPolygon } from './touch.ts';
@@ -26,6 +26,24 @@ import { averagePolygonSize, resolveTouch, GATE_ZOOM_FACTOR, type ScreenPolygon 
 /** Un amenity no tiene estado comercial: se pinta con su propio token. */
 function paintFor(facts: UnitFacts, tour: Parameters<typeof tokenFor>[1]) {
   return facts.informational ? { base: INFO_TOKEN.base, fill: INFO_TOKEN.fill } : tokenFor(facts.status, tour);
+}
+
+/**
+ * Bloques de Baleia (idea 4, auditoría §4): los únicos hotspots del
+ * masterplan con `unitCode` "B1".."B5" (verificado en `tour.json`, ningún
+ * amenity ni unidad hoja usa ese patrón). Antes sólo tenían nombre en el
+ * tooltip al pasar el mouse — nunca en un teléfono. Se les agrega una
+ * etiqueta permanente con nombre y chip de estado.
+ */
+const BLOCK_CODE = /^B[1-5]$/;
+
+function blockLabelHtml(facts: UnitFacts, tour: Parameters<typeof tokenFor>[1]): string {
+  const { base } = paintFor(facts, tour);
+  const statusLabel = facts.informational ? INFO_TOKEN.label : STATUS_TOKENS[facts.status].label;
+  return (
+    `<div class="r360-plan-label__name">${escapeHtml(facts.label)}</div>` +
+    `<div class="r360-plan-label__chip"><i style="background:${base}"></i>${escapeHtml(statusLabel)}</div>`
+  );
 }
 import type { SceneRenderer, UnitClickPayload } from './scenes.ts';
 
@@ -89,6 +107,15 @@ export class FloorplanRenderer implements SceneRenderer {
   private priceBands: PriceBand[] = [];
   private touchPickEl: HTMLElement | null = null;
   private readonly legendObserver: MutationObserver;
+  /**
+   * B2 pulsa una vez (idea 4) al ver el plano por primera vez en la sesión.
+   * El diseño lo pedía "al entrar desde el Tramo 1", pero `mount()` no
+   * recibe de dónde vino el visitante (ese dato vive en `ui.ts`/`tour-rail.ts`,
+   * fuera de este agente) — así que se usa el primer montaje del masterplan
+   * en la sesión, que es como llega la enorme mayoría: el Tramo 1 es el
+   * único lugar del recorrido donde se abre el plano por primera vez.
+   */
+  private hasPulsedB2 = false;
 
   constructor(
     private readonly host: HTMLElement,
@@ -176,6 +203,15 @@ export class FloorplanRenderer implements SceneRenderer {
     const want = shouldRotate(src.width, src.height, this.el.clientWidth, this.el.clientHeight);
     if (want === this.appliedRotation) {
       this.map.invalidateSize({ animate: false });
+      // La rotación no cambió, pero el ANCHO del contenedor puede haber
+      // cambiado igual (girar el mismo teléfono entre porcentajes de
+      // pantalla, cambiar de 375 a 440 sin cruzar el umbral de
+      // `shouldRotate`): reencuadrar sin recrear el mapa, o el plano queda
+      // con el ancho de la medida vieja.
+      const planW = want ? src.height : src.width;
+      const planH = want ? src.width : src.height;
+      const bounds = L.latLngBounds([0, 0], [planH, planW]);
+      this.applyFit(want, planW, planH, bounds);
       return;
     }
     // Se conserva la unidad resaltada: rotar la pantalla no es motivo para
@@ -208,7 +244,7 @@ export class FloorplanRenderer implements SceneRenderer {
    */
   private syncLegendOffset = (): void => {
     const vh = window.innerHeight;
-    let topMost = vh;
+    const rects: { top: number; bottom: number; height: number }[] = [];
     for (const el of document.querySelectorAll<HTMLElement>('body *')) {
       if (this.isOwnDockEl(el)) continue;
       const cs = getComputedStyle(el);
@@ -216,10 +252,16 @@ export class FloorplanRenderer implements SceneRenderer {
       if (cs.display === 'none' || cs.visibility === 'hidden') continue;
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
-      // Sólo lo que efectivamente toca (o casi) el borde inferior del viewport.
-      if (rect.bottom >= vh - 2 && rect.top < topMost) topMost = rect.top;
+      rects.push({ top: rect.top, bottom: rect.bottom, height: rect.height });
     }
-    const offset = Math.max(0, vh - topMost);
+    // La aritmética (qué cuenta como "chrome inferior" y cuánto mide) es
+    // `legendOffsetFrom`/`isBottomChromeRect` en `plan-orientation.ts`, pura
+    // y con test: acá sólo se junta el DOM. Antes cualquier contenedor de
+    // pantalla completa que tocara el borde inferior (`.r360-plan`,
+    // `.r360-ui`, `.r360-units-mount`, los tres a los 812px enteros del
+    // viewport) calificaba como "chrome" y `--r360-legend-h` daba ~900px:
+    // el conmutador Estado/Precio quedaba a `top: -139`, fuera de pantalla.
+    const offset = legendOffsetFrom(rects, vh);
     document.documentElement.style.setProperty('--r360-legend-h', `${offset}px`);
   };
 
@@ -250,6 +292,15 @@ export class FloorplanRenderer implements SceneRenderer {
       // aparecía cortado en móvil.
       minZoom: -10,
       maxZoom: 4,
+      // Por default Leaflet redondea cualquier zoom al entero más cercano
+      // (`zoomSnap:1`). El encuadre al ancho (`fitWidthView`, idea 4) pide un
+      // zoom fraccionario exacto para que el ancho del lienzo calce con el
+      // del contenedor; con el redondeo por defecto, el zoom real terminaba
+      // en el entero más cercano y el plano volvía a quedar más chico o más
+      // grande que la pantalla (medido: 490px en vez de 375px). `zoomSnap:0`
+      // permite zoom continuo — el control +/− sigue funcionando, sólo deja
+      // de saltar de a enteros.
+      zoomSnap: 0,
       zoomControl: true,
       attributionControl: false,
       maxBounds: bounds.pad(0.25),
@@ -276,7 +327,19 @@ export class FloorplanRenderer implements SceneRenderer {
           ? L.circleMarker(toLatLng((h.geometry as Px[])[0] ?? [0.5, 0.5]), { radius: 7 })
           : L.polygon((h.geometry as Px[]).map(toLatLng));
 
-      layer.bindTooltip(tooltipHtml(facts, this.tour), { sticky: true, className: 'r360-leaflet-tip' });
+      if (h.unitCode && BLOCK_CODE.test(h.unitCode)) {
+        // Etiqueta permanente: nombre + chip de estado, siempre visibles,
+        // no sólo al hover (idea 4). Reemplaza el tooltip informativo — el
+        // toque sigue abriendo la ficha completa vía `handleMapClick`.
+        layer.bindTooltip(blockLabelHtml(facts, this.tour), {
+          permanent: true,
+          direction: 'center',
+          className: 'r360-plan-label',
+          interactive: false,
+        });
+      } else {
+        layer.bindTooltip(tooltipHtml(facts, this.tour), { sticky: true, className: 'r360-leaflet-tip' });
+      }
       layer.addTo(this.map);
 
       this.layers.set(h.id, layer);
@@ -300,15 +363,52 @@ export class FloorplanRenderer implements SceneRenderer {
     requestAnimationFrame(() => {
       if (!this.map) return;
       this.map.invalidateSize({ animate: false });
-      // "Todo el plano visible" es el zoom mínimo útil: más lejos sólo se
-      // agrega fondo vacío. Se calcula acá porque depende del tamaño del
-      // contenedor, que recién ahora es el real (y cambia entre móvil y
-      // escritorio, y entre el masterplan y un render).
-      this.map.setMinZoom(this.map.getBoundsZoom(bounds));
-      this.map.fitBounds(bounds);
+      this.applyFit(rot, planW, planH, bounds);
+      // B2 pulsa una vez al llegar al plano por primera vez en la sesión.
+      if (!this.hasPulsedB2 && scene.slug === this.tour.start) {
+        this.hasPulsedB2 = true;
+        this.pulseUnit('B2');
+      }
     });
 
     this.unitsPanel.refresh();
+  }
+
+  /**
+   * Encuadre del plano contra el tamaño ACTUAL del contenedor (idea 4).
+   * Girado: al ancho, anclado arriba (`fitWidthView`) — `fitBounds` encaja
+   * el lienzo entero (ambos lados) y en un plano 1:4 fuerza un zoom tan
+   * chico para que entre el alto completo que el ancho queda en una franja
+   * de ~120px sobre un teléfono, se ve pero no se lee (medido). Sin girar
+   * (escritorio): el plano ya es apaisado y coincide con la pantalla —
+   * "todo visible" es lo que conviene. Se llama tanto desde `mount()` como
+   * desde `checkOrientation()` (un resize que no cruza el umbral de
+   * `shouldRotate` igual puede cambiar el ancho disponible).
+   */
+  private applyFit(rot: boolean, planW: number, planH: number, bounds: L.LatLngBounds): void {
+    if (!this.map) return;
+    const widthView = rot ? fitWidthView(planW, planH, this.el.clientWidth, this.el.clientHeight) : null;
+    if (widthView) {
+      this.map.setMinZoom(widthView.zoom);
+      this.map.setView([widthView.centerLat, widthView.centerLng], widthView.zoom, { animate: false });
+    } else {
+      this.map.setMinZoom(this.map.getBoundsZoom(bounds));
+      this.map.fitBounds(bounds);
+    }
+  }
+
+  /**
+   * Pulso único sobre un bloque (idea 4): ayuda a ubicarse sin adivinar.
+   * Respeta `prefers-reduced-motion` (regla dura del visor).
+   */
+  private pulseUnit(code: string): void {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const id = this.codeToIds.get(code)?.[0];
+    const layer = id ? this.layers.get(id) : undefined;
+    const path = layer?.getElement?.();
+    if (!path) return;
+    path.classList.add('r360-pulse-once');
+    path.addEventListener('animationend', () => path.classList.remove('r360-pulse-once'), { once: true });
   }
 
   /** Repinta sólo las unidades cambiadas: no se recrea ninguna capa. */
@@ -325,7 +425,8 @@ export class FloorplanRenderer implements SceneRenderer {
           availability,
         );
         meta.facts = { ...meta.facts, ...facts };
-        this.layers.get(id)?.setTooltipContent(tooltipHtml(meta.facts, this.tour));
+        const content = BLOCK_CODE.test(code) ? blockLabelHtml(meta.facts, this.tour) : tooltipHtml(meta.facts, this.tour);
+        this.layers.get(id)?.setTooltipContent(content);
         this.paintLayer(id);
       }
     }
