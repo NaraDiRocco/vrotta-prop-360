@@ -284,6 +284,12 @@ decisión. **Se revisó y se decide dejarlo así**, por lo siguiente:
   ningún caso real en Baleia, y la regla ("ningún hotspot desaparece nunca")
   es la única que este proyecto no se puede dar el lujo de dejar sin probar
   con datos reales.
+- **Resuelto en pantalla el 06/09/2026:** la celda ya no queda en blanco. La
+  grilla del Tramo 5 (`tour-rail.ts`), la ficha y la pestaña Unidades
+  (`ui.ts`) muestran **"Sin dato"** para un estado ausente, con la misma
+  altura que sus vecinas — visualmente distinto del chip de contorno de
+  "Próximamente". El dato sigue afuera de `availability.json` a propósito; lo
+  que cambió es que la pantalla ahora dice lo mismo que este README.
 - La confusión que señala la auditoría es real y vale la pena separarla del
   disparador: el CÓDIGO está bien documentado (este archivo y el docstring
   de `build_tour.py`), lo que falta es que la PANTALLA diga lo mismo. Hoy
@@ -482,6 +488,30 @@ así que el recorrido se arma con lo que sí hay, todo desde `material/`:
   están en el material descargado. Aunque B3-H/I y B3-J/K tienen exactamente
   las mismas superficies que B3-F/G y B3-D/E, son otro tramo del bloque: la
   ficha dice "sin imagen" en vez de mostrar la unidad de al lado.
+- **La ficha que cierra (06/09/2026).** Tres campos aditivos por unidad en
+  `units[code].attrs`, todos emitidos sólo si el dato existe de verdad:
+  `numeroComercial` (ver la nota de abajo), `plano3d` (la isométrica de la
+  tipología de `material/generado-ia/planos-3d/`, que la ficha muestra como
+  imagen principal **con la chapa "Plano 3D · recreación sobre el plano
+  real"**: es material generado con IA y se etiqueta como tal, igual que todo
+  lo demás) y `planoPdf` (el PDF original de `planos/unidad/src-pdf/`, que
+  existía desde la carga del material y no se publicaba). Los PDF se renombran
+  al código de unidad al copiarlos (`B2-F_B2-G.pdf`), misma convención que los
+  WebP acotados.
+- **La numeración comercial se publica sólo donde está verificada.**
+  `UNIT_NUMEROS_CONFIRMADOS` en el script tiene **tres filas**: `B2-A → 201`,
+  `B2-F → 206`, `B2-G → 207`, que son las tres que cerraron exacto por
+  aritmética de superficie (§3.1). Las otras seis (202-205, 208, 209) son
+  asunciones posicionales y **no se emiten**: la ficha muestra "Unidad B" y el
+  mensaje de WhatsApp dice "la unidad B2-B". Cuando Caetano confirme la tabla,
+  agregar las filas que falten a ese diccionario y volver a correr el script es
+  todo lo que hace falta.
+- **La marca la copia este script.** `material/marca/baleia-logo-blanco.svg` →
+  `out/tour/marca/` → (con `--publish`) `apps/viewer/public/baleia/marca/`, y
+  la ruta viaja en el manifiesto como `TourManifest.brandLogo` (campo aditivo)
+  para que `publish()` la prefije igual que el resto. Antes había una segunda
+  copia versionada en `apps/viewer/public/marca/`, que existía sólo porque
+  `--publish` borra y recrea la carpeta publicada entera: se eliminó.
 - **Peso.** Todo se recomprime a WebP (renders a 1600px de ancho, calidad 76;
   plantas a 1400px, calidad 82, aplanadas sobre blanco) más una miniatura
   `*.thumb.webp` de 400px. 6,5 MB de originales → 1,9 MB de WebP (-71%) +

@@ -551,6 +551,31 @@ export function buildRailContent(tour: TourManifest): RailContent {
   };
 }
 
+// ------------------------------------------------- volver a la unidad modelo
+
+/**
+ * El ambiente por el que se entra a la unidad modelo desde la ficha
+ * ("Ver la unidad modelo fotografiada →", auditoría §4, Idea 3). Es el living:
+ * es la primera foto del paseo y la que da la escala de la casa.
+ */
+export const AMBIENTE_MODELO = 'Living';
+
+/**
+ * Índice de la primera foto de un ambiente dentro del paseo, o `null` si ese
+ * ambiente no está en el material. `null` es la respuesta correcta y no un
+ * borde raro: la ficha no ofrece el enlace si no hay a dónde llevar.
+ */
+export function indiceDeAmbiente(
+  items: readonly Pick<PhotoTourItem, 'ambiente'>[],
+  ambiente: string,
+): number | null {
+  const i = items.findIndex((it) => it.ambiente === ambiente);
+  return i >= 0 ? i : null;
+}
+
+/** El tramo donde vive el paseo por la unidad modelo. */
+export const TRAMO_UNIDAD_MODELO: TramoId = 'bloque-2';
+
 // --------------------------------------------------------------- el cierre
 
 /**

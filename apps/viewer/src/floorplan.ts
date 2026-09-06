@@ -38,10 +38,20 @@ function paintFor(facts: UnitFacts, tour: Parameters<typeof tokenFor>[1]) {
 const BLOCK_CODE = /^B[1-5]$/;
 
 function blockLabelHtml(facts: UnitFacts, tour: Parameters<typeof tokenFor>[1]): string {
+  const nombre = `<div class="r360-plan-label__name">${escapeHtml(facts.label)}</div>`;
+  // Sin dato NO se pone chip. El Bloque 4 y el Bloque 5 quedan afuera de
+  // `availability.json` a propósito (no hay NINGÚN dato de ellos, ni siquiera
+  // "próximamente": `tools/baleia/README.md` §3.1) y caían en el fallback
+  // `no_disponible`, así que el plano los rotulaba "No disponible" — que
+  // afirma que la unidad existe y no se puede comprar. No lo sabemos. El plan
+  // de experiencia (§5.3) pide justamente eso: sin chip comercial, y la ficha
+  // dice "Etapa futura. Sin información comercial todavía." El polígono se
+  // sigue dibujando: la regla dura no se toca, sólo deja de mentir el rótulo.
+  if (facts.fellBack && !facts.informational) return nombre;
   const { base } = paintFor(facts, tour);
   const statusLabel = facts.informational ? INFO_TOKEN.label : STATUS_TOKENS[facts.status].label;
   return (
-    `<div class="r360-plan-label__name">${escapeHtml(facts.label)}</div>` +
+    nombre +
     `<div class="r360-plan-label__chip"><i style="background:${base}"></i>${escapeHtml(statusLabel)}</div>`
   );
 }

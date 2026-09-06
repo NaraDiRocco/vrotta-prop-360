@@ -38,13 +38,20 @@ import {
 import { escapeHtml, formatPrice, priceTextForUnit } from './polygons.ts';
 import { whatsappUrl } from './contact.ts';
 import { BeforeAfterSlider, type BeforeAfterHandle } from './beforeafter.ts';
+// Pinch-zoom compartido con la ficha (`ui.ts`). Vivía duplicado en los dos
+// archivos porque `ui.ts` no lo exportaba y además importa este módulo:
+// sacarlo a `pinch-zoom.ts` rompe el ciclo y deja una sola implementación.
+import { PinchZoom } from './pinch-zoom.ts';
 import {
   TRAMOS,
+  AMBIENTE_MODELO,
+  TRAMO_UNIDAD_MODELO,
   buildRailContent,
   captionSinChapa,
   chapaFor,
   chapaVisible,
   esVistaDePunta,
+  indiceDeAmbiente,
   puntaAnclaje,
   initialRailState,
   parseTramoHash,
@@ -103,27 +110,36 @@ function fadeIn(img: HTMLImageElement): void {
 }
 
 /**
- * El archivo de marca del proyecto. Se busca primero al lado del `tour.json`
- * (así cada recorrido publicado trae el suyo) y, si no está, en la raíz del
- * visor: `tools/baleia/scripts/build_tour.py --publish` reemplaza la carpeta
- * publicada entera, así que la copia de la raíz es la que sobrevive a una
- * regeneración. Si no aparece ninguna, la marca se dibuja en texto.
+ * El archivo de marca del proyecto, SIEMPRE al lado del `tour.json`: cada
+ * recorrido publicado trae el suyo y este archivo no conoce ninguna marca en
+ * particular. Lo copia `build_tour.py` (desde `material/marca/`) en cada
+ * corrida, así sobrevive a que `--publish` borre y recree la carpeta
+ * publicada entera — antes hacía falta una segunda copia versionada en
+ * `apps/viewer/public/marca/` justamente para eso, y era el mismo archivo
+ * dos veces, con una sola de las dos dentro del pipeline.
  */
 export const MARCA_SVG = 'marca/baleia-logo-blanco.svg';
 
 /**
- * Deja el logo puesto al principio de `host`, con su respaldo y su caída a
- * texto. Sin nombre de proyecto (quien monta la bienvenida todavía no lo pasa)
- * la marca desaparece en vez de dejar un cartel vacío.
+ * De dónde sale el logo: del manifiesto (`brandLogo`, que el builder emite y
+ * `--publish` prefija junto al resto de las rutas) o, si no viene, de la
+ * convención de al lado del `tour.json`. Las dos rutas se resuelven contra el
+ * manifiesto, nunca contra la raíz del visor.
+ */
+export function marcaPath(tour: Pick<TourManifest, 'brandLogo'>): string {
+  return tour.brandLogo ?? MARCA_SVG;
+}
+
+/**
+ * Deja el logo puesto al principio de `host`, con su caída a texto: un
+ * manifiesto sin marca publicada muestra el nombre del proyecto, nunca un
+ * cartel vacío ni el ícono roto del navegador.
  */
 export function montarMarca(host: HTMLElement, src: string, nombre: string): void {
   const img = document.createElement('img');
   img.alt = nombre;
   img.decoding = 'async';
-  let intento = 0;
   img.addEventListener('error', () => {
-    intento += 1;
-    if (intento === 1) { img.src = new URL(MARCA_SVG, document.baseURI).href; return; }
     if (nombre) img.replaceWith(Object.assign(document.createElement('b'), { textContent: nombre }));
     else img.remove();
   });
@@ -155,111 +171,6 @@ function esMedia(el: HTMLElement): boolean {
   return CLASES_MEDIA.some((c) => el.classList.contains(c));
 }
 
-interface Punto { x: number; y: number }
-const distancia = (a: Punto, b: Punto): number => Math.hypot(a.x - b.x, a.y - b.y);
-
-/**
- * Pinch-zoom + arrastre sobre la foto a pantalla completa.
- *
- * `ui.ts` tiene una clase igual para la planta de la unidad y sería el lugar
- * natural de donde importarla, pero no la exporta y `ui.ts` importa este
- * archivo: sacarla de ahí sería un ciclo de módulos, y este pase tiene
- * prohibido tocar `ui.ts`. Queda anotado como la deuda que es — el día que
- * `PinchZoom` salga a un módulo propio, las dos copias se van juntas.
- */
-class PinchZoom {
-  private escala = 1;
-  private x = 0;
-  private y = 0;
-  private readonly punteros = new Map<number, Punto>();
-  private ultimaDist = 0;
-  private arrastre: { x: number; y: number; ox: number; oy: number } | null = null;
-
-  constructor(private readonly stage: HTMLElement, private readonly img: HTMLElement) {
-    stage.addEventListener('pointerdown', this.onDown);
-    stage.addEventListener('pointermove', this.onMove);
-    stage.addEventListener('pointerup', this.onUp);
-    stage.addEventListener('pointercancel', this.onUp);
-    stage.addEventListener('dblclick', this.onDblClick);
-  }
-
-  /** Sin acercar: recién ahí el gesto horizontal significa "la foto siguiente". */
-  get sinAcercar(): boolean {
-    return this.escala <= 1.02;
-  }
-
-  reset(): void {
-    this.escala = 1;
-    this.x = 0;
-    this.y = 0;
-    this.apply();
-  }
-
-  destroy(): void {
-    this.stage.removeEventListener('pointerdown', this.onDown);
-    this.stage.removeEventListener('pointermove', this.onMove);
-    this.stage.removeEventListener('pointerup', this.onUp);
-    this.stage.removeEventListener('pointercancel', this.onUp);
-    this.stage.removeEventListener('dblclick', this.onDblClick);
-  }
-
-  private apply(): void {
-    this.img.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.escala})`;
-  }
-
-  private clamp(s: number): number {
-    return Math.max(1, Math.min(4, s));
-  }
-
-  private onDown = (e: PointerEvent): void => {
-    try { this.stage.setPointerCapture(e.pointerId); } catch { /* no-op */ }
-    this.punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (this.punteros.size === 1) {
-      this.arrastre = { x: e.clientX, y: e.clientY, ox: this.x, oy: this.y };
-    } else if (this.punteros.size === 2) {
-      this.arrastre = null;
-      const [a, b] = [...this.punteros.values()];
-      this.ultimaDist = distancia(a!, b!);
-    }
-  };
-
-  private onMove = (e: PointerEvent): void => {
-    if (!this.punteros.has(e.pointerId)) return;
-    this.punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (this.punteros.size === 2) {
-      const [a, b] = [...this.punteros.values()];
-      const d = distancia(a!, b!);
-      if (this.ultimaDist > 0) this.escala = this.clamp(this.escala * (d / this.ultimaDist));
-      this.ultimaDist = d;
-      this.apply();
-    } else if (this.punteros.size === 1 && this.arrastre && this.escala > 1) {
-      this.x = this.arrastre.ox + (e.clientX - this.arrastre.x);
-      this.y = this.arrastre.oy + (e.clientY - this.arrastre.y);
-      this.apply();
-    }
-  };
-
-  private onUp = (e: PointerEvent): void => {
-    this.punteros.delete(e.pointerId);
-    if (this.punteros.size < 2) this.ultimaDist = 0;
-    if (this.punteros.size === 1) {
-      const [p] = [...this.punteros.values()];
-      this.arrastre = { x: p!.x, y: p!.y, ox: this.x, oy: this.y };
-    }
-    if (this.punteros.size === 0) {
-      this.arrastre = null;
-      if (this.escala < 1.02) this.reset();
-    }
-  };
-
-  private onDblClick = (): void => {
-    this.escala = this.escala > 1 ? 1 : 2.5;
-    this.x = 0;
-    this.y = 0;
-    this.apply();
-  };
-}
-
 export class TourRail {
   readonly el: HTMLElement;
   private state: RailState = initialRailState;
@@ -279,6 +190,8 @@ export class TourRail {
   private chapaPrev: ChapaKind | null = null;
   private pinch: PinchZoom | null = null;
   private layerCleanup: Array<() => void> = [];
+  /** Serie y foto a la que hay que llegar en cuanto el tramo esté dibujado. */
+  private foco: { serie: string; index: number } | null = null;
 
   constructor(private readonly opts: TourRailOptions) {
     this.base = new URL(opts.tourUrl, location.href);
@@ -306,7 +219,7 @@ export class TourRail {
     this.marca = document.createElement('div');
     this.marca.className = 'r360-rail__marca';
     this.marca.hidden = true;
-    montarMarca(this.marca, this.resolve(MARCA_SVG), opts.tour.project);
+    montarMarca(this.marca, this.resolve(marcaPath(opts.tour)), opts.tour.project);
     opts.container.appendChild(this.marca);
 
     this.scroll = this.el.querySelector('.r360-rail__scroll')!;
@@ -333,6 +246,30 @@ export class TourRail {
   /** Abre el riel (empujando historia) en el tramo pedido o en el último visto. */
   show(tramo?: TramoId): void {
     this.dispatch({ type: 'abrir', tramo }, { push: true });
+  }
+
+  /**
+   * ¿Hay un paseo fotografiado por la unidad modelo? La ficha ofrece el
+   * enlace "Ver la unidad modelo fotografiada" sólo si existe: sin material,
+   * no hay a dónde llevar (auditoría §4, Idea 3).
+   */
+  get tieneUnidadModelo(): boolean {
+    return indiceDeAmbiente(this.content.bloque.paseo, AMBIENTE_MODELO) != null;
+  }
+
+  /**
+   * Abre el Tramo 2 en la foto del living del paseo. La ficha de la unidad
+   * queda a un toque del material real: es la unidad de al lado, fotografiada,
+   * y hasta ahora la ficha ni la mencionaba.
+   */
+  mostrarUnidadModelo(): void {
+    const index = indiceDeAmbiente(this.content.bloque.paseo, AMBIENTE_MODELO);
+    if (index == null) return;
+    this.foco = { serie: 'paseo', index };
+    this.show(TRAMO_UNIDAD_MODELO);
+    // Si ya estaba parado en ese tramo, `railReduce` no repinta nada y el foco
+    // sigue sin consumir: se aplica sobre lo que ya está dibujado.
+    if (this.foco) this.aplicarFoco();
   }
 
   /** Lo esconde sin tocar la historia: lo usa `ui.ts` cuando el visitante toca otra pestaña. */
@@ -511,6 +448,27 @@ export class TourRail {
     if (def.id !== 'consultar') this.add(this.tramoFooter());
     this.flush();
     this.paintDots();
+    this.aplicarFoco();
+  }
+
+  /**
+   * Lleva la vista a la foto pedida (hoy sólo desde "Ver la unidad modelo
+   * fotografiada"). Se hace en el cuadro siguiente a propósito: `paintVisibility`
+   * corre después de `renderTramo` y deja el scroll vertical en 0, así que
+   * mover la pantalla acá mismo no serviría de nada.
+   */
+  private aplicarFoco(): void {
+    const foco = this.foco;
+    this.foco = null;
+    if (!foco) return;
+    const card = this.scroll.querySelector<HTMLElement>(`[data-serie="${foco.serie}"]`);
+    if (!card) return;
+    const track = card.querySelector<HTMLElement>('.r360-rail__track');
+    requestAnimationFrame(() => {
+      const pantalla = card.closest<HTMLElement>('.r360-rail__pantalla') ?? card;
+      pantalla.scrollIntoView({ block: 'start', behavior: 'auto' });
+      track?.scrollTo({ left: foco.index * track.clientWidth, behavior: 'auto' });
+    });
   }
 
   // ------------------------------------------------------------ los tramos
@@ -794,7 +752,12 @@ export class TourRail {
           const estado = avail?.units[code]?.s ?? null;
           // Sin precio público no queda un hueco: se dice el estado. Una celda
           // vacía se lee como "falta el dato" y acá el dato existe.
-          const trailing = price ?? (estado && isUnitStatus(estado) ? STATUS_TOKENS[estado].label : '');
+          //
+          // Y cuando el dato NO existe (B3-K está ausente de
+          // `availability.json` a propósito, `tools/baleia/README.md` §3.3) se
+          // dice "Sin dato", que es la verdad: la celda en blanco se leía como
+          // una página rota, no como una decisión (auditoría §2.2).
+          const trailing = price ?? (estado && isUnitStatus(estado) ? STATUS_TOKENS[estado].label : 'Sin dato');
           const meta = [
             u?.attrs?.tipologia ? String(u.attrs.tipologia) : '',
             u?.areaTotalM2 != null ? `${NUM.format(u.areaTotalM2)} m²` : '',
@@ -1111,6 +1074,9 @@ export class TourRail {
   ): HTMLElement {
     const card = document.createElement('div');
     card.className = 'r360-rail__card r360-rail__serie';
+    // La ficha de la unidad puede pedir que el recorrido abra en una foto
+    // concreta de esta serie (`aplicarFoco`): la necesita poder encontrar.
+    card.dataset.serie = id;
     if (opts.titulo) {
       const h = document.createElement('h3');
       h.className = 'r360-rail__serie-title';

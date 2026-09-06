@@ -48,13 +48,28 @@ import { Sheet, type SnapPoint } from './sheet.ts';
 // sin DOM, y ya vive testeada en `contact.ts` — es EL punto de integración
 // que ese módulo espera (ver su comentario de cabecera): esta ficha arma el
 // contexto y dibuja lo que `buildCta` le devuelve, sin reinventar el mensaje.
-import { buildCta, ctaContextFor, deepLink } from './contact.ts';
+import { buildCta, ctaContextFor, deepLink, type CtaKind } from './contact.ts';
 // El recorrido guiado de seis tramos es una pieza propia (`tour-rail.ts` +
 // su modelo puro `tour-rail.model.ts`): esta capa sólo lo monta y le presta
 // dos cosas que ya sabe hacer — abrir la ficha de una unidad y volver al
 // plano. Ni un `if` del recorrido vive acá.
-import { mountTourRail, type TourRail } from './tour-rail.ts';
+import { mountTourRail, marcaPath, type TourRail } from './tour-rail.ts';
+// Mismo pinch-zoom que usa el riel para la foto a pantalla completa: la clase
+// estaba duplicada acá y allá (ninguna de las dos se podía importar de la
+// otra sin cerrar un ciclo de módulos) y ahora vive en su propio archivo.
+import { PinchZoom, type Punto } from './pinch-zoom.ts';
 import { mountWelcome, type WelcomeHandle } from './welcome.ts';
+// Cómo se nombra y cómo se presenta una unidad (número comercial, letra,
+// etapa futura, "quiero visitarla"): lógica pura, probada con `node --test`.
+import {
+  ETAPA_FUTURA_NOTA,
+  esEtapaFutura,
+  lineaEnVenta,
+  numeroComercial,
+  puedeVisitarse,
+  resumenEnVenta,
+  tituloDeUnidad,
+} from './unidad.ts';
 import {
   WELCOME_SEEN_KEY,
   buildRailContent,
@@ -123,90 +138,6 @@ async function rotatedImageUrl(src: string): Promise<string | null> {
   }
 }
 
-interface Point { x: number; y: number }
-function dist(a: Point, b: Point): number { return Math.hypot(a.x - b.x, a.y - b.y); }
-function clampScale(s: number): number { return Math.max(1, Math.min(4, s)); }
-
-/** Pinch-zoom + pan de dos dedos sobre una imagen suelta, sin Leaflet: la
- *  planta no tiene geometría que proyectar, sólo hay que poder agrandarla y
- *  recorrerla con el dedo (plan §4, "La planta a pantalla completa"). */
-class PinchZoom {
-  private scale = 1;
-  private x = 0;
-  private y = 0;
-  private readonly pointers = new Map<number, Point>();
-  private lastDist = 0;
-  private pan: { x: number; y: number; ox: number; oy: number } | null = null;
-
-  constructor(private readonly stage: HTMLElement, private readonly img: HTMLElement) {
-    stage.addEventListener('pointerdown', this.onDown);
-    stage.addEventListener('pointermove', this.onMove);
-    stage.addEventListener('pointerup', this.onUp);
-    stage.addEventListener('pointercancel', this.onUp);
-    stage.addEventListener('dblclick', this.onDblClick);
-  }
-
-  destroy(): void {
-    this.stage.removeEventListener('pointerdown', this.onDown);
-    this.stage.removeEventListener('pointermove', this.onMove);
-    this.stage.removeEventListener('pointerup', this.onUp);
-    this.stage.removeEventListener('pointercancel', this.onUp);
-    this.stage.removeEventListener('dblclick', this.onDblClick);
-  }
-
-  private apply(): void {
-    this.img.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.scale})`;
-  }
-
-  private onDown = (e: PointerEvent): void => {
-    try { this.stage.setPointerCapture(e.pointerId); } catch { /* no-op */ }
-    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (this.pointers.size === 1) {
-      this.pan = { x: e.clientX, y: e.clientY, ox: this.x, oy: this.y };
-    } else if (this.pointers.size === 2) {
-      this.pan = null;
-      const [a, b] = [...this.pointers.values()];
-      this.lastDist = dist(a!, b!);
-    }
-  };
-
-  private onMove = (e: PointerEvent): void => {
-    if (!this.pointers.has(e.pointerId)) return;
-    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (this.pointers.size === 2) {
-      const [a, b] = [...this.pointers.values()];
-      const d = dist(a!, b!);
-      if (this.lastDist > 0) this.scale = clampScale(this.scale * (d / this.lastDist));
-      this.lastDist = d;
-      this.apply();
-    } else if (this.pointers.size === 1 && this.pan && this.scale > 1) {
-      this.x = this.pan.ox + (e.clientX - this.pan.x);
-      this.y = this.pan.oy + (e.clientY - this.pan.y);
-      this.apply();
-    }
-  };
-
-  private onUp = (e: PointerEvent): void => {
-    this.pointers.delete(e.pointerId);
-    if (this.pointers.size < 2) this.lastDist = 0;
-    if (this.pointers.size === 1) {
-      const [p] = [...this.pointers.values()];
-      this.pan = { x: p!.x, y: p!.y, ox: this.x, oy: this.y };
-    }
-    if (this.pointers.size === 0) {
-      this.pan = null;
-      if (this.scale < 1.02) { this.scale = 1; this.x = 0; this.y = 0; this.apply(); }
-    }
-  };
-
-  private onDblClick = (): void => {
-    this.scale = this.scale > 1 ? 1 : 2.5;
-    this.x = 0;
-    this.y = 0;
-    this.apply();
-  };
-}
-
 export class ViewerUi {
   private readonly root: HTMLElement;
   private readonly sceneName: HTMLElement;
@@ -225,7 +156,13 @@ export class ViewerUi {
   private readonly base: URL;
   private readonly layers: Layer[] = [];
   private pinch: PinchZoom | null = null;
-  private swipeStart: (Point & { atMinZoom: boolean }) | null = null;
+  private swipeStart: (Punto & { atMinZoom: boolean }) | null = null;
+  /**
+   * El bloque que el recorrido identificó como CONSTRUIDO (lo deduce de los
+   * nombres de archivo de las fotos reales, `tour-rail.model.ts`). Es lo que
+   * habilita "Quiero visitarla": no se puede visitar lo que no está hecho.
+   */
+  private readonly bloqueConstruido: string | null;
 
   constructor(private readonly opts: UiOptions) {
     this.base = new URL(opts.tourUrl, location.href);
@@ -236,7 +173,7 @@ export class ViewerUi {
         <button class="r360-btn r360-icon-btn r360-back" aria-label="Volver al plano" hidden>&larr;</button>
         <span class="r360-scene-name"></span>
         <span class="r360-bar__counter" hidden></span>
-        <button class="r360-btn r360-icon-btn r360-share" aria-label="Compartir">&#9092;</button>
+        <button class="r360-btn r360-icon-btn r360-share" aria-label="Compartir"></button>
       </div>
       <div class="r360-filmstrip" hidden></div>
       <div class="r360-units r360-sheet" hidden>
@@ -276,6 +213,8 @@ export class ViewerUi {
       snaps: PANEL_SNAPS,
       onClose: () => this.onSheetGestureClose('panel'),
     });
+
+    this.bloqueConstruido = buildRailContent(opts.tour).bloque.bloque?.code ?? null;
 
     this.renderUnitsTab();
 
@@ -367,6 +306,7 @@ export class ViewerUi {
     };
     this.welcome = mountWelcome({
       container: this.opts.container,
+      logo: marcaPath(this.opts.tour),
       // La línea de apertura es un hecho verificable del material, no un
       // eslogan: hay fotos del bloque terminado, con fecha.
       headline: bloque ? `El ${bloque.label} ya está construido.` : `${this.opts.tour.project}, en fotos reales.`,
@@ -463,14 +403,16 @@ export class ViewerUi {
   private renderUnitsTab(): void {
     const list = this.units.querySelector('.r360-units__list')!;
     const groups = this.groupedUnits();
-    const total = groups.reduce((n, g) => n + g.codes.length, 0);
     const avail = this.opts.availability();
-    const availCount = groups
-      .flatMap((g) => g.codes)
-      .filter((c) => avail?.units[c]?.s === 'disponible').length;
+    // "20 unidades · 5 disponibles" contaba las 11 del Bloque 3, que no está a
+    // la venta: al lado del 5, ese 20 se leía como stock (auditoría §2.15).
+    const resumen = resumenEnVenta(
+      groups.flatMap((g) => g.codes),
+      (c) => avail?.units[c]?.s ?? null,
+    );
 
     list.innerHTML =
-      `<p class="r360-units__summary">${total} unidades · ${availCount} disponibles</p>` +
+      `<p class="r360-units__summary">${escapeHtml(lineaEnVenta(resumen))}</p>` +
       groups
         .map((g) => {
           const rows = g.codes
@@ -538,16 +480,42 @@ export class ViewerUi {
     if (!unit) return;
 
     const avail = this.opts.availability();
-    const chip = this.chipFor(code);
     const price = priceTextForUnit(code, avail);
-    const codes = (unit.attrs?.unitCodes as string[] | undefined) ?? null;
-    const label = unit.label ?? code;
-
-    const rows: string[] = [];
     const attrs = unit.attrs ?? {};
+    const codes = (attrs.unitCodes as string[] | undefined) ?? null;
+    const label = unit.label ?? code;
+    const numero = numeroComercial(attrs);
+    // "201 · Unidad A" cuando el número está VERIFICADO por superficie; si no,
+    // la letra sola. El número no se deduce del código en ningún lado del
+    // visor: llega en `attrs.numeroComercial` o no existe (ver `unidad.ts`).
+    const titulo = codes ? label : tituloDeUnidad({ code, label, numero });
+
+    const back = parent
+      ? `<button class="r360-link r360-panel__back" data-unit="${escapeHtml(parent)}">&larr; ${escapeHtml(
+          tour.units[parent]?.label ?? parent,
+        )}</button>`
+      : '';
+
+    // Bloque 4 y 5: de ellos no hay NINGÚN dato, ni siquiera "próximamente".
+    // El chip decía "No disponible", que afirma algo que no sabemos. Lo único
+    // que se puede decir es que son etapa futura (plan §5.3).
+    if (esEtapaFutura({ codes, tieneEstado: !!avail?.units[code] })) {
+      this.renderPanel(
+        back +
+          this.header(titulo, null) +
+          `<p class="r360-panel__note">${escapeHtml(ETAPA_FUTURA_NOTA)}</p>`,
+      );
+      this.showPanel({ fresh: opts.fresh });
+      history.replaceState(history.state, '', hashFor(this.opts.controller.slug, code));
+      return;
+    }
+
+    const chip = this.chipFor(code);
+    const rows: string[] = [];
     if (attrs.tipologia) rows.push(row('Tipología', String(attrs.tipologia)));
     if (attrs.superficieCubiertaM2 != null) rows.push(row('Cubierta', `${num(attrs.superficieCubiertaM2)} m²`));
     if (unit.areaTotalM2 != null) rows.push(row('Total', `${num(unit.areaTotalM2)} m²`));
+    if (numero) rows.push(row('Unidad del brochure', label));
     if (codes) rows.push(row('Unidades', String(codes.length)));
     if (attrs.superficieTotalUnidadesM2 != null) {
       rows.push(row('Suma de superficies', `${num(attrs.superficieTotalUnidadesM2)} m²`));
@@ -555,11 +523,6 @@ export class ViewerUi {
     if (parent) rows.push(row('Bloque', tour.units[parent]?.label ?? parent));
 
     const media = (unit.media ?? []).map((m) => this.resolve(m));
-    const back = parent
-      ? `<button class="r360-link r360-panel__back" data-unit="${escapeHtml(parent)}">&larr; ${escapeHtml(
-          tour.units[parent]?.label ?? parent,
-        )}</button>`
-      : '';
 
     const priceRow = codes
       ? this.blockSummary(codes)
@@ -567,13 +530,13 @@ export class ViewerUi {
         ? `<div class="r360-panel__price">${escapeHtml(price)}</div>`
         : '';
 
-    const cta = this.ctaHtml(code);
-
     this.renderPanel(
       back +
-        this.header(label, chip) +
+        this.header(titulo, chip) +
         priceRow +
-        cta +
+        this.ctaHtml(code) +
+        this.accionesHtml(code, unit.groupCode ?? parent ?? null, attrs) +
+        this.plano3dHtml(attrs) +
         (rows.length ? `<dl class="r360-facts">${rows.join('')}</dl>` : '') +
         (codes ? this.unitGrid(code, codes) : '') +
         (media.length
@@ -597,7 +560,9 @@ export class ViewerUi {
           : codes
             ? ''
             : `<p class="r360-panel__note">Sin imagen de esta unidad en el material disponible.</p>`) +
-        `<button class="r360-link r360-panel__share" data-share-unit="${escapeHtml(code)}">&#9092; Compartir esta unidad</button>`,
+        this.unidadModeloHtml(code, codes) +
+        `<button class="r360-link r360-panel__share" data-share-unit="${escapeHtml(code)}">` +
+        `<i class="r360-ico-share" aria-hidden="true"></i>Compartir esta unidad</button>`,
     );
 
     this.showPanel({ fresh: opts.fresh });
@@ -654,6 +619,88 @@ export class ViewerUi {
       </a>${disclaimer}`;
   }
 
+  /**
+   * Las dos acciones que sólo Baleia puede ofrecer (plan §6, auditoría §4
+   * Idea 3), debajo del precio: la unidad **está construida** (se puede ir a
+   * verla) y el plano **existe** (se puede bajar). Cada una aparece sólo si
+   * su condición es real: sin bloque construido no hay visita, y sin PDF
+   * publicado no hay descarga — un botón que no lleva a nada es peor que la
+   * ausencia del botón.
+   */
+  private accionesHtml(code: string, grupo: string | null, attrs: Record<string, unknown>): string {
+    const partes: string[] = [];
+
+    const visita = puedeVisitarse({
+      groupCode: grupo,
+      bloqueConstruido: this.bloqueConstruido,
+      status: this.statusOf(code),
+    })
+      ? this.ctaVariante(code, 'visita')
+      : '';
+    if (visita) partes.push(visita);
+
+    const pdf = typeof attrs.planoPdf === 'string' ? attrs.planoPdf : null;
+    if (pdf) {
+      partes.push(
+        `<a class="r360-panel__accion" href="${escapeHtml(this.resolve(pdf))}" download target="_blank" rel="noopener">` +
+          `&#11015; Descargar el plano (PDF)</a>`,
+      );
+    }
+
+    return partes.length ? `<div class="r360-panel__acciones">${partes.join('')}</div>` : '';
+  }
+
+  /** Un CTA de WhatsApp con una variante de mensaje forzada ("Quiero visitarla"). */
+  private ctaVariante(code: string, kind: CtaKind): string {
+    const ctx = ctaContextFor(
+      code,
+      this.opts.tour,
+      this.opts.availability(),
+      this.opts.controller.slug,
+      location.href,
+      kind,
+    );
+    const cta = buildCta(this.opts.tour.contact, ctx);
+    if (!cta) return '';
+    return `<a class="r360-panel__accion is-visita" href="${escapeHtml(cta.href)}" target="_blank" rel="noopener"
+        data-cta-unit="${escapeHtml(cta.unitCode)}" data-cta-kind="${escapeHtml(cta.kind)}">
+        ${escapeHtml(cta.label)}</a>`;
+  }
+
+  /**
+   * El plano 3D de la tipología como imagen principal de la ficha.
+   *
+   * Es material generado con IA sobre el plano real y se etiqueta como tal,
+   * igual que todo lo demás en este recorrido (plan §5.1): la chapa no es un
+   * descargo legal, es la caption. Es la única imagen de IA que sale fuera de
+   * un deslizador, y por eso lleva la chapa SIEMPRE visible y el plano
+   * acotado real queda justo debajo, para poder contrastarla.
+   */
+  private plano3dHtml(attrs: Record<string, unknown>): string {
+    const url = typeof attrs.plano3d === 'string' ? attrs.plano3d : null;
+    if (!url) return '';
+    const full = this.resolve(url);
+    return `<figure class="r360-panel__plano3d">
+        <button class="r360-media__item" data-full="${escapeHtml(full)}">
+          <img loading="lazy" alt="Plano 3D de la tipología" src="${escapeHtml(THUMB(full))}"
+               onerror="this.onerror=null;this.src='${escapeHtml(full)}'" />
+        </button>
+        <figcaption class="r360-chapa-ia">Plano 3D · recreación sobre el plano real</figcaption>
+      </figure>`;
+  }
+
+  /**
+   * "Ver la unidad modelo fotografiada →": la ficha estaba a un tramo de
+   * distancia de las 11 fotos reales del interior y no las mencionaba
+   * (auditoría §3). No se ofrece en la ficha de un bloque (ahí el paseo ya
+   * está a la vista) ni si el recorrido no tiene ese material.
+   */
+  private unidadModeloHtml(code: string, codes: string[] | null): string {
+    if (codes || !this.rail.tieneUnidadModelo) return '';
+    return `<button class="r360-link r360-panel__modelo" data-unidad-modelo="${escapeHtml(code)}">
+        Ver la unidad modelo fotografiada &rarr;</button>`;
+  }
+
   private statusOf(code: string): UnitStatus | null {
     const entry = this.opts.availability()?.units[code];
     return entry && isUnitStatus(entry.s) ? entry.s : null;
@@ -669,12 +716,15 @@ export class ViewerUi {
       : { base: STATUS_TOKENS.no_disponible.base, label: 'Sin dato' };
   }
 
-  private header(title: string, chip: { base: string; label: string }): string {
+  /** `chip: null` = no hay estado comercial que mostrar y no se inventa ninguno. */
+  private header(title: string, chip: { base: string; label: string } | null): string {
     return `<div class="r360-panel__head">
         <h2>${escapeHtml(title)}</h2>
         <button class="r360-close" aria-label="Cerrar">×</button>
-      </div>
-      <div class="r360-panel__status"><i style="background:${chip.base}"></i>${escapeHtml(chip.label)}</div>`;
+      </div>` +
+      (chip
+        ? `<div class="r360-panel__status"><i style="background:${chip.base}"></i>${escapeHtml(chip.label)}</div>`
+        : '');
   }
 
   private renderPanel(html: string): void {
@@ -708,6 +758,17 @@ export class ViewerUi {
       }
       const share = el.closest<HTMLElement>('[data-share-unit]');
       if (share?.dataset.shareUnit) return this.shareUnit(share.dataset.shareUnit);
+      // La ficha se aparta antes de mostrar el paseo: la foto tiene que ser lo
+      // único que se vea. Se cierra SIN caminar la historia hacia atrás
+      // (`requestClose`), porque el `popstate` de `history.back()` llega
+      // después del salto de tramo y lo deshace: el riel volvía al tramo de
+      // donde salió. Es la misma decisión que ya toma `go()` cuando el
+      // visitante cambia de escena con una hoja abierta.
+      if (el.closest('[data-unidad-modelo]')) {
+        this.closeAllLayers();
+        this.rail.mostrarUnidadModelo();
+        return;
+      }
       const back = el.closest<HTMLElement>('.r360-panel__back');
       if (back?.dataset.unit) return this.openUnit(back.dataset.unit, undefined, { fresh: false });
       const unit = el.closest<HTMLElement>('.r360-unit');

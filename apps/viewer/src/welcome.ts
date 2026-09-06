@@ -40,6 +40,8 @@ export interface WelcomeOptions {
    * lugar, que es lo que la auditoría pedía.
    */
   project?: string;
+  /** Ruta del logo relativa al `tour.json` (ver `marcaPath` en `tour-rail.ts`). */
+  logo?: string;
   hero: PhotoTourItem;
   segunda: PhotoTourItem | null;
   /** Resuelve una URL relativa al `tour.json`. */
@@ -108,7 +110,7 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
   marca.className = 'r360-welcome__marca';
   marca.innerHTML = `<span>${escapeHtml(WELCOME_LUGAR)}</span>`;
   // El logo antes del lugar; si el archivo no está, queda el lugar solo.
-  montarMarca(marca, opts.resolve(MARCA_SVG), opts.project ?? '');
+  montarMarca(marca, opts.resolve(opts.logo ?? MARCA_SVG), opts.project ?? '');
 
   const info = document.createElement('div');
   info.className = 'r360-welcome__info';

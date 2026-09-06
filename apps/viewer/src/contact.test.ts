@@ -107,6 +107,33 @@ test('el texto del botón dice por qué se consulta', () => {
   assert.equal(ctaLabel({ kind: 'block', label: 'Bloque 2' }), 'Consultar por el Bloque 2');
 });
 
+// ---------------------------------------- número comercial y "quiero visitarla"
+
+test('con el número confirmado el mensaje y el botón dicen "la 201"', () => {
+  const ctx: CtaContext = { ...base, numero: '201' };
+  assert.equal(ctaLabel(ctx), 'Consultar por la 201');
+  assert.ok(buildCtaMessage(ctx).startsWith('Hola! Estoy viendo Baleia y me interesa la 201.'));
+});
+
+test('sin número confirmado se sigue hablando por el código, sin inventar el 202', () => {
+  const ctx: CtaContext = { ...base, code: 'B2-B', label: 'B2-B', numero: null };
+  assert.equal(ctaLabel(ctx), 'Consultar por B2-B');
+  assert.ok(buildCtaMessage(ctx).includes('me interesa la unidad B2-B.'));
+  assert.ok(!buildCtaMessage(ctx).includes('202'));
+});
+
+test('"Quiero visitarla" pide la visita al bloque construido y no habla de precio', () => {
+  const msg = buildCtaMessage({ ...base, kind: 'visita', numero: '201', bloqueLabel: 'Bloque 2' });
+  assert.equal(
+    plain(msg),
+    'Hola! Estoy viendo Baleia y me interesa la 201. ¿Puedo coordinar una visita al Bloque 2?\n' +
+      '• Dúplex · 176 m²\n' +
+      `La estoy viendo acá: ${URL_B2A}`,
+  );
+  assert.ok(!msg.includes('Precio de lista'));
+  assert.equal(ctaLabel({ kind: 'visita', label: 'B2-A' }), 'Quiero visitarla');
+});
+
 // ------------------------------------------------------------------ plantilla
 
 test('la plantilla del manifiesto reemplaza sólo los placeholders conocidos', () => {
@@ -147,7 +174,13 @@ const tour = {
   hotspots: [],
   contact: { whatsapp: '+598 91 234 567' },
   units: {
-    'B2-A': { label: 'B2-A', areaTotalM2: 176, attrs: { tipologia: 'Dúplex' }, media: ['./p.webp'] },
+    'B2-A': {
+      label: 'B2-A',
+      groupCode: 'B2',
+      areaTotalM2: 176,
+      attrs: { tipologia: 'Dúplex', numeroComercial: '201' },
+      media: ['./p.webp'],
+    },
     'B3-H': { label: 'B3-H', areaTotalM2: 96, attrs: { tipologia: '1 dormitorio' } },
     B2: { label: 'Bloque 2', attrs: { unitCodes: ['B2-A', 'B3-H'] } },
   },
@@ -168,10 +201,23 @@ test('una unidad con planta y precio arma un CTA "unit" completo', () => {
   assert.equal(ctx.kind, 'unit');
   assert.deepEqual(ctx.facts, ['Dúplex', '176 m²']);
   assert.equal(ctx.url, URL_B2A);
+  assert.equal(ctx.numero, '201');
+  assert.equal(ctx.bloqueLabel, 'Bloque 2');
   const cta = buildCta(tour.contact, ctx)!;
-  assert.equal(cta.label, 'Consultar por B2-A');
+  assert.equal(cta.label, 'Consultar por la 201');
   assert.ok(cta.href.startsWith('https://wa.me/59891234567?text='));
   assert.ok(decodeURIComponent(cta.href).includes(URL_B2A));
+});
+
+test('la superficie del manifiesto viaja con coma decimal al mensaje', () => {
+  const ctx = ctaContextFor('B2-A', { ...tour, units: { ...tour.units, 'B2-A': { ...tour.units['B2-A'], areaTotalM2: 163.42 } } } as TourManifest, availability, 'masterplan', 'https://baleia.uy/tour');
+  assert.ok(plain(ctx.facts.join(' · ')).includes('163,42 m²'));
+  assert.ok(!ctx.facts.join(' · ').includes('163.42'));
+});
+
+test('sin numeroComercial en el manifiesto el contexto no trae número', () => {
+  const ctx = ctaContextFor('B3-H', tour, availability, 'masterplan', 'https://baleia.uy/tour');
+  assert.equal(ctx.numero, null);
 });
 
 test('una unidad sin imagen de planta cae en el CTA que pide la planta', () => {

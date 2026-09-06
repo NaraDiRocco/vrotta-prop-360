@@ -222,6 +222,16 @@ export interface TourManifest {
   };
   /** Ver `ContactInfo`. Ausente = el visor no muestra CTA de contacto. */
   contact?: ContactInfo;
+  /**
+   * Logo del proyecto, relativo al propio `tour.json` (aditivo y opcional).
+   *
+   * Viaja en el manifiesto y no como una ruta fija del visor porque el
+   * `tour.json` no siempre se sirve al lado de sus assets (el publicado de
+   * Baleia vive un nivel más arriba, con todo lo demás bajo `./baleia/`): la
+   * ruta tiene que poder prefijarse junto al resto al publicar. Ausente = el
+   * visor dibuja el nombre del proyecto en texto, nunca un ícono roto.
+   */
+  brandLogo?: string;
   /** Ver `PhotoTour`. Ausente = el visor no dibuja el recorrido narrativo de fotos. */
   photoTour?: PhotoTour;
   availabilityUrl: string;

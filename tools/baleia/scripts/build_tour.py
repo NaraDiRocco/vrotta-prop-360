@@ -14,6 +14,9 @@ Salida: out/tour/
   masterplan.thumb.webp — miniatura del plano, placeholder del arranque
   media/renders/*     — los 7 renders del complejo (escenas de galería)
   media/plantas/*     — la imagen de cada unidad (`units[].media`)
+  media/planos-3d/*   — el plano 3D de la tipología (`attrs.plano3d`)
+  media/planos-pdf/*  — el plano acotado en PDF (`attrs.planoPdf`)
+  marca/*             — el logo del proyecto, que dibuja el visor
 
 Con `--publish` además copia todo a `apps/viewer/public/baleia/` y deja el
 manifiesto con las URLs prefijadas en `apps/viewer/public/tour.json`, que es
@@ -156,6 +159,41 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
    no se resumen), más los dos deslizadores antes/después que describe el
    mismo documento. Aditivo: no reemplaza escenas ni hotspots.
 
+16. LA FICHA QUE CIERRA (06/09/2026, auditoría §4 Idea 3). Tres campos
+   aditivos en `units[code].attrs` — `attrs` es `Record<string, unknown>`
+   en el contrato, así que no hace falta tocar `packages/core`:
+
+     - `numeroComercial`: el número de la lista de precios ("201"). **Se
+       emite SÓLO para las tres unidades cuyo mapeo letra↔número está
+       verificado por aritmética de superficie** (A→201, F→206, G→207; ver
+       `tools/baleia/README.md` §3.1). B→202..E→205 y H→208/I→209 son
+       asunciones posicionales sin confirmar con Caetano: no se emiten, y
+       el visor entonces muestra la letra sola ("Unidad B"). Un número
+       inventado en la pantalla se convierte en un número dicho por
+       teléfono, y ahí ya no hay forma de saber de dónde salió.
+     - `plano3d`: la vista isométrica de la tipología
+       (`material/generado-ia/planos-3d/`, INVENTARIO.md §6.2). Es material
+       generado con IA a partir del plano real y el visor lo etiqueta como
+       tal, con la chapa "Plano 3D · recreación sobre el plano real" pegada
+       a la imagen. El mapeo sale de los propios nombres de archivo
+       (`unidad-B-D-…` cubre B y D; `unidad-C-E-…`, C y E): ver
+       `UNIT_PLANOS_3D`.
+     - `planoPdf`: el plano acotado original en PDF
+       (`material/planos/unidad/src-pdf/`, 224-292 KB c/u). Existían desde
+       la carga del material y no se publicaban. Se renombran al código de
+       unidad al copiarlos (los originales tienen espacios en el nombre:
+       "Unidad F y G.pdf") y siguen la misma convención que los WebP
+       acotados de `UNIT_FLOORPLANS`.
+
+17. LA MARCA LA COPIA ESTE SCRIPT. El logo blanco vive en
+   `material/marca/baleia-logo-blanco.svg` (versionado, es material del
+   cliente) y se copia a `out/tour/marca/`, así `--publish` lo deja dentro
+   de `apps/viewer/public/baleia/marca/`. Antes había además una copia
+   suelta versionada en `apps/viewer/public/marca/`, que existía sólo
+   porque `--publish` borra y recrea la carpeta publicada entera: dos
+   archivos idénticos, uno de ellos invisible para el pipeline. Ahora hay
+   una sola fuente y un solo destino.
+
 15. LA ESCENA DE VIDEO (Tramo 4, 06/09/2026): el reel real del predio y de
    la unidad terminada del Bloque 2, filmado el 2 de septiembre de 2026
    (82,8 s, aérea + paseo a pie), ya comprimido en `media/video/` (ver su
@@ -219,6 +257,11 @@ MATERIAL_REAL_INDEX = os.path.join(MATERIAL_REAL_DIR, "index.csv")
 # Planos acotados reales por unidad (INVENTARIO.md §2) y las dos recreaciones
 # con IA que arman los dos deslizadores antes/después del plan de experiencia.
 UNIT_FLOORPLANS_DIR = os.path.join(MATERIAL_DIR, "planos", "unidad")
+UNIT_PDF_DIR = os.path.join(UNIT_FLOORPLANS_DIR, "src-pdf")
+PLANOS_3D_DIR = os.path.join(MATERIAL_DIR, "generado-ia", "planos-3d")
+MARCA_DIR = os.path.join(MATERIAL_DIR, "marca")
+# El único archivo de marca que consume el visor (`tour-rail.ts::MARCA_SVG`).
+MARCA_FILE = "baleia-logo-blanco.svg"
 AMUEBLADO_DIR = os.path.join(MATERIAL_DIR, "generado-ia", "amueblado-virtual")
 PAISAJISMO_DIR = os.path.join(MATERIAL_DIR, "generado-ia", "paisajismo")
 # Video real del recorrido (decisión 15 del docstring), ya comprimido +faststart
@@ -356,6 +399,61 @@ UNIT_MEDIA = {
 # después de la axonometría IA: no la reemplazan, la complementan (el plan
 # de experiencia §1 Tramo 5 quiere la axonometría como imagen principal Y el
 # plano acotado real para "Descargar plano"/pinch-zoom).
+# Los PDF originales de esos mismos planos (`planos/unidad/src-pdf/`, 1 página
+# A4 apaisada c/u, 224-292 KB). Existen desde que se cargó el material y no se
+# publicaban (auditoría §4, Idea 3): son el "Descargar el plano (PDF)" de la
+# ficha, la acción que Urbania cobra como feature y que acá es un archivo que
+# ya estaba en el repo. Se renombran al código de unidad al copiarlos porque
+# los originales traen espacios y una "y" en el nombre ("Unidad F y G.pdf").
+UNIT_PDFS = {
+    "Unidad A.pdf": ["B2-A"],
+    "Unidad B.pdf": ["B2-B"],
+    "Unidad C.pdf": ["B2-C"],
+    "Unidad D.pdf": ["B2-D"],
+    "Unidad E.pdf": ["B2-E"],
+    "Unidad F y G.pdf": ["B2-F", "B2-G"],
+    "Unidad H y I.pdf": ["B2-H", "B2-I"],
+}
+
+# Planos 3D de la tipología (`generado-ia/planos-3d/`, INVENTARIO.md §6.2):
+# vistas isométricas generadas con IA A PARTIR de los planos reales. Van como
+# imagen principal de la ficha CON su chapa ("Plano 3D · recreación sobre el
+# plano real"), igual que todo el material generado de este recorrido.
+#
+# El mapeo sale de los nombres de archivo tal como los dejó el pipeline de
+# INVENTARIO.md: hay un archivo por tipología, no uno por unidad, y dos de
+# ellos nombran las dos unidades que cubren (`unidad-B-D` = B y D,
+# `unidad-C-E` = C y E — las cuatro dúplex B/C/D/E tienen la misma superficie
+# y se agrupan de a dos). Entre los 7 archivos cubren las 9 unidades del
+# Bloque 2 exactamente una vez. De las variantes de prueba de A
+# ("-fondo-blanco", "-prototipo") se publica sólo la minimalista, que es la
+# que tienen las otras ocho.
+UNIT_PLANOS_3D = {
+    "unidad-A-plano-3D-minimalista.webp": ["B2-A"],
+    "unidad-B-D-plano-3D-minimalista.webp": ["B2-B", "B2-D"],
+    "unidad-C-E-plano-3D-minimalista.webp": ["B2-C", "B2-E"],
+    "unidad-F-plano-3D-minimalista.webp": ["B2-F"],
+    "unidad-G-plano-3D-minimalista.webp": ["B2-G"],
+    "unidad-H-plano-3D-minimalista.webp": ["B2-H"],
+    "unidad-I-plano-3D-minimalista.webp": ["B2-I"],
+}
+
+# Numeración comercial de la lista de precios de septiembre 2026.
+#
+# SÓLO las tres unidades cuyo mapeo cerró EXACTO por aritmética de superficie
+# (`tools/baleia/README.md` §3.1): 163.42 → 201, 84.45 → 206, 82.50 → 207.
+# B2-B..B2-E (202-205) son cuatro unidades idénticas en precio y superficie —
+# el orden alfabético es una asunción, no un dato— y B2-H/B2-I (208/209) están
+# vendidas y el brochure no publica ni sus m² ni su precio, así que tampoco hay
+# con qué verificarlas. Esas seis NO llevan número: el visor muestra la letra
+# sola hasta que Caetano confirme la tabla. Agregar una fila acá es todo lo que
+# hace falta el día que la confirme.
+UNIT_NUMEROS_CONFIRMADOS = {
+    "B2-A": "201",
+    "B2-F": "206",
+    "B2-G": "207",
+}
+
 UNIT_FLOORPLANS = {
     "B2-A.webp": ["B2-A"],
     "B2-B.webp": ["B2-B"],
@@ -756,7 +854,57 @@ def build_media(tour_dir: str) -> dict:
         info["units"] = codes
         floorplanes[name] = info
 
-    return {"renders": renders, "plantas": plantas, "floorplanes": floorplanes}
+    # Planos 3D de la tipología (punto 16): ya vienen en WebP + thumb, se
+    # copian tal cual como el resto del material generado.
+    planos3d = {}
+    for filename, codes in UNIT_PLANOS_3D.items():
+        info = copy_optimized(
+            os.path.join(PLANOS_3D_DIR, filename),
+            os.path.join(tour_dir, "media", "planos-3d", filename),
+        )
+        info["units"] = codes
+        planos3d[filename] = info
+
+    # Los PDF originales, renombrados al código de unidad: son un archivo para
+    # bajar, no una imagen, así que no pasan por Pillow ni tienen miniatura.
+    pdfs = {}
+    for filename, codes in UNIT_PDFS.items():
+        name = "_".join(codes)
+        dst = os.path.join(tour_dir, "media", "planos-pdf", f"{name}.pdf")
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        src = os.path.join(UNIT_PDF_DIR, filename)
+        shutil.copyfile(src, dst)
+        pdfs[name] = {
+            "src": os.path.relpath(src, BALEIA_DIR),
+            "out": os.path.relpath(dst, TOUR_DIR),
+            "bytes": os.path.getsize(dst),
+            "units": codes,
+        }
+
+    return {
+        "renders": renders,
+        "plantas": plantas,
+        "floorplanes": floorplanes,
+        "planos3d": planos3d,
+        "pdfs": pdfs,
+    }
+
+
+def copy_marca(tour_dir: str) -> dict | None:
+    """Copia la marca del proyecto a `out/tour/marca/` (punto 17).
+
+    Es lo que hace que `--publish` la deje dentro de la carpeta publicada, que
+    el propio `--publish` borra y recrea entera. Sin este paso el logo tenía
+    que vivir versionado aparte en `apps/viewer/public/marca/` para sobrevivir
+    a cada regeneración — dos copias del mismo archivo, una sola de ellas
+    dentro del pipeline."""
+    src = os.path.join(MARCA_DIR, MARCA_FILE)
+    if not os.path.isfile(src):
+        return None
+    dst = os.path.join(tour_dir, "marca", MARCA_FILE)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copyfile(src, dst)
+    return {"out": os.path.relpath(dst, TOUR_DIR), "bytes": os.path.getsize(dst)}
 
 
 def _photo_item(tour_dir: str, name: str, *, restricted: bool = False) -> tuple[dict, dict]:
@@ -868,6 +1016,8 @@ def publish(tour_dir: str) -> dict:
         tour = json.load(f)
     # `./x` -> `./baleia/x`: el mismo manifiesto servido un nivel más arriba.
     tour["availabilityUrl"] = "./baleia/availability.json"
+    if tour.get("brandLogo"):
+        tour["brandLogo"] = tour["brandLogo"].replace("./", "./baleia/", 1)
     for sc in tour["scenes"]:
         sc["source"]["url"] = sc["source"]["url"].replace("./", "./baleia/", 1)
         # Campos aditivos de la escena de video (decisión 15): mismo prefijo.
@@ -878,6 +1028,10 @@ def publish(tour_dir: str) -> dict:
     for u in tour["units"].values():
         if u.get("media"):
             u["media"] = [m.replace("./", "./baleia/", 1) for m in u["media"]]
+        # Mismo prefijo para los dos archivos que cuelgan de `attrs` (punto 16).
+        for key in ("plano3d", "planoPdf"):
+            if u.get("attrs", {}).get(key):
+                u["attrs"][key] = u["attrs"][key].replace("./", "./baleia/", 1)
 
     def rewrite_photo_item(item: dict) -> None:
         item["url"] = item["url"].replace("./", "./baleia/", 1)
@@ -901,6 +1055,7 @@ def build(argv: list[str] | None = None) -> int:
     geoms = load_hotspot_geoms(GEOJSON_PATH)
     masterplan = convert_masterplan(TOUR_DIR)
     media = build_media(TOUR_DIR)
+    marca = copy_marca(TOUR_DIR)
     media_by_unit: dict[str, list[str]] = {}
     for name, info in media["plantas"].items():
         for code in info["units"]:
@@ -910,6 +1065,17 @@ def build(argv: list[str] | None = None) -> int:
     for name, info in media["floorplanes"].items():
         for code in info["units"]:
             media_by_unit.setdefault(code, []).append(f"./media/planos/{name}.webp")
+    # Plano 3D y PDF NO van a `media` (ese array es la galería de plantas de la
+    # ficha): van a `attrs`, porque cada uno tiene su propio tratamiento —el 3D
+    # es la imagen principal y lleva chapa de IA, el PDF es una descarga.
+    plano3d_by_unit: dict[str, str] = {}
+    for filename, info in media["planos3d"].items():
+        for code in info["units"]:
+            plano3d_by_unit[code] = f"./media/planos-3d/{filename}"
+    pdf_by_unit: dict[str, str] = {}
+    for name, info in media["pdfs"].items():
+        for code in info["units"]:
+            pdf_by_unit[code] = f"./media/planos-pdf/{name}.pdf"
 
     block_codes: dict[str, list[str]] = {}
     for u in units:
@@ -932,6 +1098,15 @@ def build(argv: list[str] | None = None) -> int:
                 "superficieCubiertaM2": u["superficie_cubierta_m2"],
             },
         }
+        # Los tres campos aditivos de la ficha (punto 16). Cada uno se emite
+        # sólo si el dato existe de verdad: la ficha dibuja lo que llega.
+        numero = UNIT_NUMEROS_CONFIRMADOS.get(u["code"])
+        if numero:
+            tour_units[u["code"]]["attrs"]["numeroComercial"] = numero
+        if u["code"] in plano3d_by_unit:
+            tour_units[u["code"]]["attrs"]["plano3d"] = plano3d_by_unit[u["code"]]
+        if u["code"] in pdf_by_unit:
+            tour_units[u["code"]]["attrs"]["planoPdf"] = pdf_by_unit[u["code"]]
         if u["code"] in media_by_unit:
             tour_units[u["code"]]["media"] = media_by_unit[u["code"]]
 
@@ -1062,6 +1237,13 @@ def build(argv: list[str] | None = None) -> int:
     # `contact` vacío o un `theme.priceBands` inventado harían que el visor
     # dibuje un CTA que no lleva a nadie o una leyenda de precios que nadie
     # publicó — exactamente lo que este pipeline evita en todo lo demás.
+    # El logo del proyecto viaja en el manifiesto (`TourManifest.brandLogo`,
+    # campo aditivo) y no como una ruta adivinada por el visor: el `tour.json`
+    # de la raíz se sirve un nivel más arriba que sus assets, así que la ruta
+    # tiene que pasar por el mismo prefijado que el resto en `publish()`.
+    if marca:
+        tour["brandLogo"] = f"./marca/{MARCA_FILE}"
+
     whatsapp = cli_value(argv, "--whatsapp") or CONTACT_WHATSAPP
     if whatsapp:
         contact: dict = {"whatsapp": whatsapp}
@@ -1137,6 +1319,7 @@ def build(argv: list[str] | None = None) -> int:
         list(media["renders"].values())
         + list(media["plantas"].values())
         + list(media["floorplanes"].values())
+        + list(media["planos3d"].values())
         + photo_media_info
     )
     peso = {
@@ -1155,6 +1338,7 @@ def build(argv: list[str] | None = None) -> int:
                 "availability": os.path.join(TOUR_DIR, "availability.json"),
                 "masterplan": masterplan,
                 "media": media,
+                "marca": marca,
                 "peso_imagenes": peso,
                 "video": {
                     "publicado": video_scene is not None,

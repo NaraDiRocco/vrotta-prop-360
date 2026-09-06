@@ -2,8 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AvailabilityFile, PhotoTourItem, TourManifest } from '@r360/core';
 import {
+  AMBIENTE_MODELO,
   TRAMOS,
   buildRailContent,
+  indiceDeAmbiente,
   captionSinChapa,
   chapaFor,
   chapasVisibles,
@@ -497,4 +499,16 @@ test('la bienvenida son dos fotos reales, nunca un render ni el video de IA', ()
   assert.equal(segunda?.procedencia.kind, 'foto');
   // Sin material fotográfico no se rellena con otra cosa.
   assert.deepEqual(welcomePhotos({ ...TOUR, photoTour: undefined }), { hero: null, segunda: null });
+});
+
+// --------------------------------------------------- volver a la unidad modelo
+
+test('la ficha entra al paseo por el living, que es donde arranca el recorrido de la casa', () => {
+  const paseo = buildRailContent(TOUR).bloque.paseo;
+  assert.equal(indiceDeAmbiente(paseo, AMBIENTE_MODELO), 0);
+});
+
+test('un ambiente que no está fotografiado no devuelve un índice cualquiera', () => {
+  assert.equal(indiceDeAmbiente([{ ambiente: 'Living' }], 'Cochera'), null);
+  assert.equal(indiceDeAmbiente([], 'Living'), null);
 });

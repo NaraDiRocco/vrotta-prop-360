@@ -16,6 +16,10 @@
 import type { AvailabilityFile, TourManifest } from '@r360/core';
 import { STATUS_TOKENS } from '@r360/core';
 import { escapeHtml } from './polygons.ts';
+// La misma aritmética de "cuántas están en venta" que usa la pestaña Unidades
+// de `ui.ts`: si divergen, el visitante lee dos stocks distintos del mismo
+// proyecto en la misma pantalla.
+import { lineaEnVenta, resumenEnVenta } from './unidad.ts';
 import {
   EMPTY_FILTER,
   buildUnitRows,
@@ -96,11 +100,22 @@ export class UnitsPanel {
     if (!this.sheet.hidden) this.renderSheet();
   }
 
+  /**
+   * Cuántas unidades están EN VENTA. `rows` no sirve para contarlo: resuelve
+   * el estado ausente al fallback `no_disponible` (regla dura del visor), así
+   * que hay que preguntarle a `availability.json` directamente — el Bloque 3
+   * está "próximamente" y B3-K no tiene estado, y ninguno de los dos es stock
+   * (auditoría §2.15).
+   */
+  private resumen(): { enVenta: number; disponibles: number } {
+    const avail = this.opts.getAvailability();
+    return resumenEnVenta(this.rows.map((r) => r.code), (c) => avail?.units[c]?.s ?? null);
+  }
+
   private renderToggleLabel(): void {
-    const total = this.rows.length;
-    const available = this.rows.filter((r) => r.status === 'disponible').length;
+    const { enVenta, disponibles } = this.resumen();
     this.toggleBtn.querySelector('.r360-units-toggle__label')!.textContent =
-      `Unidades · ${total} · ${available} disp.`;
+      `Unidades · ${enVenta} en venta · ${disponibles} disp.`;
   }
 
   private open(): void {
@@ -116,10 +131,8 @@ export class UnitsPanel {
 
   private renderSheet(): void {
     const matched = filterUnits(this.rows, this.filter);
-    const available = this.rows.filter((r) => r.status === 'disponible').length;
 
-    this.sheet.querySelector('.r360-units-summary')!.textContent =
-      `${this.rows.length} unidades · ${available} disponibles`;
+    this.sheet.querySelector('.r360-units-summary')!.textContent = lineaEnVenta(this.resumen());
     this.sheet.querySelector('.r360-units-chips')!.innerHTML = this.chipsHtml();
     this.sheet.querySelector('.r360-units-list')!.innerHTML = this.listHtml(matched);
 

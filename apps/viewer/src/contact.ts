@@ -22,6 +22,7 @@
 import type { AvailabilityFile, TourManifest, UnitStatus } from '@r360/core';
 import { STATUS_TOKENS, isUnitStatus } from '@r360/core';
 import { formatPrice, type Price } from './polygons.ts';
+import { formatM2, frasePorUnidad, numeroComercial } from './unidad.ts';
 
 // ------------------------------------------------------------------ contrato
 
@@ -31,7 +32,13 @@ export type CtaKind =
   /** Unidad sin imagen de planta en el material: el faltante se vuelve motivo. */
   | 'plan'
   /** Ficha de bloque: no hay una unidad elegida todavía. */
-  | 'block';
+  | 'block'
+  /**
+   * "Quiero visitarla" desde la ficha de una unidad construida (plan §6). Es
+   * la variante que ningún proyecto en pozo puede ofrecer, y por eso vive
+   * como un CTA propio y no como un texto más del mensaje de consulta.
+   */
+  | 'visita';
 
 export interface CtaContext {
   project: string;
@@ -44,6 +51,14 @@ export interface CtaContext {
   status: UnitStatus | null;
   /** Sólo para `kind: 'block'`. */
   availableCount?: number | null;
+  /**
+   * Número comercial confirmado ("201"), si el manifiesto lo trae. El vendedor
+   * y el comprador hablan de "la 201", no de "B2-A" (plan §6, punto 2). Nunca
+   * se deduce acá: llega o no llega (ver `unidad.ts`).
+   */
+  numero?: string | null;
+  /** Rótulo del bloque al que pertenece la unidad ("Bloque 2"), si lo hay. */
+  bloqueLabel?: string | null;
   /** Deep link absoluto a lo que el visitante está mirando. */
   url: string;
 }
@@ -79,10 +94,13 @@ export function whatsappUrl(whatsapp: string, message: string): string | null {
 }
 
 /** Texto del botón. Lleva el código adentro: el visitante ve por qué consulta. */
-export function ctaLabel(ctx: Pick<CtaContext, 'kind' | 'label'>): string {
+export function ctaLabel(ctx: Pick<CtaContext, 'kind' | 'label' | 'numero'>): string {
+  if (ctx.kind === 'visita') return 'Quiero visitarla';
   if (ctx.kind === 'plan') return `Pedir planta de ${ctx.label}`;
   if (ctx.kind === 'block') return `Consultar por el ${ctx.label}`;
-  return `Consultar por ${ctx.label}`;
+  // Con el número confirmado el botón dice lo que el comprador va a decir por
+  // teléfono: "Consultar por la 201" (plan §6, "El botón").
+  return ctx.numero ? `Consultar por la ${ctx.numero}` : `Consultar por ${ctx.label}`;
 }
 
 const bullet = (s: string) => `• ${s}`;
@@ -97,6 +115,18 @@ const bullet = (s: string) => `• ${s}`;
 export function buildCtaMessage(ctx: CtaContext): string {
   const lines: string[] = [];
 
+  // "Quiero visitarla": la unidad está construida y se puede ir a verla. El
+  // mensaje no necesita precio ni estado — necesita una fecha, que la pone el
+  // vendedor.
+  if (ctx.kind === 'visita') {
+    const frase = frasePorUnidad(ctx);
+    const donde = ctx.bloqueLabel ? ` al ${ctx.bloqueLabel}` : '';
+    lines.push(`Hola! Estoy viendo ${ctx.project} y me interesa ${frase}. ¿Puedo coordinar una visita${donde}?`);
+    if (ctx.facts.length) lines.push(bullet(ctx.facts.join(' · ')));
+    lines.push(`La estoy viendo acá: ${ctx.url}`);
+    return lines.join('\n');
+  }
+
   if (ctx.kind === 'block') {
     const disp =
       ctx.availableCount != null && ctx.availableCount > 0
@@ -104,7 +134,7 @@ export function buildCtaMessage(ctx: CtaContext): string {
         : '';
     lines.push(`Hola! Estoy viendo ${ctx.project} y me interesan las unidades del ${ctx.label}${disp}.`);
   } else {
-    lines.push(`Hola! Estoy viendo ${ctx.project} y me interesa la unidad ${ctx.label}.`);
+    lines.push(`Hola! Estoy viendo ${ctx.project} y me interesa ${frasePorUnidad(ctx)}.`);
   }
 
   if (ctx.facts.length) lines.push(bullet(ctx.facts.join(' · ')));
@@ -183,6 +213,8 @@ export function ctaContextFor(
   availability: AvailabilityFile | null,
   slug: string | null,
   href?: string,
+  /** Fuerza la variante del CTA ("Quiero visitarla"); por defecto se deduce del material. */
+  kindOverride?: CtaKind,
 ): CtaContext {
   const unit = tour.units[code];
   const entry = availability?.units[code];
@@ -192,11 +224,14 @@ export function ctaContextFor(
 
   const facts: string[] = [];
   if (typeof attrs.tipologia === 'string') facts.push(attrs.tipologia);
-  if (unit?.areaTotalM2 != null) facts.push(`${unit.areaTotalM2} m²`);
+  // Coma decimal, igual que la pantalla: el mensaje decía "163.42 m²" mientras
+  // la ficha decía "163,42 m²" (auditoría §2.15).
+  if (unit?.areaTotalM2 != null) facts.push(formatM2(unit.areaTotalM2));
   if (attrs.dormitorios != null) facts.push(`${String(attrs.dormitorios)} dormitorios`);
 
   const hasMedia = (unit?.media?.length ?? 0) > 0;
-  const kind: CtaKind = memberCodes ? 'block' : hasMedia ? 'unit' : 'plan';
+  const kind: CtaKind = kindOverride ?? (memberCodes ? 'block' : hasMedia ? 'unit' : 'plan');
+  const grupo = unit?.groupCode ?? null;
 
   return {
     project: tour.project,
@@ -209,6 +244,8 @@ export function ctaContextFor(
     availableCount: memberCodes
       ? memberCodes.filter((c) => availability?.units[c]?.s === 'disponible').length
       : null,
+    numero: numeroComercial(attrs),
+    bloqueLabel: grupo ? (tour.units[grupo]?.label ?? grupo) : null,
     url: deepLink(slug, code, href),
   };
 }
