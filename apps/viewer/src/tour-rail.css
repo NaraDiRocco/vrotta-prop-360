@@ -434,6 +434,15 @@
 
 /* ----------------------------------------------------------- capa: foto grande */
 
+/* Misma trampa que ya documenta styles.css para `.r360-ui`: `[hidden]` es
+ * sólo `display:none` de la hoja del navegador, y cualquier `display` propio
+ * le gana por especificidad. El riel vive fuera de `.r360-ui`, así que la
+ * regla de allá no lo alcanza y la capa de foto —`display:flex`— quedaba
+ * visible como un panel casi negro sobre todo el recorrido, aunque el JS la
+ * creyera cerrada. Se reafirma acá para el riel y todo lo que cuelga de él. */
+.r360-rail[hidden],
+.r360-rail [hidden] { display: none !important; }
+
 .r360-rail__layer {
   position: fixed;
   inset: 0;
