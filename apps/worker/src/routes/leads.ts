@@ -26,9 +26,9 @@ import { resolveProject } from '../lib/resolve.ts';
  * código de unidad inválido).
  *
  * Tres canales soportados:
- *  - 'form'        → sólo registro (+ TODO: disparar email de notificación,
- *                     no implementado acá: necesita un proveedor de email
- *                     configurado, fuera del alcance de este Worker por ahora).
+ *  - 'form'        → sólo registro (+ TODO email de notificación al tenant,
+ *                     ver el comentario junto al `return` de este canal más
+ *                     abajo — no implementado a propósito).
  *  - 'crm_webhook'  → además reenvía el lead al webhook del CRM del cliente,
  *                     cuya URL es `crmWebhookUrl` en la config del tenant
  *                     (KV `tenant:{tenant}`, ver lib/csp.ts). Si el tenant no
@@ -148,6 +148,16 @@ leads.post('/api/leads', async (c) => {
   }
 
   // channel === 'form'
-  // TODO: disparar email de notificación al tenant (requiere proveedor de email).
+  // TODO: avisar al tenant por email que entró un lead nuevo. Falta, en orden:
+  //   1) Elegir proveedor transaccional (Resend, Postmark, SES...) — decisión
+  //      de producto/costo, no de este Worker; no se elige acá.
+  //   2) Agregar el secret correspondiente (API key) a env.ts y wrangler.toml,
+  //      igual que EMBED_HMAC_SECRET/PUBLISH_SECRET.
+  //   3) A qué dirección: probablemente un campo nuevo en `TenantConfig`
+  //      (lib/csp.ts, KV `tenant:{tenant}`) tipo `notifyEmail`, análogo a
+  //      `crmWebhookUrl` — no existe todavía.
+  //   4) Igual que el webhook del CRM (ver 'crm_webhook' arriba): si el envío
+  //      falla, el lead ya está en Supabase y NO debe perderse por eso — la
+  //      respuesta tiene que seguir siendo `ok: true` con un `warning`.
   return c.json({ ok: true, channel: 'form', registered: true });
 });

@@ -172,7 +172,18 @@ enable_refresh_token_rotation = true
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
-enable_signup = true
+# (R360 — hallazgo B7) Vrotta Prop 360 se vende uno a uno: la dueña da de alta
+# cada inmobiliaria a mano, no hay registro abierto. En falso, Supabase
+# rechaza cualquier `auth.signUp()` — incluido el que hacía la vieja pantalla
+# de `/signup`, que ahora ni siquiera lo intenta (ver
+# `apps/admin/src/app/signup/page.tsx`). Esto NO afecta el login con
+# contraseña (`/token`) ni la recuperación de contraseña (`/recover`): son
+# endpoints distintos, gotrue los sigue sirviendo igual para los usuarios que
+# ya existen. REPLICAR a mano en el Supabase autoalojado del VPS: este
+# `config.toml` sólo aplica al CLI local — allá es la env var
+# `GOTRUE_DISABLE_SIGNUP=true` (o el equivalente de la versión de gotrue que
+# corra ahí).
+enable_signup = false
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
@@ -230,7 +241,12 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
-enable_signup = true
+# (R360 — hallazgo B7) Mismo criterio que `[auth].enable_signup` arriba: sin
+# alta abierta, tampoco por email. REPLICAR en el VPS con la env var
+# `GOTRUE_EXTERNAL_EMAIL_ENABLED=false` (nombre puede variar según la versión
+# de gotrue) — lo importante es que el resultado sea "no se puede crear
+# cuenta nueva", sin tocar login ni recuperación de contraseña.
+enable_signup = false
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true

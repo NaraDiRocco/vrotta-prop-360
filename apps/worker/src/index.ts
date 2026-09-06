@@ -7,6 +7,7 @@ import { rollback } from './routes/rollback.ts';
 import { availability } from './routes/availability.ts';
 import { leads } from './routes/leads.ts';
 import { requirePublishSecret } from './lib/publish-auth.ts';
+import { rateLimitLeads } from './lib/rate-limit.ts';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -16,6 +17,11 @@ const app = new Hono<{ Bindings: Env }>();
 app.use('/api/publish', requirePublishSecret);
 app.use('/api/rollback', requirePublishSecret);
 app.use('/api/availability/:tenant/:project/regenerate', requirePublishSecret);
+
+// /api/leads es pública (la llama el visitante anónimo) pero sin techo
+// insertaba con la service key sin ningún límite (I2 de la auditoría): un
+// script en loop llenaba la tabla de leads falsos. Ver lib/rate-limit.ts.
+app.use('/api/leads', rateLimitLeads);
 
 app.route('/', health);
 app.route('/', serve);

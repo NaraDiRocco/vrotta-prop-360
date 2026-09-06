@@ -2,13 +2,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AvailabilityFile, TourManifest } from '@r360/core';
 import {
+  ANONYMOUS_LEAD_NAME,
   applyTemplate,
   buildCta,
   buildCtaMessage,
   ctaContextFor,
   ctaLabel,
   deepLink,
+  leadPayloadFromCta,
+  leadsUrl,
+  messageFromWhatsappHref,
   normalizeWhatsapp,
+  projectRefFromLocation,
+  registerLead,
   whatsappUrl,
   type CtaContext,
 } from './contact.ts';
@@ -237,4 +243,150 @@ test('sin contact en el manifiesto no hay CTA (no un botón roto)', () => {
   const ctx = ctaContextFor('B2-A', tour, availability, 'masterplan', 'https://baleia.uy/tour');
   assert.equal(buildCta(undefined, ctx), null);
   assert.equal(buildCta({ whatsapp: '' }, ctx), null);
+});
+
+// -------------------------------------------------------------- registro de leads (I1)
+
+test('messageFromWhatsappHref relee el mensaje del propio link a wa.me', () => {
+  const href = whatsappUrl('+59891234567', 'Hola! ¿Cuánto sale?')!;
+  assert.equal(messageFromWhatsappHref(href), 'Hola! ¿Cuánto sale?');
+});
+
+test('messageFromWhatsappHref con un href inválido no tira, devuelve null', () => {
+  assert.equal(messageFromWhatsappHref('no-es-una-url'), null);
+});
+
+test('leadsUrl resuelve /api/leads contra el origen de tour.json, sin importar el path', () => {
+  assert.equal(
+    leadsUrl('./tour.json', 'https://baleia.r360.io/t/baleia/torres/'),
+    'https://baleia.r360.io/api/leads',
+  );
+  assert.equal(
+    leadsUrl('/t/baleia/torres/tour.json', 'https://baleia.r360.io/otra/ruta'),
+    'https://baleia.r360.io/api/leads',
+  );
+});
+
+test('projectRefFromLocation lee tenant/project de /t/:tenant/:project (los slugs reales)', () => {
+  assert.deepEqual(projectRefFromLocation('/t/baleia/torres-del-lago/tour.json'), {
+    tenant: 'baleia',
+    project: 'torres-del-lago',
+  });
+  assert.deepEqual(projectRefFromLocation('/t/baleia/torres-del-lago/'), {
+    tenant: 'baleia',
+    project: 'torres-del-lago',
+  });
+});
+
+test('projectRefFromLocation es null fuera del patrón /t/:tenant/:project (dev local, ?tour= a mano)', () => {
+  assert.equal(projectRefFromLocation('/'), null);
+  assert.equal(projectRefFromLocation('/index.html'), null);
+});
+
+test('leadPayloadFromCta arma el body que espera el Worker, con name fijo porque no hay formulario', () => {
+  const payload = leadPayloadFromCta(
+    { contact: { whatsapp: '+598 91 234 567' } },
+    { tenant: 'baleia', project: 'torres-del-lago' },
+    { unitCode: 'B2-A', kind: 'unit', message: 'Hola! me interesa la B2-A.' },
+  );
+  assert.deepEqual(payload, {
+    tenant: 'baleia',
+    project: 'torres-del-lago',
+    channel: 'whatsapp',
+    name: ANONYMOUS_LEAD_NAME,
+    unitCode: 'B2-A',
+    message: 'Hola! me interesa la B2-A.',
+    whatsappNumber: '59891234567',
+  });
+});
+
+test('leadPayloadFromCta sin unitCode (CTA de bloque o de tramo) manda unitCode null', () => {
+  const payload = leadPayloadFromCta(
+    { contact: { whatsapp: '59891234567' } },
+    { tenant: 'baleia', project: 'torres-del-lago' },
+    { unitCode: null, kind: 'rail-tramo', message: null },
+  );
+  assert.equal(payload.unitCode, null);
+  assert.equal(payload.message, null);
+});
+
+/** Reemplaza `globalThis.fetch` durante el callback y lo restaura después,
+ *  incluso si el callback tira. */
+async function withFetch<T>(fake: typeof fetch, run: () => Promise<T> | T): Promise<T> {
+  const original = globalThis.fetch;
+  globalThis.fetch = fake;
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+test('registerLead manda un POST JSON al endpoint (fallback fetch: node:test no tiene sendBeacon)', async () => {
+  assert.equal(typeof navigator === 'undefined' ? undefined : (navigator as { sendBeacon?: unknown }).sendBeacon, undefined);
+  const calls: { url: string; init: RequestInit }[] = [];
+  await withFetch(
+    (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), init });
+      return new Response('{}', { status: 200 });
+    }) as typeof fetch,
+    async () => {
+      registerLead(
+        {
+          tenant: 'baleia',
+          project: 'torres-del-lago',
+          channel: 'whatsapp',
+          name: ANONYMOUS_LEAD_NAME,
+          unitCode: 'B2-A',
+          message: 'Hola!',
+          whatsappNumber: '59891234567',
+        },
+        'https://baleia.r360.io/api/leads',
+      );
+      // Le da una vuelta al microtask loop para que el fetch fire-and-forget
+      // ya haya sido invocado.
+      await Promise.resolve();
+    },
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.url, 'https://baleia.r360.io/api/leads');
+  assert.equal(calls[0]!.init.method, 'POST');
+  assert.equal((calls[0]!.init.keepalive as boolean), true);
+  assert.deepEqual(JSON.parse(calls[0]!.init.body as string), {
+    tenant: 'baleia',
+    project: 'torres-del-lago',
+    channel: 'whatsapp',
+    name: ANONYMOUS_LEAD_NAME,
+    unitCode: 'B2-A',
+    message: 'Hola!',
+    whatsappNumber: '59891234567',
+  });
+});
+
+test('registerLead no tira ni deja una rejection sin atrapar cuando el POST falla: WhatsApp igual abrió', async () => {
+  await withFetch(
+    (async () => {
+      throw new Error('Worker caído');
+    }) as typeof fetch,
+    async () => {
+      // La aserción real es que esto no tire y no rompa el proceso.
+      assert.doesNotThrow(() => {
+        registerLead(
+          {
+            tenant: 'baleia',
+            project: 'torres-del-lago',
+            channel: 'whatsapp',
+            name: ANONYMOUS_LEAD_NAME,
+            unitCode: 'B2-A',
+            whatsappNumber: '59891234567',
+          },
+          'https://baleia.r360.io/api/leads',
+        );
+      });
+      // Deja que el fetch (rechazado) y su .catch corran antes de terminar
+      // el test: si el error escapara, node:test lo reportaría como una
+      // unhandled rejection.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    },
+  );
 });

@@ -36,7 +36,7 @@ import {
   type TourManifest,
 } from '@r360/core';
 import { escapeHtml, formatPrice, priceTextForUnit } from './polygons.ts';
-import { whatsappUrl } from './contact.ts';
+import { messageFromWhatsappHref, whatsappUrl } from './contact.ts';
 import { BeforeAfterSlider, type BeforeAfterHandle } from './beforeafter.ts';
 // Pinch-zoom compartido con la ficha (`ui.ts`). Vivía duplicado en los dos
 // archivos porque `ui.ts` no lo exportaba y además importa este módulo:
@@ -898,7 +898,12 @@ export class TourRail {
     a.addEventListener('click', () => {
       this.opts.container.dispatchEvent(
         new CustomEvent('r360:cta', {
-          detail: { unitCode: null, kind: `rail-${kind}`, tramo: this.state.tramo },
+          detail: {
+            unitCode: null,
+            kind: `rail-${kind}`,
+            tramo: this.state.tramo,
+            message: messageFromWhatsappHref(href),
+          },
           bubbles: true,
         }),
       );

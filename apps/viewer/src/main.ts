@@ -29,6 +29,7 @@ import { shouldRotate } from './plan-orientation.ts';
 import { showOrientationChip } from './orientation-hint.ts';
 import { legendStatuses } from './legend.ts';
 import { TRAMO_SLUGS, parseTramoHash, shouldShowWelcome, welcomePhotos, WELCOME_SEEN_KEY } from './tour-rail.model.ts';
+import { leadPayloadFromCta, leadsUrl, projectRefFromLocation, registerLead, type CtaEventDetail } from './contact.ts';
 
 export interface ViewerOptions {
   container: HTMLElement;
@@ -375,7 +376,23 @@ if (root) {
       console.info('[r360] unidad seleccionada', d.unitCode, d.facts);
     });
     root.addEventListener('r360:cta', (e) => {
-      console.info('[r360] contacto', (e as CustomEvent<{ unitCode: string; kind: string }>).detail);
+      const detail = (e as CustomEvent<CtaEventDetail>).detail;
+      console.info('[r360] contacto', detail);
+      // I1: hasta acá el visor abría WhatsApp y no avisaba a nadie más — la
+      // pantalla de Leads del panel quedaba vacía para siempre. El registro
+      // NUNCA bloquea ni demora el link a wa.me (que ya está navegando en
+      // paralelo): `registerLead` es fire-and-forget y se traga cualquier
+      // error, así que un Worker caído o un rate limit (I2) no le rompen
+      // nada al visitante.
+      //
+      // El tenant/project "reales" (los slugs que Supabase conoce) se leen
+      // de la URL con la que el Worker sirvió este recorrido
+      // (`/t/:tenant/:project/...`); si el recorrido se abrió fuera de ese
+      // patrón (dev local, `?tour=` a mano) se cae a los campos del
+      // manifiesto como mejor esfuerzo — en esos entornos no hay Supabase
+      // real del otro lado de todos modos.
+      const ref = projectRefFromLocation(location.pathname) ?? { tenant: handle.tour.tenant, project: handle.tour.project };
+      registerLead(leadPayloadFromCta(handle.tour, ref, detail), leadsUrl(tourUrl));
     });
   }, (err) => {
     root.innerHTML = `<div class="r360-boot r360-boot--error">No se pudo cargar el recorrido.</div>`;

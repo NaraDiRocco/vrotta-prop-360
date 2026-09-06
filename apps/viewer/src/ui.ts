@@ -48,7 +48,7 @@ import { Sheet, type SnapPoint } from './sheet.ts';
 // sin DOM, y ya vive testeada en `contact.ts` — es EL punto de integración
 // que ese módulo espera (ver su comentario de cabecera): esta ficha arma el
 // contexto y dibuja lo que `buildCta` le devuelve, sin reinventar el mensaje.
-import { buildCta, ctaContextFor, deepLink, type CtaKind } from './contact.ts';
+import { buildCta, ctaContextFor, deepLink, messageFromWhatsappHref, type CtaKind } from './contact.ts';
 // El recorrido guiado de seis tramos es una pieza propia (`tour-rail.ts` +
 // su modelo puro `tour-rail.model.ts`): esta capa sólo lo monta y le presta
 // dos cosas que ya sabe hacer — abrir la ficha de una unidad y volver al
@@ -746,11 +746,20 @@ export class ViewerUi {
     this.panel.onclick = (e) => {
       const el = e.target as HTMLElement;
       if (el.closest('.r360-close')) return this.requestClose('panel');
-      const cta = el.closest<HTMLElement>('.r360-cta');
+      // `[data-cta-unit]` cubre el `.r360-cta` de la ficha Y el
+      // `.r360-panel__accion.is-visita` de `ctaVariante` (plan §6): antes
+      // este último no disparaba `r360:cta` porque el selector sólo miraba
+      // `.r360-cta`, así que un "Quiero visitarla" clickeado no quedaba
+      // registrado en ningún lado (I1).
+      const cta = el.closest<HTMLElement>('[data-cta-unit]');
       if (cta) {
+        // El mensaje ya quedó codificado en `?text=` del propio link a wa.me
+        // al armar la ficha (`buildCta`/`ctaVariante`): se relee de ahí en
+        // vez de recalcularlo, para no duplicar esa decisión acá.
+        const message = messageFromWhatsappHref(cta.getAttribute('href') ?? '');
         this.opts.container.dispatchEvent(
           new CustomEvent('r360:cta', {
-            detail: { unitCode: cta.dataset.ctaUnit, kind: cta.dataset.ctaKind },
+            detail: { unitCode: cta.dataset.ctaUnit || null, kind: cta.dataset.ctaKind ?? null, message },
             bubbles: true,
           }),
         );

@@ -204,6 +204,160 @@ export function deepLink(slug: string | null, code: string, href: string = locat
   return slug ? `${base}#/scene/${encodeURIComponent(slug)}/unit/${encodeURIComponent(code)}` : base;
 }
 
+// ---------------------------------------------------------- registro de leads
+
+/**
+ * Hallazgo I1 de la auditoría: el visor arma el link de WhatsApp pero nunca
+ * avisa a nadie más. `POST /api/leads` (apps/worker/src/routes/leads.ts) ya
+ * existe y guarda bien en Supabase — sólo que ningún botón lo llama, así que
+ * la pantalla de Leads del panel queda vacía para siempre y la inmobiliaria
+ * pierde cada consulta.
+ *
+ * Contrato del body, tal como lo espera el endpoint (ver el comentario de
+ * `leads.ts`): tenant/project son los slugs de la URL (`/t/:tenant/:project`,
+ * no el nombre lindo de `tour.project`), `channel` siempre `'whatsapp'` acá
+ * porque este módulo sólo dispara desde el CTA de WhatsApp, y `name` es
+ * obligatorio del lado del servidor aunque el visor no le pida el nombre a
+ * nadie: pedirlo sería la puerta que el arranque "sin puertas" (plan §1, ver
+ * `main.ts`) decidió no poner. Por eso viaja un valor fijo que dice lo que es
+ * — un signal anónimo — y el resto del contexto (unidad, mensaje) viaja en
+ * `unitCode`/`message`.
+ */
+export interface LeadPayload {
+  tenant: string;
+  project: string;
+  channel: 'whatsapp';
+  name: string;
+  unitCode?: string | null;
+  message?: string | null;
+  whatsappNumber?: string | null;
+}
+
+/** Nombre fijo para un lead sin formulario: ver comentario de `LeadPayload`. */
+export const ANONYMOUS_LEAD_NAME = 'Visitante del recorrido (WhatsApp)';
+
+/**
+ * El botón renderiza el link de WhatsApp con el mensaje ya codificado en
+ * `?text=`. En vez de recalcular el mensaje en el punto de click (duplicando
+ * lo que `buildCtaMessage`/`applyTemplate` ya decidieron al armar la ficha),
+ * se lo vuelve a leer desde ahí: una sola fuente de verdad para "qué dice el
+ * mensaje".
+ */
+export function messageFromWhatsappHref(href: string): string | null {
+  try {
+    return new URL(href).searchParams.get('text');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `/api/leads` vive en el mismo Worker que sirve `tour.json`
+ * (`/t/:tenant/:project/*`, ver `serve.ts`): se resuelve contra el origen de
+ * `tourUrl`, igual que `resolveManifestUrls` en `main.ts` resuelve los
+ * assets del manifiesto. Nunca se inventa un host nuevo ni se lee de una
+ * variable de entorno que el visor no tiene: en producción el visor y el
+ * Worker son el mismo origen.
+ */
+export function leadsUrl(tourUrl: string, href: string = location.href): string {
+  return new URL('/api/leads', new URL(tourUrl, href)).href;
+}
+
+/**
+ * El tenant y el project "reales" (los slugs que `resolveProject` busca en
+ * Supabase) son los segmentos de `/t/:tenant/:project/...` con los que el
+ * Worker sirvió este recorrido — no `tour.project`, que es el nombre lindo
+ * ("Baleia") y no necesariamente el slug. Se leen de la URL en vez de
+ * agregar un campo nuevo al manifiesto porque la URL ES el contrato que
+ * `serve.ts` ya expone.
+ */
+export function projectRefFromLocation(pathname: string): { tenant: string; project: string } | null {
+  const m = /^\/t\/([^/]+)\/([^/]+)/.exec(pathname);
+  return m ? { tenant: decodeURIComponent(m[1]!), project: decodeURIComponent(m[2]!) } : null;
+}
+
+/**
+ * Manda el lead a `/api/leads` sin bloquear ni demorar el click: el
+ * visitante tiene que salir a WhatsApp aunque el Worker esté caído, esté
+ * lento, o el rate limit lo frene (I2). Por eso esta función nunca se
+ * `await`ea desde el handler de click y nunca deja escapar un error.
+ *
+ * `sendBeacon` es la herramienta pensada para esto: manda el POST aunque la
+ * pestaña se vaya a segundo plano o se cierre un instante después de abrir
+ * WhatsApp (justo lo que pasa acá — el link a wa.me navega o abre una app
+ * externa apenas se suelta el click). Un `fetch` normal, incluso sin awaitear
+ * la promesa, puede quedar cancelado por el navegador si la página se
+ * descarga antes de que el request salga. `sendBeacon` no permite headers
+ * custom, pero un `Blob` con `type: 'application/json'` alcanza: el
+ * navegador arma el `Content-Type` a partir de ese `type`, así que
+ * `c.req.json()` del lado del Worker lo sigue leyendo bien.
+ *
+ * El fallback a `fetch({ keepalive: true })` es sólo para el puñado de
+ * entornos sin `sendBeacon` (o donde devuelve `false` porque la cola interna
+ * del navegador está llena) — `keepalive` es la opción de `fetch` pensada
+ * para el mismo caso de "la página se puede ir en cualquier momento".
+ */
+export function registerLead(payload: LeadPayload, endpoint: string): void {
+  let body: string;
+  try {
+    body = JSON.stringify(payload);
+  } catch {
+    return; // payload no serializable: no hay nada que mandar.
+  }
+
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const blob = new Blob([body], { type: 'application/json' });
+      if (navigator.sendBeacon(endpoint, blob)) return;
+    }
+  } catch {
+    // sendBeacon no debería tirar, pero si lo hace (cola llena en algún
+    // navegador raro) se sigue de largo al fallback de fetch.
+  }
+
+  try {
+    void fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    }).catch(() => {
+      // El lead no se registró, pero WhatsApp ya abrió — no es problema del
+      // visitante. Nunca se le muestra un error por esto.
+    });
+  } catch {
+    // Nunca debe reventar el click del visitante por esto.
+  }
+}
+
+/** Lo que llevan los eventos `r360:cta` que disparan `ui.ts` y `tour-rail.ts`. */
+export interface CtaEventDetail {
+  unitCode: string | null;
+  kind: string | null;
+  message?: string | null;
+}
+
+/**
+ * Arma el `LeadPayload` a partir del evento de click y del tour ya cargado.
+ * Vive acá (no en `main.ts`) para poder testearse sin DOM, igual que el
+ * resto de este módulo.
+ */
+export function leadPayloadFromCta(
+  tour: Pick<TourManifest, 'contact'>,
+  ref: { tenant: string; project: string },
+  detail: CtaEventDetail,
+): LeadPayload {
+  return {
+    tenant: ref.tenant,
+    project: ref.project,
+    channel: 'whatsapp',
+    name: ANONYMOUS_LEAD_NAME,
+    unitCode: detail.unitCode ?? null,
+    message: detail.message ?? null,
+    whatsappNumber: normalizeWhatsapp(tour.contact?.whatsapp ?? ''),
+  };
+}
+
 // ------------------------------------------------------ contexto desde el tour
 
 /** Arma el `CtaContext` de una unidad (o bloque) leyendo tour + availability. */
