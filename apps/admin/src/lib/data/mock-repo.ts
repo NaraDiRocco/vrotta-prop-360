@@ -64,6 +64,7 @@ import type {
   TenantRef,
   UnitPatch,
   UnitPrice,
+  UnitPriceInput,
   UnitRow,
   UnitTypeRow,
 } from './types.ts';
@@ -262,6 +263,39 @@ export class MockRepo implements Repo {
 
   async getUnitPrices(unitId: string): Promise<UnitPrice[]> {
     return mockDb().prices[unitId] ?? [];
+  }
+
+  /** Réplica en memoria del mismo modelo por fechas que usa Supabase (0005). */
+  async setUnitPrice(unitId: string, input: UnitPriceInput): Promise<UnitPrice> {
+    const db = mockDb();
+    const now = new Date().toISOString();
+    const history = db.prices[unitId] ?? [];
+    const closed = history.map((p) => (p.validTo === null ? { ...p, validTo: now } : p));
+    const created: UnitPrice = {
+      id: `price-${unitId}-${closed.length}`,
+      amount: input.amount,
+      currency: input.currency,
+      visibility: input.visibility,
+      validFrom: now,
+      validTo: null,
+    };
+    db.prices[unitId] = [created, ...closed];
+
+    // El precio también viaja embebido en cada UnitRow (así lo lee la tabla
+    // sin pedir el detalle unidad por unidad); hay que actualizar esa copia.
+    for (const units of Object.values(db.units)) {
+      const index = units.findIndex((u) => u.id === unitId);
+      if (index < 0) continue;
+      const unit = units[index];
+      if (!unit) continue;
+      units[index] = {
+        ...unit,
+        price: { amount: created.amount, currency: created.currency, visibility: created.visibility },
+      };
+      break;
+    }
+
+    return created;
   }
 
   async getUnitLog(unitId: string): Promise<StatusLogEntry[]> {
@@ -842,6 +876,13 @@ export class MockRepo implements Repo {
       }
     }
     return changed;
+  }
+
+  async deleteLead(leadId: string): Promise<void> {
+    const found = this.findLead(leadId);
+    if (!found) return;
+    const db = mockDb();
+    db.leads[found.projectId]?.splice(found.index, 1);
   }
 
   async getProjectById(projectId: string): Promise<ProjectRow | null> {

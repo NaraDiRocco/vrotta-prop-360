@@ -6,7 +6,7 @@ import { getRepo } from '@/lib/data/index.ts';
 
 export default async function Page({ params }: { params: Promise<{ tenant: string; project: string }> }) {
   const { tenant, project: projectSlug } = await params;
-  const { membership } = await requireAdmin(tenant);
+  const { tenant: tenantRef, actor } = await requireAdmin(tenant);
   const project = await getRepo().getProject(tenant, projectSlug);
   if (!project) notFound();
 
@@ -14,16 +14,17 @@ export default async function Page({ params }: { params: Promise<{ tenant: strin
 
   return (
     <AppShell
-      membership={membership}
+      actor={actor}
+      tenant={tenantRef}
       project={{ slug: project.slug, name: project.name, kind: project.kind }}
       crumbs={[
-        { label: membership.tenantName, href: `/t/${tenant}/p` },
+        { label: tenantRef.name, href: `/t/${tenant}/p` },
         { label: project.name, href: `/t/${tenant}/p/${project.slug}` },
         { label: 'Leads' },
       ]}
       fill
     >
-      <LeadsScreen initialLeads={leads} showProjectFilter={false} defaultProjectId={project.id} />
+      <LeadsScreen initialLeads={leads} showProjectFilter={false} defaultProjectId={project.id} actor={actor} />
     </AppShell>
   );
 }

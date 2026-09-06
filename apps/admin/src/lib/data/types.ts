@@ -92,6 +92,19 @@ export interface UnitPrice {
   validTo: string | null;
 }
 
+/**
+ * Precio nuevo a cargar. Cierra el precio vigente (si lo hay) y abre uno
+ * nuevo: `unit_prices` es una serie por fechas (`valid_from`/`valid_to`), no
+ * una fila que se pisa — ver la migración 0005. `visibility` nunca es
+ * `'private'` desde acá: esa visibilidad es para precios que ni siquiera el
+ * comprador ve (uso interno de Vrotta), no algo que la inmobiliaria cargue.
+ */
+export interface UnitPriceInput {
+  amount: number;
+  currency: string;
+  visibility: 'public' | 'on_request';
+}
+
 export interface StatusLogEntry {
   id: string;
   fromStatus: UnitStatus | null;

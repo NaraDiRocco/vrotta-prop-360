@@ -5,6 +5,23 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client.ts';
 import { translateAuthError } from '@/lib/auth/errors.ts';
+import { PLATFORM_ROLE_LABEL, ROLE_LABEL } from '@/lib/roles.ts';
+
+/** Etiqueta del actor de mock, para que el login no mienta sobre quién es. */
+function mockActorLabel(): string {
+  switch (process.env['NEXT_PUBLIC_R360_MOCK_ACTOR']) {
+    case 'platform_admin':
+      return PLATFORM_ROLE_LABEL.admin;
+    case 'platform_operator':
+      return PLATFORM_ROLE_LABEL.operator;
+    case 'editor':
+      return ROLE_LABEL.editor;
+    case 'sales':
+      return ROLE_LABEL.sales;
+    default:
+      return ROLE_LABEL.owner;
+  }
+}
 
 /**
  * Dos formas de entrar, no dos formularios compitiendo: por defecto se ve
@@ -33,8 +50,8 @@ export function LoginForm({
     return (
       <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
         <p style={{ marginBottom: 10 }}>
-          Modo mock activo (<code>NEXT_PUBLIC_R360_MOCK=1</code>). No hay autenticación: entrás como
-          dueño del tenant <strong>baleia</strong>.
+          Modo mock activo (<code>NEXT_PUBLIC_R360_MOCK=1</code>). No hay autenticación: entrás como{' '}
+          <strong>{mockActorLabel()}</strong> ({process.env['NEXT_PUBLIC_R360_MOCK_ACTOR'] ?? 'owner'}).
         </p>
         <button type="button" className="r-btn" data-variant="primary" onClick={() => router.push(next)}>
           Entrar

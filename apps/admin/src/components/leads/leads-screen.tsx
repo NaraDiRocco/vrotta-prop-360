@@ -2,7 +2,8 @@
 
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMemo, useRef, useState } from 'react';
-import type { LeadPatch, LeadRow, LeadStatus } from '@/lib/data/types.ts';
+import type { Actor, LeadPatch, LeadRow, LeadStatus } from '@/lib/data/types.ts';
+import { canManageLeads } from '@/lib/roles.ts';
 import { EMPTY_LEAD_FILTERS, filterLeads, leadsToCsv, sortLeadsByDateDesc, unreadCount, type LeadFilters } from '@/lib/leads/filters.ts';
 import { LeadDetail } from './lead-detail.tsx';
 import { LeadsFilterBar } from './leads-filter-bar.tsx';
@@ -31,12 +32,15 @@ export function LeadsScreen({
   projects,
   showProjectFilter,
   defaultProjectId,
+  actor,
 }: {
   initialLeads: LeadRow[];
   projects?: { id: string; name: string }[];
   showProjectFilter: boolean;
   defaultProjectId?: string;
+  actor: Actor;
 }) {
+  const puedeGestionar = canManageLeads(actor);
   const [leads, setLeads] = useState(initialLeads);
   const [filters, setFilters] = useState<LeadFilters>({ ...EMPTY_LEAD_FILTERS, projectId: defaultProjectId ?? null });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -54,6 +58,7 @@ export function LeadsScreen({
   });
 
   async function patchLead(leadId: string, patch: LeadPatch): Promise<void> {
+    if (!puedeGestionar) return;
     const lead = leads.find((l) => l.id === leadId);
     if (!lead) return;
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...patch } : l)));
@@ -64,7 +69,16 @@ export function LeadsScreen({
     }).catch(() => undefined);
   }
 
+  async function deleteLead(leadId: string): Promise<void> {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead) return;
+    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    if (selectedId === leadId) setSelectedId(null);
+    await fetch(`/api/p/${lead.projectId}/leads/${leadId}`, { method: 'DELETE' }).catch(() => undefined);
+  }
+
   async function bulkPatch(patch: LeadPatch): Promise<void> {
+    if (!puedeGestionar) return;
     const ids = [...checked];
     if (ids.length === 0) return;
     setLeads((prev) => prev.map((l) => (ids.includes(l.id) ? { ...l, ...patch } : l)));
@@ -112,7 +126,7 @@ export function LeadsScreen({
             {filtered.length} lead{filtered.length === 1 ? '' : 's'} {unread > 0 ? `· ${unread} sin leer` : ''}
           </span>
           <div style={{ flex: 1 }} />
-          {checked.size > 0 && (
+          {checked.size > 0 && puedeGestionar && (
             <>
               <span>{checked.size} sel.</span>
               <button type="button" className="r-btn" data-variant="ghost" style={{ height: 20, padding: '0 6px' }} onClick={() => bulkPatch({ read: true })}>
@@ -180,7 +194,12 @@ export function LeadsScreen({
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', overflow: 'hidden' }}>
         {selected ? (
-          <LeadDetail lead={selected} onPatch={(id, patch) => void patchLead(id, patch)} />
+          <LeadDetail
+            lead={selected}
+            actor={actor}
+            onPatch={(id, patch) => void patchLead(id, patch)}
+            onDelete={(id) => void deleteLead(id)}
+          />
         ) : (
           <div style={{ margin: 'auto', color: 'var(--fg-muted)', fontSize: 12 }}>Elegí un lead de la lista.</div>
         )}

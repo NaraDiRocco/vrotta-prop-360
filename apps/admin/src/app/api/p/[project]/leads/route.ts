@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/auth.ts';
+import { getSession, resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
+import { canManageLeads } from '@/lib/roles.ts';
 import type { LeadPatch } from '@/lib/data/types.ts';
 
 /**
@@ -30,9 +31,14 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ project
 }
 
 /** Acción masiva: `{ leadIds: string[], patch: LeadPatch }`. */
-export async function POST(request: NextRequest, _ctx: { params: Promise<{ project: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+export async function POST(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
+  const { project } = await ctx.params;
+  const lookup = await resolveProjectActor(project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canManageLeads(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés gestionar leads en este proyecto' }, { status: 403 });
+  }
 
   let raw: unknown;
   try {

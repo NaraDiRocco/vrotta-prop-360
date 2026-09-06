@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Inbox, LayoutGrid } from 'lucide-react';
+import { Building2, Inbox, LayoutGrid } from 'lucide-react';
+import type { Actor } from '@/lib/data/types.ts';
+import { isPlatform } from '@/lib/roles.ts';
 
 /**
  * Rail de secciones: icono + etiqueta permanente y estado activo visible.
@@ -11,13 +13,18 @@ import { Inbox, LayoutGrid } from 'lucide-react';
  * forma de saber qué era cada cosa sin hover secuencial, ni en qué sección se
  * estaba parado. Iconos de Lucide en lugar de glyphs porque a 15px un ▤ se
  * dibuja distinto en cada plataforma.
+ *
+ * Para un actor de plataforma se suma "Clientes", que vuelve a `/admin`: es
+ * la puerta de salida de "estoy operando dentro de un cliente puntual" hacia
+ * "estoy viendo todos los clientes".
  */
-export function RailNav({ tenant }: { tenant: string }) {
+export function RailNav({ tenant, actor }: { tenant: string; actor: Actor }) {
   const pathname = usePathname();
   const items = [
-    { href: `/t/${tenant}/p`, label: 'Proyectos', Icon: LayoutGrid },
-    { href: `/t/${tenant}/leads`, label: 'Leads', Icon: Inbox },
-  ];
+    { href: `/t/${tenant}/p`, label: 'Proyectos', Icon: LayoutGrid, show: true },
+    { href: `/t/${tenant}/leads`, label: 'Leads', Icon: Inbox, show: true },
+    { href: '/admin', label: 'Clientes', Icon: Building2, show: isPlatform(actor) },
+  ].filter((item) => item.show);
 
   return (
     <ul style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', padding: '0 4px' }}>

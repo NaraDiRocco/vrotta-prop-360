@@ -1,8 +1,9 @@
+import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/app-shell.tsx';
 import { NewProjectScreen } from '@/components/onboarding/new-project-screen.tsx';
 import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
-import { notFound } from 'next/navigation';
+import { canCreateProject } from '@/lib/roles.ts';
 
 /**
  * Alta de proyecto. Sin `?project=` es el formulario mínimo; con `?project=`
@@ -19,13 +20,12 @@ export default async function NewProjectPage({
 }) {
   const { tenant } = await params;
   const { project: projectSlug, panel } = await searchParams;
-  const { membership } = await requireAdmin(tenant);
-  // P2a: acá va `canEditStructure(actor)`. Mientras tanto el panel sigue
-  // mostrando la estructura a Administrador y Gestor, igual que hasta hoy:
-  // la base recién se la cierra en 0021, después de migrar al equipo de
-  // Vrotta a platform_members.
-  const editaEstructura = membership.role === 'owner' || membership.role === 'editor';
-  if (!editaEstructura) notFound();
+  const { tenant: tenantRef, actor } = await requireAdmin(tenant);
+  // Crear proyecto (y poblarlo) es tarea de Vrotta: la inmobiliaria no ve
+  // esta pantalla.
+  if (!canCreateProject(actor)) {
+    redirect(projectSlug ? `/t/${tenant}/p/${projectSlug}` : `/t/${tenant}/p`);
+  }
 
   const repo = getRepo();
   const projects = await repo.listProjects(tenant);
@@ -34,9 +34,10 @@ export default async function NewProjectPage({
 
   return (
     <AppShell
-      membership={membership}
+      actor={actor}
+      tenant={tenantRef}
       crumbs={[
-        { label: membership.tenantName, href: `/t/${tenant}/p` },
+        { label: tenantRef.name, href: `/t/${tenant}/p` },
         { label: 'Proyectos', href: `/t/${tenant}/p` },
         { label: existing ? `${existing.name} · cargar unidades` : 'Nuevo proyecto' },
       ]}

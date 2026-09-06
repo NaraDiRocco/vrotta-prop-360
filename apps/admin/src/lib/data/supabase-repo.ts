@@ -57,6 +57,7 @@ import type {
   TenantRef,
   UnitPatch,
   UnitPrice,
+  UnitPriceInput,
   UnitRow,
   UnitTypeRow,
 } from './types.ts';
@@ -416,6 +417,50 @@ export class SupabaseRepo implements Repo {
         validTo: r['valid_to'] === null ? null : String(r['valid_to']),
       };
     });
+  }
+
+  /**
+   * No es atómico (dos viajes: cerrar el vigente, abrir el nuevo) porque
+   * supabase-js no expone transacciones multi-sentencia sobre REST — el mismo
+   * límite que ya acepta `createUnits` con sus altas en varios pasos. La
+   * ventana entre ambas escrituras es de milisegundos y el peor caso (falla
+   * el segundo paso) deja la unidad sin precio vigente, nunca con dos: se
+   * nota y se reintenta, no corrompe datos.
+   */
+  async setUnitPrice(unitId: string, input: UnitPriceInput): Promise<UnitPrice> {
+    const supabase = await createSupabaseServerClient();
+    const now = new Date().toISOString();
+
+    const { error: closeError } = await supabase
+      .from('unit_prices')
+      .update({ valid_to: now })
+      .eq('unit_id', unitId)
+      .is('valid_to', null);
+    if (closeError) throw new Error(closeError.message);
+
+    const { data, error: insertError } = await supabase
+      .from('unit_prices')
+      .insert({
+        unit_id: unitId,
+        amount: input.amount,
+        currency: input.currency,
+        visibility: input.visibility,
+        valid_from: now,
+        valid_to: null,
+      })
+      .select('id, amount, currency, visibility, valid_from, valid_to')
+      .single();
+    if (insertError) throw new Error(insertError.message);
+
+    const r = asRecord(data);
+    return {
+      id: String(r['id']),
+      amount: Number(r['amount']),
+      currency: String(r['currency'] ?? 'USD'),
+      visibility: (r['visibility'] as UnitPrice['visibility']) ?? 'public',
+      validFrom: String(r['valid_from']),
+      validTo: null,
+    };
   }
 
   async getUnitLog(unitId: string): Promise<StatusLogEntry[]> {
@@ -1315,6 +1360,12 @@ export class SupabaseRepo implements Repo {
       }
     }
     return changed;
+  }
+
+  async deleteLead(leadId: string): Promise<void> {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from('leads').delete().eq('id', leadId);
+    if (error) throw new Error(error.message);
   }
 
   /* ── Material requerido ─────────────────────────────────────────────── */

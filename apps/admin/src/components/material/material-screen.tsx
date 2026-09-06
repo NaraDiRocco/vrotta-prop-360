@@ -12,7 +12,8 @@
  */
 import { useMemo, useState } from 'react';
 import { Link2 } from 'lucide-react';
-import type { ProjectKind } from '@/lib/data/types.ts';
+import type { Actor, ProjectKind } from '@/lib/data/types.ts';
+import { canApproveMaterial, canShareMaterialLink } from '@/lib/roles.ts';
 import { catalogForKind } from './catalog.ts';
 import { initialMaterialState, initialShareLinks } from './mock-state.ts';
 import { ProgressHeader } from './progress-header.tsx';
@@ -32,6 +33,7 @@ export function MaterialScreen({
   projectKind,
   initialStates,
   initialLinks,
+  actor,
 }: {
   tenant: string;
   projectSlug: string;
@@ -41,8 +43,13 @@ export function MaterialScreen({
    *  de ejemplo, que es como nació mientras la API no existía. */
   initialStates?: MaterialItemState[];
   initialLinks?: MaterialShareLink[];
+  actor: Actor;
 }) {
   const catalog = useMemo(() => catalogForKind(projectKind), [projectKind]);
+  // Aprobar / marcar "no aplica" es criterio de Vrotta; la inmobiliaria sube
+  // material y ve qué le falta, pero no decide si lo que mandó sirve.
+  const puedeAprobar = canApproveMaterial(actor);
+  const puedeCompartir = canShareMaterialLink(actor);
 
   const [itemStates, setItemStates] = useState<Map<string, MaterialItemState>>(
     () => new Map((initialStates ?? initialMaterialState()).map((s) => [s.itemId, s])),
@@ -139,12 +146,14 @@ export function MaterialScreen({
         <div style={{ flex: 1 }}>
           <ProgressHeader resolved={obligatoriosResueltos} total={obligatorios.length} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '1px solid var(--border)' }}>
-          <button type="button" className="r-btn" data-variant="primary" onClick={() => setShareOpen(true)}>
-            <Link2 size={13} strokeWidth={1.75} aria-hidden />
-            Compartir con cliente
-          </button>
-        </div>
+        {puedeCompartir && (
+          <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '1px solid var(--border)' }}>
+            <button type="button" className="r-btn" data-variant="primary" onClick={() => setShareOpen(true)}>
+              <Link2 size={13} strokeWidth={1.75} aria-hidden />
+              Compartir con cliente
+            </button>
+          </div>
+        )}
       </div>
 
       <FiltersBar filters={filters} onChange={setFilters} categorias={categorias} />
@@ -165,6 +174,7 @@ export function MaterialScreen({
               onStatusChange={handleStatusChange}
               onUpload={handleUpload}
               onDelete={handleDeleteFile}
+              disabled={!puedeAprobar}
             />
           ))
         )}

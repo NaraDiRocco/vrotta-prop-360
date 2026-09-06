@@ -35,6 +35,7 @@ import type {
   TenantRef,
   UnitPatch,
   UnitPrice,
+  UnitPriceInput,
   UnitRow,
   UnitTypeRow,
 } from './types.ts';
@@ -184,6 +185,13 @@ export interface Repo {
   /** Devuelve cuántas unidades cambió. Una llamada al RPC por cada RpcFilter. */
   setUnitsStatus(calls: RpcFilter[], status: UnitStatus, note: string | null): Promise<number>;
   getUnitPrices(unitId: string): Promise<UnitPrice[]>;
+  /**
+   * Carga un precio nuevo: cierra el vigente (si lo hay, `valid_to = now()`)
+   * y abre uno nuevo con `valid_from = now()`. Devuelve el precio recién
+   * vigente. Lo hace `canEditPrices` (Administrador, Gestor, Vrotta); la
+   * policy `unit_prices_write` de la base ya lo respalda.
+   */
+  setUnitPrice(unitId: string, input: UnitPriceInput): Promise<UnitPrice>;
   getUnitLog(unitId: string): Promise<StatusLogEntry[]>;
   saveGroups(projectId: string, groups: GroupRow[]): Promise<void>;
   saveUnitType(projectId: string, type: UnitTypeRow): Promise<void>;
@@ -257,6 +265,8 @@ export interface Repo {
   listLeads(tenantSlug: string, filters?: LeadListFilters): Promise<LeadRow[]>;
   updateLead(leadId: string, patch: LeadPatch): Promise<LeadRow>;
   bulkUpdateLeads(leadIds: string[], patch: LeadPatch): Promise<number>;
+  /** Borrado real, no un estado. Sólo `canDeleteLead` (Administrador, Vrotta Admin). */
+  deleteLead(leadId: string): Promise<void>;
 
   /* ── Material requerido ─────────────────────────────────────────────── */
   /** Sólo los ítems con fila. Los que faltan se leen como `pendiente`. */

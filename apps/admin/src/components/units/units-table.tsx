@@ -10,8 +10,9 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StatusDot } from '@/components/status.tsx';
-import type { UnitPatch, UnitRow } from '@/lib/data/types.ts';
+import type { Actor, UnitPatch, UnitRow } from '@/lib/data/types.ts';
 import type { SortKey } from '@/lib/units/query.ts';
+import { canEditUnitAttributes } from '@/lib/roles.ts';
 
 export const ROW_HEIGHT = 32;
 
@@ -33,6 +34,7 @@ export interface AttrColumn {
 
 export interface UnitsTableProps {
   rows: UnitRow[];
+  actor: Actor;
   attrColumns: AttrColumn[];
   isSelected: (code: string) => boolean;
   onToggle: (code: string, shiftKey: boolean) => void;
@@ -73,11 +75,16 @@ function fmtDate(iso: string): string {
  * el paginado son del servidor, y la fuente de verdad de todo eso es la URL.
  */
 export function UnitsTable(props: UnitsTableProps) {
-  const { rows, attrColumns, isSelected, onToggle, cursor, onCursor, onOpen, onEdit, rowStates, sort, dir, onSort } =
+  const { rows, actor, attrColumns, isSelected, onToggle, cursor, onCursor, onOpen, onEdit, rowStates, sort, dir, onSort } =
     props;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState<{ code: string; field: 'status' | 'area' } | null>(null);
   const [hoveredHeader, setHoveredHeader] = useState<string | null>(null);
+  // m² y atributos: Administrador y Gestor los editan, igual que Vrotta; el
+  // resto de la tabla (grupo, tipo, código) es sólo lectura para la
+  // inmobiliaria — eso lo garantiza el trigger `units_tenant_update_guard` en
+  // la base, acá sólo se evita ofrecer un control que la base va a rechazar.
+  const editaAtributos = canEditUnitAttributes(actor);
 
   const columns = useMemo<ColumnDef<UnitRow>[]>(() => {
     const base: ColumnDef<UnitRow>[] = [
@@ -205,9 +212,10 @@ export function UnitsTable(props: UnitsTableProps) {
             <button
               type="button"
               className="tnum"
-              onDoubleClick={() => setEditing({ code: unit.code, field: 'area' })}
-              style={{ width: '100%', textAlign: 'right' }}
-              title="Doble click para editar"
+              onDoubleClick={() => editaAtributos && setEditing({ code: unit.code, field: 'area' })}
+              disabled={!editaAtributos}
+              style={{ width: '100%', textAlign: 'right', cursor: editaAtributos ? 'pointer' : 'default' }}
+              title={editaAtributos ? 'Doble click para editar' : undefined}
             >
               {fmtM2(unit.areaTotalM2)}
             </button>
@@ -279,7 +287,7 @@ export function UnitsTable(props: UnitsTableProps) {
     });
 
     return base;
-  }, [attrColumns, editing, isSelected, onEdit, onOpen, onToggle]);
+  }, [attrColumns, editaAtributos, editing, isSelected, onEdit, onOpen, onToggle]);
 
   const table = useReactTable({
     data: rows,

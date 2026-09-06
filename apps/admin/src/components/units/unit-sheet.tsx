@@ -1,12 +1,13 @@
 'use client';
 
 import { STATUS_TOKENS, UNIT_STATUSES } from '@r360/core';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { StatusDot } from '@/components/status.tsx';
-import type { GroupRow, UnitPatch, UnitRow, UnitTypeRow } from '@/lib/data/types.ts';
+import type { Actor, UnitPriceInput, GroupRow, UnitPatch, UnitRow, UnitTypeRow } from '@/lib/data/types.ts';
 import type { UnitDetailResponse } from '@/lib/units/api-types.ts';
 import { normalizeAttrSchema, validateAttrValue } from '@/lib/units/attrs.ts';
+import { canEditPrices, canEditStructure, canEditUnitAttributes } from '@/lib/roles.ts';
 
 type Tab = 'detalle' | 'precios' | 'historial';
 
@@ -19,6 +20,7 @@ export function UnitSheet({
   unit,
   groups,
   types,
+  actor,
   onClose,
   onEdit,
 }: {
@@ -26,10 +28,18 @@ export function UnitSheet({
   unit: UnitRow;
   groups: readonly GroupRow[];
   types: readonly UnitTypeRow[];
+  actor: Actor;
   onClose: () => void;
   onEdit: (unit: UnitRow, patch: UnitPatch) => void;
 }) {
   const [tab, setTab] = useState<Tab>('detalle');
+  const queryClient = useQueryClient();
+  // Código, grupo y tipo son estructura: los arma Vrotta a partir del
+  // material. m²/atributos y precio los edita también la inmobiliaria
+  // (Administrador y Gestor) — la fila exacta de la tabla de permisos.
+  const editaEstructura = canEditStructure(actor);
+  const editaAtributos = canEditUnitAttributes(actor);
+  const editaPrecio = canEditPrices(actor);
 
   // Entra con un pequeño desplazamiento + fade (§7.4.2): sin esto el panel de
   // 420px "aparece de golpe" y el ojo pierde de dónde vino. 140ms, nada más
@@ -42,12 +52,45 @@ export function UnitSheet({
   const reducedMotion =
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const detailKey = ['unit-detail', projectId, unit.id] as const;
   const detail = useQuery<UnitDetailResponse>({
-    queryKey: ['unit-detail', projectId, unit.id],
+    queryKey: detailKey,
     queryFn: async () => {
       const response = await fetch(`/api/p/${projectId}/units/${unit.id}`);
       if (!response.ok) throw new Error('No pude leer el detalle');
       return (await response.json()) as UnitDetailResponse;
+    },
+  });
+
+  const [priceDraft, setPriceDraft] = useState<{ amount: string; currency: string; visibility: UnitPriceInput['visibility'] }>({
+    amount: unit.price ? String(unit.price.amount) : '',
+    currency: unit.price?.currency ?? 'USD',
+    visibility: unit.price && unit.price.visibility !== 'private' ? unit.price.visibility : 'public',
+  });
+  useEffect(() => {
+    setPriceDraft({
+      amount: unit.price ? String(unit.price.amount) : '',
+      currency: unit.price?.currency ?? 'USD',
+      visibility: unit.price && unit.price.visibility !== 'private' ? unit.price.visibility : 'public',
+    });
+  }, [unit.id, unit.price]);
+
+  const savePrice = useMutation({
+    mutationFn: async (input: UnitPriceInput) => {
+      const response = await fetch(`/api/p/${projectId}/units/${unit.id}/price`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? 'No se pudo guardar el precio');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: detailKey });
+      void queryClient.invalidateQueries({ queryKey: ['units', projectId] });
     },
   });
 
@@ -123,50 +166,65 @@ export function UnitSheet({
               </select>
             </Field>
 
+            {/* Grupo y tipo son estructura: los arma Vrotta a partir del
+                material. La inmobiliaria los ve, no los toca — mismo trigger
+                `units_tenant_update_guard` que ya lo frena en la base. */}
             <Field label="Grupo">
-              <select
-                className="r-input"
-                value={unit.groupId ?? ''}
-                onChange={(e) => onEdit(unit, { groupId: e.target.value || null })}
-              >
-                <option value="">Sin grupo</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.code} — {group.name ?? group.kind}
-                  </option>
-                ))}
-              </select>
+              {editaEstructura ? (
+                <select
+                  className="r-input"
+                  value={unit.groupId ?? ''}
+                  onChange={(e) => onEdit(unit, { groupId: e.target.value || null })}
+                >
+                  <option value="">Sin grupo</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.code} — {group.name ?? group.kind}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span>{unit.groupCode ?? '—'}</span>
+              )}
             </Field>
 
             <Field label="Tipo">
-              <select
-                className="r-input"
-                value={unit.unitTypeId ?? ''}
-                onChange={(e) => onEdit(unit, { unitTypeId: e.target.value || null })}
-              >
-                <option value="">Sin tipo</option>
-                {types.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
+              {editaEstructura ? (
+                <select
+                  className="r-input"
+                  value={unit.unitTypeId ?? ''}
+                  onChange={(e) => onEdit(unit, { unitTypeId: e.target.value || null })}
+                >
+                  <option value="">Sin tipo</option>
+                  {types.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span>{unit.typeName ?? '—'}</span>
+              )}
             </Field>
 
             <Field label="Superficie total (m²)">
-              <input
-                key={`${unit.id}-area-${unit.areaTotalM2 ?? ''}`}
-                className="r-input tnum"
-                defaultValue={unit.areaTotalM2 ?? ''}
-                inputMode="decimal"
-                onBlur={(e) => {
-                  const raw = e.target.value.trim();
-                  const next = raw === '' ? null : Number(raw.replace(',', '.'));
-                  if (next !== unit.areaTotalM2 && (next === null || Number.isFinite(next))) {
-                    onEdit(unit, { areaTotalM2: next });
-                  }
-                }}
-              />
+              {editaAtributos ? (
+                <input
+                  key={`${unit.id}-area-${unit.areaTotalM2 ?? ''}`}
+                  className="r-input tnum"
+                  defaultValue={unit.areaTotalM2 ?? ''}
+                  inputMode="decimal"
+                  onBlur={(e) => {
+                    const raw = e.target.value.trim();
+                    const next = raw === '' ? null : Number(raw.replace(',', '.'));
+                    if (next !== unit.areaTotalM2 && (next === null || Number.isFinite(next))) {
+                      onEdit(unit, { areaTotalM2: next });
+                    }
+                  }}
+                />
+              ) : (
+                <span className="tnum">{unit.areaTotalM2 ?? '—'}</span>
+              )}
             </Field>
 
             <Field label="Polígono">
@@ -183,41 +241,107 @@ export function UnitSheet({
                 Este tipo no define atributos. Se editan en Estructura.
               </p>
             )}
-            {Object.entries(schema.properties).map(([key, prop]) => (
-              <AttrField
-                key={`${unit.id}-${key}`}
-                attrKey={key}
-                prop={prop}
-                value={unit.attrs[key]}
-                onCommit={(value) => onEdit(unit, { attrs: { ...unit.attrs, [key]: value } })}
-              />
-            ))}
+            {Object.entries(schema.properties).map(([key, prop]) =>
+              editaAtributos ? (
+                <AttrField
+                  key={`${unit.id}-${key}`}
+                  attrKey={key}
+                  prop={prop}
+                  value={unit.attrs[key]}
+                  onCommit={(value) => onEdit(unit, { attrs: { ...unit.attrs, [key]: value } })}
+                />
+              ) : (
+                <Field key={`${unit.id}-${key}`} label={prop.title ?? key}>
+                  <span>{fmtAttrValue(unit.attrs[key])}</span>
+                </Field>
+              ),
+            )}
           </div>
         )}
 
         {tab === 'precios' && (
-          <div>
-            {detail.isLoading && <p style={{ color: 'var(--fg-muted)' }}>Cargando…</p>}
-            {detail.data?.prices.length === 0 && (
-              <p style={{ color: 'var(--fg-muted)' }}>Sin precios cargados.</p>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {editaPrecio && (
+              <form
+                style={{ display: 'grid', gap: 8, border: '1px solid var(--border)', borderRadius: 7, padding: 10 }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const amount = Number(priceDraft.amount.replace(',', '.'));
+                  if (!Number.isFinite(amount) || amount < 0) return;
+                  savePrice.mutate({ amount, currency: priceDraft.currency, visibility: priceDraft.visibility });
+                }}
+              >
+                <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)' }}>Cargar precio nuevo</h3>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <Field label="Monto">
+                    <input
+                      className="r-input tnum"
+                      inputMode="decimal"
+                      value={priceDraft.amount}
+                      onChange={(e) => setPriceDraft((p) => ({ ...p, amount: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Moneda">
+                    <select
+                      className="r-input"
+                      value={priceDraft.currency}
+                      onChange={(e) => setPriceDraft((p) => ({ ...p, currency: e.target.value }))}
+                    >
+                      {['USD', 'UYU', 'ARS'].map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Visibilidad">
+                  <select
+                    className="r-input"
+                    value={priceDraft.visibility}
+                    onChange={(e) =>
+                      setPriceDraft((p) => ({ ...p, visibility: e.target.value as UnitPriceInput['visibility'] }))
+                    }
+                  >
+                    <option value="public">Pública — se ve en el recorrido</option>
+                    <option value="on_request">A pedido — el recorrido dice "consultar"</option>
+                  </select>
+                </Field>
+                <button type="submit" className="r-btn" data-variant="primary" disabled={savePrice.isPending}>
+                  {savePrice.isPending ? 'Guardando…' : 'Guardar precio'}
+                </button>
+                {savePrice.isError && (
+                  <span style={{ fontSize: 11, color: 'var(--danger)' }}>
+                    {savePrice.error instanceof Error ? savePrice.error.message : 'No se pudo guardar'}
+                  </span>
+                )}
+              </form>
             )}
-            <table className="r-table">
-              <tbody>
-                {(detail.data?.prices ?? []).map((price) => (
-                  <tr key={price.id}>
-                    <td className="r-td tnum" style={{ textAlign: 'right', fontWeight: 600 }}>
-                      {price.currency} {price.amount.toLocaleString('es-UY')}
-                    </td>
-                    <td className="r-td" style={{ color: 'var(--fg-muted)' }}>
-                      {price.visibility}
-                    </td>
-                    <td className="r-td tnum" style={{ color: 'var(--fg-muted)' }}>
-                      {price.validTo === null ? 'vigente' : `hasta ${price.validTo.slice(0, 10)}`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+            <div>
+              <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 6 }}>Historial</h3>
+              {detail.isLoading && <p style={{ color: 'var(--fg-muted)' }}>Cargando…</p>}
+              {detail.data?.prices.length === 0 && (
+                <p style={{ color: 'var(--fg-muted)' }}>Sin precios cargados.</p>
+              )}
+              <table className="r-table">
+                <tbody>
+                  {(detail.data?.prices ?? []).map((price) => (
+                    <tr key={price.id}>
+                      <td className="r-td tnum" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {price.currency} {price.amount.toLocaleString('es-UY')}
+                      </td>
+                      <td className="r-td" style={{ color: 'var(--fg-muted)' }}>
+                        {price.visibility}
+                      </td>
+                      <td className="r-td tnum" style={{ color: 'var(--fg-muted)' }}>
+                        {price.validTo === null ? 'vigente' : `hasta ${price.validTo.slice(0, 10)}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -252,6 +376,13 @@ export function UnitSheet({
       </div>
     </aside>
   );
+}
+
+/** Misma lógica de `fmtAttr` de la tabla, para la vista de sólo lectura. */
+function fmtAttrValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'sí' : 'no';
+  return String(value);
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

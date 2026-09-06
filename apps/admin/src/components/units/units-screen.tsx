@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { StatusDot } from '@/components/status.tsx';
-import type { GroupRow, UnitPatch, UnitRow, UnitTypeRow } from '@/lib/data/types.ts';
+import type { Actor, GroupRow, UnitPatch, UnitRow, UnitTypeRow } from '@/lib/data/types.ts';
 import type { BulkStatusResponse, UnitsResponse } from '@/lib/units/api-types.ts';
 import { normalizeAttrSchema } from '@/lib/units/attrs.ts';
 import { parseUnitQuery } from '@/lib/units/search.ts';
@@ -39,10 +39,12 @@ export function UnitsScreen({
   projectId,
   groups,
   types,
+  actor,
 }: {
   projectId: string;
   groups: GroupRow[];
   types: UnitTypeRow[];
+  actor: Actor;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -482,6 +484,7 @@ export function UnitsScreen({
 
         <UnitsTable
           rows={rows}
+          actor={actor}
           attrColumns={attrColumns}
           isSelected={isSelected}
           onToggle={onToggle}
@@ -570,6 +573,7 @@ export function UnitsScreen({
           unit={openUnit}
           groups={groups}
           types={types}
+          actor={actor}
           onClose={() => patchState({ openUnit: null })}
           onEdit={onEdit}
         />

@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { isUnitStatus } from '@r360/core';
-import { getSession } from '@/lib/auth.ts';
+import { getSession, resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
+import { canEditStructure, canEditUnitAttributes } from '@/lib/roles.ts';
 import type { UnitDetailResponse } from '@/lib/units/api-types.ts';
 import type { UnitPatch } from '@/lib/data/types.ts';
 
@@ -54,6 +55,29 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: 'attrs tiene que ser un objeto' }, { status: 400 });
     }
     patch.attrs = attrs as Record<string, unknown>;
+  }
+
+  // `groupId`/`unitTypeId` son estructura: Vrotta la arma a partir del
+  // material, la inmobiliaria no la toca. El trigger `units_tenant_update_guard`
+  // de la base lo frenaría igual, pero con un 500 críptico en vez de un 403
+  // con motivo — devolver acá antes de tocar la base.
+  if (patch.groupId !== undefined || patch.unitTypeId !== undefined) {
+    const lookup = await resolveProjectActor(project);
+    if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+    if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+    if (!lookup.actor || !canEditStructure(lookup.actor)) {
+      return NextResponse.json({ error: 'No podés editar la estructura de este proyecto' }, { status: 403 });
+    }
+  }
+  // m² y atributos: Administrador y Gestor sí los editan (decisión de la
+  // dueña, ver roles.ts), pero el Vendedor no — mismo trigger de la base.
+  if (patch.areaTotalM2 !== undefined || patch.attrs !== undefined) {
+    const lookup = await resolveProjectActor(project);
+    if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+    if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+    if (!lookup.actor || !canEditUnitAttributes(lookup.actor)) {
+      return NextResponse.json({ error: 'No podés editar m² ni atributos en este proyecto' }, { status: 403 });
+    }
   }
 
   try {

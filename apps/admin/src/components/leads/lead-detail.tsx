@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { LeadPatch, LeadRow, LeadStatus } from '@/lib/data/types.ts';
+import { Trash2 } from 'lucide-react';
+import type { Actor, LeadPatch, LeadRow, LeadStatus } from '@/lib/data/types.ts';
+import { canDeleteLead, canManageLeads } from '@/lib/roles.ts';
 
 const STATUS_OPTIONS: LeadStatus[] = ['nuevo', 'contactado', 'calificado', 'descartado', 'ganado'];
 
@@ -19,8 +21,23 @@ function fmtDate(iso: string): string {
   return d.toLocaleString('es-UY', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-export function LeadDetail({ lead, onPatch }: { lead: LeadRow; onPatch: (leadId: string, patch: LeadPatch) => void }) {
+export function LeadDetail({
+  lead,
+  actor,
+  onPatch,
+  onDelete,
+}: {
+  lead: LeadRow;
+  actor: Actor;
+  onPatch: (leadId: string, patch: LeadPatch) => void;
+  onDelete: (leadId: string) => void;
+}) {
   const [notes, setNotes] = useState(lead.notes ?? '');
+  // Vrotta Operador ve los leads (para dar soporte) pero no los gestiona: el
+  // seguimiento comercial es de la inmobiliaria. Borrar es todavía más
+  // acotado — sólo Administrador y Vrotta Admin (`canDeleteLead`).
+  const puedeGestionar = canManageLeads(actor);
+  const puedeBorrar = canDeleteLead(actor);
 
   useEffect(() => setNotes(lead.notes ?? ''), [lead.id, lead.notes]);
 
@@ -28,7 +45,24 @@ export function LeadDetail({ lead, onPatch }: { lead: LeadRow; onPatch: (leadId:
 
   return (
     <div style={{ padding: 16, overflow: 'auto', flex: 1 }}>
-      <h2 style={{ fontSize: 15, fontWeight: 700 }}>{lead.name}</h2>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>{lead.name}</h2>
+        {puedeBorrar && (
+          <button
+            type="button"
+            className="r-btn"
+            data-variant="ghost"
+            title="Borrar lead"
+            style={{ color: 'var(--ui-danger)' }}
+            onClick={() => {
+              if (window.confirm(`Borrar el lead de ${lead.name}? No se puede deshacer.`)) onDelete(lead.id);
+            }}
+          >
+            <Trash2 size={13} strokeWidth={1.75} aria-hidden />
+            Borrar
+          </button>
+        )}
+      </div>
       {/* fmtDate formatea en huso horario local: server y cliente pueden
           diferir, así que se avisa a propósito que no hidrate estricto acá
           en vez de forzar un useEffect sólo para esto. */}
@@ -56,18 +90,22 @@ export function LeadDetail({ lead, onPatch }: { lead: LeadRow; onPatch: (leadId:
 
       <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <Field label="Estado">
-          <select
-            className="r-input"
-            style={{ width: 160 }}
-            value={lead.status}
-            onChange={(e) => onPatch(lead.id, { status: e.target.value as LeadStatus })}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
+          {puedeGestionar ? (
+            <select
+              className="r-input"
+              style={{ width: 160 }}
+              value={lead.status}
+              onChange={(e) => onPatch(lead.id, { status: e.target.value as LeadStatus })}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span>{STATUS_LABEL[lead.status]}</span>
+          )}
         </Field>
 
         <Field label="Unidad de interés">
@@ -104,15 +142,21 @@ export function LeadDetail({ lead, onPatch }: { lead: LeadRow; onPatch: (leadId:
         </Field>
 
         <Field label="Notas internas">
-          <textarea
-            className="r-input"
-            style={{ height: 70, resize: 'vertical', paddingTop: 6 }}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={() => {
-              if (notes !== (lead.notes ?? '')) onPatch(lead.id, { notes });
-            }}
-          />
+          {puedeGestionar ? (
+            <textarea
+              className="r-input"
+              style={{ height: 70, resize: 'vertical', paddingTop: 6 }}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={() => {
+                if (notes !== (lead.notes ?? '')) onPatch(lead.id, { notes });
+              }}
+            />
+          ) : (
+            <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: lead.notes ? undefined : 'var(--fg-faint)' }}>
+              {lead.notes ?? '—'}
+            </p>
+          )}
         </Field>
       </div>
     </div>

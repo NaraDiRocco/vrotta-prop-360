@@ -1,12 +1,16 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { AppShell } from '@/components/app-shell.tsx';
 import { ScenesScreen } from '@/components/scenes/scenes-screen.tsx';
 import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
+import { canManageScenes } from '@/lib/roles.ts';
 
 export default async function Page({ params }: { params: Promise<{ tenant: string; project: string }> }) {
   const { tenant, project: projectSlug } = await params;
-  const { membership } = await requireAdmin(tenant);
+  const { tenant: tenantRef, actor } = await requireAdmin(tenant);
+  // Subir/borrar escenas y ver la cola de procesamiento es tarea de Vrotta.
+  if (!canManageScenes(actor)) redirect(`/t/${tenant}/p/${projectSlug}`);
+
   const project = await getRepo().getProject(tenant, projectSlug);
   if (!project) notFound();
 
@@ -15,10 +19,11 @@ export default async function Page({ params }: { params: Promise<{ tenant: strin
 
   return (
     <AppShell
-      membership={membership}
+      actor={actor}
+      tenant={tenantRef}
       project={{ slug: project.slug, name: project.name, kind: project.kind }}
       crumbs={[
-        { label: membership.tenantName, href: `/t/${tenant}/p` },
+        { label: tenantRef.name, href: `/t/${tenant}/p` },
         { label: project.name, href: `/t/${tenant}/p/${project.slug}` },
         { label: 'Escenas' },
       ]}

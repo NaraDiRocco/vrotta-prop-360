@@ -6,17 +6,16 @@ import { ProjectCardView } from '@/components/projects/project-card.tsx';
 import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { healthIssues } from '@/lib/health.ts';
+import { canCreateProject } from '@/lib/roles.ts';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default async function ProjectsPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
-  const { membership } = await requireAdmin(tenant);
-  // P2a: acá va `canEditStructure(actor)`. Mientras tanto el panel sigue
-  // mostrando la estructura a Administrador y Gestor, igual que hasta hoy:
-  // la base recién se la cierra en 0021, después de migrar al equipo de
-  // Vrotta a platform_members.
-  const editaEstructura = membership.role === 'owner' || membership.role === 'editor';
+  const { tenant: tenantRef, actor } = await requireAdmin(tenant);
+  // Crear proyecto es tarea de Vrotta: la inmobiliaria ve la lista sin el
+  // botón de alta.
+  const puedeCrear = canCreateProject(actor);
   const repo = getRepo();
   const [projects, leads] = await Promise.all([repo.listProjects(tenant), repo.listLeads(tenant)]);
 
@@ -44,10 +43,11 @@ export default async function ProjectsPage({ params }: { params: Promise<{ tenan
 
   return (
     <AppShell
-      membership={membership}
-      crumbs={[{ label: membership.tenantName, href: `/t/${tenant}/p` }, { label: 'Proyectos' }]}
+      actor={actor}
+      tenant={tenantRef}
+      crumbs={[{ label: tenantRef.name, href: `/t/${tenant}/p` }, { label: 'Proyectos' }]}
       actions={
-        editaEstructura ? (
+        puedeCrear ? (
           <Link href={`/t/${tenant}/p/new`} className="r-btn" data-variant="primary">
             Nuevo proyecto
           </Link>
@@ -103,10 +103,10 @@ export default async function ProjectsPage({ params }: { params: Promise<{ tenan
                 color: 'var(--fg-muted)',
               }}
             >
-              <p style={{ marginBottom: editaEstructura ? 10 : 0 }}>
+              <p style={{ marginBottom: puedeCrear ? 10 : 0 }}>
                 No hay proyectos en este cliente todavía.
               </p>
-              {editaEstructura && (
+              {puedeCrear && (
                 <Link href={`/t/${tenant}/p/new`} className="r-btn" data-variant="primary">
                   Crear el primero →
                 </Link>

@@ -23,6 +23,9 @@ export function ItemRow({
   onStatusChange: (next: MaterialStatus) => void;
   onUpload: (files: File[]) => void;
   onDelete: (fileId: string) => void;
+  /** Sólo apaga el selector de estado (aprobar/no aplica es de Vrotta):
+   *  subir y borrar archivos siguen habilitados para todos los que llegan a
+   *  esta pantalla (owner/editor/Vrotta ya vienen filtrados en la página). */
   disabled?: boolean;
 }) {
   return (
@@ -71,9 +74,7 @@ export function ItemRow({
         <StatusSelect value={status} onChange={onStatusChange} disabled={disabled} />
       </div>
 
-      {expanded && (
-        <ItemDetail item={item} files={files} onUpload={onUpload} onDelete={onDelete} disabled={disabled} />
-      )}
+      {expanded && <ItemDetail item={item} files={files} onUpload={onUpload} onDelete={onDelete} />}
     </div>
   );
 }

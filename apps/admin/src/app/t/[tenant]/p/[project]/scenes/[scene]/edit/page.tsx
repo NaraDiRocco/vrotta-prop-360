@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { EditorScreen } from '@/components/editor/editor-screen.tsx';
 import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { isEditableScene } from '@/lib/editor/scene-image.ts';
+import { canManageScenes } from '@/lib/roles.ts';
 
 /**
  * Editor de hotspots de una escena.
@@ -24,7 +25,9 @@ export default async function Page({
   params: Promise<{ tenant: string; project: string; scene: string }>;
 }) {
   const { tenant, project: projectSlug, scene: sceneSlug } = await params;
-  await requireAdmin(tenant);
+  const { actor } = await requireAdmin(tenant);
+  // Dibujar hotspots y armar el plano es tarea de Vrotta.
+  if (!canManageScenes(actor)) redirect(`/t/${tenant}/p/${projectSlug}`);
 
   const repo = getRepo();
   const project = await repo.getProject(tenant, projectSlug);
