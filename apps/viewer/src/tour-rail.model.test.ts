@@ -4,7 +4,11 @@ import type { AvailabilityFile, PhotoTourItem, TourManifest } from '@r360/core';
 import {
   TRAMOS,
   buildRailContent,
+  captionSinChapa,
   chapaFor,
+  chapasVisibles,
+  esVistaDePunta,
+  puntaAnclaje,
   formatCaptureDate,
   formatCaptureDateLong,
   initialRailState,
@@ -13,8 +17,10 @@ import {
   parseTramoHash,
   railCtaLabel,
   railCtaMessage,
+  railNextLabel,
   railReduce,
   resumenDeBloque,
+  resumenLinea,
   serieIndex,
   shouldShowWelcome,
   tramoHash,
@@ -340,9 +346,108 @@ test('el resumen de un bloque no inventa precios que no están', () => {
   assert.deepEqual(resumenDeBloque(['B2-A', 'B2-B', 'B2-C'], avail), {
     total: 3,
     disponibles: 2,
+    proximamente: 0,
+    enVenta: 1,
     desde: { a: 358638, c: 'USD' },
   });
-  assert.deepEqual(resumenDeBloque(['B2-A'], null), { total: 1, disponibles: 0, desde: null });
+  assert.deepEqual(resumenDeBloque(['B2-A'], null), {
+    total: 1,
+    disponibles: 0,
+    proximamente: 0,
+    enVenta: 0,
+    desde: null,
+  });
+});
+
+test('un bloque que todavía no salió a la venta dice "próximamente", no "0 disponibles"', () => {
+  const avail: AvailabilityFile = {
+    v: 1,
+    generated_at: 'x',
+    units: {
+      'B3-A': { s: 'proximamente', p: null },
+      'B3-B': { s: 'proximamente', p: null },
+    },
+  };
+  const b3 = resumenDeBloque(['B3-A', 'B3-B'], avail);
+  assert.equal(b3.proximamente, 2);
+  // "11 unidades · 0 disponibles" se leía como AGOTADO (auditoría §2.15).
+  assert.equal(resumenLinea(b3, null), '2 unidades · próximamente');
+  // Y sigue diciendo "próximamente" aunque a una le falte el estado (hoy le
+  // pasa a B3-K): lo que descarta "próximamente" es una venta, no un hueco.
+  assert.equal(resumenLinea(resumenDeBloque(['B3-A', 'B3-B', 'B3-K'], avail), null), '3 unidades · próximamente');
+
+  const b2 = resumenDeBloque(['B2-A', 'B2-B'], {
+    v: 1,
+    generated_at: 'x',
+    units: {
+      'B2-A': { s: 'disponible', p: { a: 358638, c: 'USD' } },
+      'B2-B': { s: 'vendido', p: null },
+    },
+  });
+  assert.equal(resumenLinea(b2, 'US$ 358.638'), '2 unidades · 1 disponible · desde US$ 358.638');
+
+  // Todo vendido tampoco es "próximamente": es que no queda nada.
+  const agotado = resumenDeBloque(['X'], {
+    v: 1,
+    generated_at: 'x',
+    units: { X: { s: 'vendido', p: null } },
+  });
+  assert.equal(resumenLinea(agotado, null), '1 unidad · sin unidades disponibles');
+});
+
+// ------------------------------------------------------------------ chapas
+
+test('la chapa aparece una vez por tramo y cuando cambia la naturaleza del material', () => {
+  // El Tramo 2 la dibujaba 17 veces, una por foto (auditoría §2.13).
+  assert.deepEqual(chapasVisibles(['foto', 'foto', 'foto']), [true, false, false]);
+  // Foto → render → foto: cada cambio de naturaleza la vuelve a mostrar.
+  assert.deepEqual(chapasVisibles(['foto', 'render', 'render', 'foto']), [true, true, false, true]);
+  // Una imagen sin chapa (la de IA, dentro de su deslizador) no corta la
+  // secuencia ni se lleva una chapa propia.
+  assert.deepEqual(chapasVisibles(['foto', null, 'foto']), [true, false, false]);
+  assert.deepEqual(chapasVisibles([]), []);
+});
+
+test('la caption no repite lo que la chapa ya dice', () => {
+  assert.equal(
+    captionSinChapa('El terreno, entre el bosque y la Ruta 10. Foto real, 2 sep 2026.'),
+    'El terreno, entre el bosque y la Ruta 10.',
+  );
+  assert.equal(captionSinChapa('Bloque 2. Tres niveles, nueve unidades. Foto real.'), 'Bloque 2. Tres niveles, nueve unidades.');
+  // Sólo la frase FINAL: "Foto real" en el medio es parte de lo que se cuenta.
+  assert.equal(captionSinChapa('Foto real del living, sin muebles.'), 'Foto real del living, sin muebles.');
+  assert.equal(captionSinChapa(null), null);
+  assert.equal(captionSinChapa('Foto real, 2 sep 2026.'), null);
+});
+
+// -------------------------------------------------------------- el pie y la Punta
+
+test('el botón "Siguiente" se rotula corto y nombra el tramo en el aria-label', () => {
+  assert.deepEqual(railNextLabel('llegada'), {
+    label: 'Siguiente',
+    aria: 'Siguiente: el Bloque 2, construido',
+  });
+  // En el último tramo no hay botón: el riel es finito y se ve.
+  assert.equal(railNextLabel('consultar'), null);
+});
+
+test('sólo las dos fotos del skyline —y con resolución de sobra— se pueden acercar', () => {
+  assert.equal(esVistaDePunta({ id: '04_aerea_skyline_punta_del_este', width: 2000 }), true);
+  assert.equal(esVistaDePunta({ id: '11_vista_terraza_peninsula_skyline', width: 2000 }), true);
+  assert.equal(esVistaDePunta({ id: '16_living_comedor_amplio', width: 2000 }), false);
+  // Sin píxeles de sobra, acercar 2,5× es mostrar el pixel: no se ofrece.
+  assert.equal(esVistaDePunta({ id: '04_aerea_skyline_punta_del_este', width: 900 }), false);
+
+  // El horizonte NO está a la misma altura en las dos: la aérea mira la
+  // península desde arriba y la de la terraza, desde el nivel del bloque.
+  // Estaban las dos clavadas al 38 %, debajo del skyline (auditoría §2.10).
+  const aerea = puntaAnclaje('04_aerea_skyline_punta_del_este')!;
+  const terraza = puntaAnclaje('11_vista_terraza_peninsula_skyline')!;
+  assert.ok(aerea.etiqueta >= 0.26 && aerea.etiqueta <= 0.28);
+  assert.ok(aerea.etiqueta < aerea.horizonte, 'la píldora va ENCIMA del horizonte');
+  assert.ok(terraza.etiqueta < terraza.horizonte);
+  assert.ok(terraza.horizonte > aerea.horizonte);
+  assert.equal(puntaAnclaje('16_living_comedor_amplio'), null);
 });
 
 // ------------------------------------------------------------------ leyenda

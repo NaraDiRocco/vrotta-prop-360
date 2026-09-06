@@ -108,12 +108,25 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
   // escenas (`#/scene/llegada`): el controlador los conoce como virtuales para
   // no "corregirlos" al masterplan y romper el link que alguien compartió.
   const controller = new SceneController(container, tour, availability, { virtualSlugs: TRAMO_SLUGS });
-  controller.start();
 
-  // Deep link a una unidad: aterrizar EN esa unidad, con zoom puesto. Es el
-  // caso de oro (el vendedor manda el link de B2-A por WhatsApp) y hasta ahora
-  // el hash existía pero no encuadraba nada.
-  await landOnDeepLink(container, tour, controller);
+  // El masterplan pesa 1,08 MB y se bajaba DETRÁS de la bienvenida y detrás
+  // del recorrido, para nadie (auditoría §2.7): el presupuesto "< 1 MB antes
+  // del primer toque" lo rompía una imagen que el visitante todavía no pidió.
+  // Si lo primero que se ve NO es el plano —la bienvenida, o un link a un
+  // tramo—, la escena se monta recién cuando alguien va al plano: "Ir directo
+  // al plano", la pestaña Plano o cualquier "Ver el plano" del riel pasan por
+  // `controller.goTo()` y la montan ahí.
+  const abreEnElRecorrido =
+    !!parseTramoHash(location.hash) ||
+    (!!welcomePhotos(tour).hero && shouldShowWelcome({ hash: location.hash, seen: welcomeVista() }));
+
+  if (!abreEnElRecorrido) {
+    controller.start();
+    // Deep link a una unidad: aterrizar EN esa unidad, con zoom puesto. Es el
+    // caso de oro (el vendedor manda el link de B2-A por WhatsApp) y hasta ahora
+    // el hash existía pero no encuadraba nada.
+    await landOnDeepLink(container, tour, controller);
+  }
 
   boot.done();
 
@@ -318,6 +331,11 @@ async function landOnDeepLink(
 
 const isPlanScene = (s: Scene) => s.kind === 'floorplan' || s.kind === 'map';
 
+/** ¿Ya vio la bienvenida? En modo privado `localStorage` tira: es "no". */
+function welcomeVista(): boolean {
+  try { return localStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch { return false; }
+}
+
 // Auto-arranque cuando la página trae #app (build standalone del visor).
 const root = document.getElementById('app');
 if (root) {
@@ -346,8 +364,7 @@ if (root) {
     // El chip explica el plano: sólo se muestra cuando lo primero que se ve
     // ES el plano. Si abre la bienvenida o un tramo del recorrido, el chip
     // sería un cartel detrás de otra pantalla.
-    let vista = false;
-    try { vista = localStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch { /* modo privado */ }
+    const vista = welcomeVista();
     const aterrizaEnElPlano =
       !parseTramoHash(location.hash) &&
       !parseHash(location.hash).unitCode &&

@@ -41,16 +41,23 @@ import { BeforeAfterSlider, type BeforeAfterHandle } from './beforeafter.ts';
 import {
   TRAMOS,
   buildRailContent,
+  captionSinChapa,
   chapaFor,
+  chapaVisible,
+  esVistaDePunta,
+  puntaAnclaje,
   initialRailState,
   parseTramoHash,
   railCtaLabel,
   railCtaMessage,
+  railNextLabel,
   railReduce,
   resumenDeBloque,
+  resumenLinea,
   serieIndex,
   tramoDef,
   tramoIndex,
+  type ChapaKind,
   type RailAction,
   type RailContent,
   type RailRender,
@@ -95,9 +102,162 @@ function fadeIn(img: HTMLImageElement): void {
   if (img.complete && img.naturalWidth > 0) on();
 }
 
+/**
+ * El archivo de marca del proyecto. Se busca primero al lado del `tour.json`
+ * (así cada recorrido publicado trae el suyo) y, si no está, en la raíz del
+ * visor: `tools/baleia/scripts/build_tour.py --publish` reemplaza la carpeta
+ * publicada entera, así que la copia de la raíz es la que sobrevive a una
+ * regeneración. Si no aparece ninguna, la marca se dibuja en texto.
+ */
+export const MARCA_SVG = 'marca/baleia-logo-blanco.svg';
+
+/**
+ * Deja el logo puesto al principio de `host`, con su respaldo y su caída a
+ * texto. Sin nombre de proyecto (quien monta la bienvenida todavía no lo pasa)
+ * la marca desaparece en vez de dejar un cartel vacío.
+ */
+export function montarMarca(host: HTMLElement, src: string, nombre: string): void {
+  const img = document.createElement('img');
+  img.alt = nombre;
+  img.decoding = 'async';
+  let intento = 0;
+  img.addEventListener('error', () => {
+    intento += 1;
+    if (intento === 1) { img.src = new URL(MARCA_SVG, document.baseURI).href; return; }
+    if (nombre) img.replaceWith(Object.assign(document.createElement('b'), { textContent: nombre }));
+    else img.remove();
+  });
+  img.src = src;
+  host.prepend(img);
+}
+
 /** Un par vertical (2:3) entra entero en el teléfono; uno apaisado se recorta (spec §3.1). */
 function aspectOf(pair: BeforeAfterPair): '2:3' | '4:3' {
   return pair.before.height > pair.before.width ? '2:3' : '4:3';
+}
+
+/**
+ * Qué piezas ocupan una PANTALLA entera y cuáles se agrupan en una pantalla de
+ * texto (auditoría §4, Idea 1). Es la única regla de maquetado que necesita
+ * saber `renderTramo`: cada `render…()` sigue armando sus piezas en orden y el
+ * agrupado pasa después, en un solo lugar.
+ */
+const CLASES_MEDIA = [
+  'r360-rail__foto',
+  'r360-rail__render',
+  'r360-rail__slider',
+  'r360-rail__serie',
+  'r360-rail__video',
+  'r360-rail__switch',
+];
+
+function esMedia(el: HTMLElement): boolean {
+  return CLASES_MEDIA.some((c) => el.classList.contains(c));
+}
+
+interface Punto { x: number; y: number }
+const distancia = (a: Punto, b: Punto): number => Math.hypot(a.x - b.x, a.y - b.y);
+
+/**
+ * Pinch-zoom + arrastre sobre la foto a pantalla completa.
+ *
+ * `ui.ts` tiene una clase igual para la planta de la unidad y sería el lugar
+ * natural de donde importarla, pero no la exporta y `ui.ts` importa este
+ * archivo: sacarla de ahí sería un ciclo de módulos, y este pase tiene
+ * prohibido tocar `ui.ts`. Queda anotado como la deuda que es — el día que
+ * `PinchZoom` salga a un módulo propio, las dos copias se van juntas.
+ */
+class PinchZoom {
+  private escala = 1;
+  private x = 0;
+  private y = 0;
+  private readonly punteros = new Map<number, Punto>();
+  private ultimaDist = 0;
+  private arrastre: { x: number; y: number; ox: number; oy: number } | null = null;
+
+  constructor(private readonly stage: HTMLElement, private readonly img: HTMLElement) {
+    stage.addEventListener('pointerdown', this.onDown);
+    stage.addEventListener('pointermove', this.onMove);
+    stage.addEventListener('pointerup', this.onUp);
+    stage.addEventListener('pointercancel', this.onUp);
+    stage.addEventListener('dblclick', this.onDblClick);
+  }
+
+  /** Sin acercar: recién ahí el gesto horizontal significa "la foto siguiente". */
+  get sinAcercar(): boolean {
+    return this.escala <= 1.02;
+  }
+
+  reset(): void {
+    this.escala = 1;
+    this.x = 0;
+    this.y = 0;
+    this.apply();
+  }
+
+  destroy(): void {
+    this.stage.removeEventListener('pointerdown', this.onDown);
+    this.stage.removeEventListener('pointermove', this.onMove);
+    this.stage.removeEventListener('pointerup', this.onUp);
+    this.stage.removeEventListener('pointercancel', this.onUp);
+    this.stage.removeEventListener('dblclick', this.onDblClick);
+  }
+
+  private apply(): void {
+    this.img.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.escala})`;
+  }
+
+  private clamp(s: number): number {
+    return Math.max(1, Math.min(4, s));
+  }
+
+  private onDown = (e: PointerEvent): void => {
+    try { this.stage.setPointerCapture(e.pointerId); } catch { /* no-op */ }
+    this.punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.punteros.size === 1) {
+      this.arrastre = { x: e.clientX, y: e.clientY, ox: this.x, oy: this.y };
+    } else if (this.punteros.size === 2) {
+      this.arrastre = null;
+      const [a, b] = [...this.punteros.values()];
+      this.ultimaDist = distancia(a!, b!);
+    }
+  };
+
+  private onMove = (e: PointerEvent): void => {
+    if (!this.punteros.has(e.pointerId)) return;
+    this.punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.punteros.size === 2) {
+      const [a, b] = [...this.punteros.values()];
+      const d = distancia(a!, b!);
+      if (this.ultimaDist > 0) this.escala = this.clamp(this.escala * (d / this.ultimaDist));
+      this.ultimaDist = d;
+      this.apply();
+    } else if (this.punteros.size === 1 && this.arrastre && this.escala > 1) {
+      this.x = this.arrastre.ox + (e.clientX - this.arrastre.x);
+      this.y = this.arrastre.oy + (e.clientY - this.arrastre.y);
+      this.apply();
+    }
+  };
+
+  private onUp = (e: PointerEvent): void => {
+    this.punteros.delete(e.pointerId);
+    if (this.punteros.size < 2) this.ultimaDist = 0;
+    if (this.punteros.size === 1) {
+      const [p] = [...this.punteros.values()];
+      this.arrastre = { x: p!.x, y: p!.y, ox: this.x, oy: this.y };
+    }
+    if (this.punteros.size === 0) {
+      this.arrastre = null;
+      if (this.escala < 1.02) this.reset();
+    }
+  };
+
+  private onDblClick = (): void => {
+    this.escala = this.escala > 1 ? 1 : 2.5;
+    this.x = 0;
+    this.y = 0;
+    this.apply();
+  };
 }
 
 export class TourRail {
@@ -106,11 +266,19 @@ export class TourRail {
   private readonly content: RailContent;
   private readonly base: URL;
   private readonly scroll: HTMLElement;
+  private readonly head: HTMLElement;
+  private readonly marca: HTMLElement;
   private readonly dots: HTMLElement;
   private readonly nextBtn: HTMLButtonElement;
   private readonly layerEl: HTMLElement;
   private readonly sliders: BeforeAfterHandle[] = [];
   private readonly seriesCleanup: Array<() => void> = [];
+  /** Piezas del tramo en curso, antes de agruparlas en pantallas. */
+  private piezas: HTMLElement[] = [];
+  /** Naturaleza de la última pieza que llevó chapa en este tramo. */
+  private chapaPrev: ChapaKind | null = null;
+  private pinch: PinchZoom | null = null;
+  private layerCleanup: Array<() => void> = [];
 
   constructor(private readonly opts: TourRailOptions) {
     this.base = new URL(opts.tourUrl, location.href);
@@ -121,6 +289,7 @@ export class TourRail {
     this.el.hidden = true;
     this.el.setAttribute('aria-label', 'Recorrido guiado');
     this.el.innerHTML =
+      `<header class="r360-rail__head"></header>` +
       `<div class="r360-rail__scroll" tabindex="-1"></div>` +
       `<footer class="r360-rail__foot">` +
       `<div class="r360-rail__dots" role="tablist" aria-label="Tramos del recorrido"></div>` +
@@ -129,7 +298,19 @@ export class TourRail {
       `<div class="r360-rail__layer" hidden></div>`;
     opts.container.appendChild(this.el);
 
+    // La marca vive fuera del riel, en la franja de la barra superior: con el
+    // recorrido abierto la barra decía "Masterplan" (el nombre de la escena
+    // que está debajo) y en ninguna pantalla aparecía el nombre del proyecto
+    // (auditoría §2.8). El logo se resuelve contra el `tour.json`, así que
+    // cada proyecto trae el suyo y este archivo no conoce ninguna marca.
+    this.marca = document.createElement('div');
+    this.marca.className = 'r360-rail__marca';
+    this.marca.hidden = true;
+    montarMarca(this.marca, this.resolve(MARCA_SVG), opts.tour.project);
+    opts.container.appendChild(this.marca);
+
     this.scroll = this.el.querySelector('.r360-rail__scroll')!;
+    this.head = this.el.querySelector('.r360-rail__head')!;
     this.dots = this.el.querySelector('.r360-rail__dots')!;
     this.nextBtn = this.el.querySelector('.r360-rail__next')!;
     this.layerEl = this.el.querySelector('.r360-rail__layer')!;
@@ -165,6 +346,8 @@ export class TourRail {
     window.removeEventListener('hashchange', this.onPopState);
     document.removeEventListener('keydown', this.onKey);
     this.clearTramo();
+    this.closeLayerUi();
+    this.marca.remove();
     this.el.remove();
   }
 
@@ -231,6 +414,7 @@ export class TourRail {
 
   private paintVisibility(): void {
     this.el.hidden = !this.state.open;
+    this.marca.hidden = !this.state.open;
     document.body.classList.toggle('r360-rail-open', this.state.open);
     if (this.state.open) this.scroll.scrollTop = 0;
   }
@@ -255,15 +439,52 @@ export class TourRail {
       btn.classList.toggle('is-done', idx < i);
       btn.setAttribute('aria-selected', idx === i ? 'true' : 'false');
     }
-    const next = TRAMOS[i + 1];
+    const next = railNextLabel(this.state.tramo);
     this.nextBtn.hidden = !next;
-    if (next) this.nextBtn.textContent = `Siguiente: ${next.asNext} →`;
+    if (next) {
+      this.nextBtn.textContent = `${next.label} →`;
+      this.nextBtn.setAttribute('aria-label', next.aria);
+    }
   }
 
   private clearTramo(): void {
     for (const s of this.sliders.splice(0)) s.destroy();
     for (const off of this.seriesCleanup.splice(0)) off();
     this.scroll.innerHTML = '';
+    this.piezas = [];
+    this.chapaPrev = null;
+  }
+
+  /** Una pieza más del tramo, en orden. El agrupado en pantallas pasa después. */
+  private add(el: HTMLElement): void {
+    this.piezas.push(el);
+  }
+
+  /**
+   * Idea 1: cada pieza de material ocupa una pantalla entera y el texto que la
+   * rodea se junta en la suya. El agrupado vive acá y no repartido por cada
+   * `render…()`: así el orden del tramo se sigue leyendo como una lista y la
+   * decisión de maquetado se cambia en un solo lugar.
+   */
+  private flush(): void {
+    let texto: HTMLElement | null = null;
+    for (const pieza of this.piezas) {
+      if (esMedia(pieza)) {
+        texto = null;
+        const p = document.createElement('section');
+        p.className = 'r360-rail__pantalla r360-rail__pantalla--media';
+        p.appendChild(pieza);
+        this.scroll.appendChild(p);
+      } else {
+        if (!texto) {
+          texto = document.createElement('section');
+          texto.className = 'r360-rail__pantalla r360-rail__pantalla--texto';
+          this.scroll.appendChild(texto);
+        }
+        texto.appendChild(pieza);
+      }
+    }
+    this.piezas = [];
   }
 
   private renderTramo(): void {
@@ -271,12 +492,11 @@ export class TourRail {
     const def = tramoDef(this.state.tramo);
     const i = tramoIndex(def.id);
 
-    const head = document.createElement('header');
-    head.className = 'r360-rail__head';
-    head.innerHTML =
+    // El título flota SOBRE la primera foto (no le come alto a la imagen) y se
+    // queda mientras dura el tramo: dice dónde estás sin ocupar una franja.
+    this.head.innerHTML =
       `<p class="r360-rail__step">Tramo ${i + 1} de ${TRAMOS.length}</p>` +
       `<h2>${escapeHtml(def.title)}</h2>`;
-    this.scroll.appendChild(head);
 
     if (def.id === 'llegada') this.renderLlegada();
     else if (def.id === 'bloque-2') this.renderBloque();
@@ -288,7 +508,8 @@ export class TourRail {
     // El acceso al plano y a WhatsApp está en TODOS los tramos: el masterplan
     // siempre a un toque (spec §1) y el canal de consulta siempre abierto
     // (spec §6), sin obligar a llegar al final.
-    if (def.id !== 'consultar') this.scroll.appendChild(this.tramoFooter());
+    if (def.id !== 'consultar') this.add(this.tramoFooter());
+    this.flush();
     this.paintDots();
   }
 
@@ -296,31 +517,21 @@ export class TourRail {
 
   private renderLlegada(): void {
     const [contexto, skyline] = this.content.llegada.fotos;
-    if (contexto) this.scroll.appendChild(this.fotoCard(contexto));
+    if (contexto) this.add(this.fotoCard(contexto));
     if (skyline) {
-      const card = this.fotoCard(skyline, {
-        caption: 'Sobre la azotea del Bloque 2: el skyline de Punta del Este sobre el mar.',
-      });
       // Etiqueta anclada a lo que se ve en la foto (spec §3.2, punto 4): sólo
       // lo verificable en la imagen. Ninguna distancia ni tiempo de viaje:
-      // ese dato no está en el material del proyecto.
-      const tag = document.createElement('button');
-      tag.type = 'button';
-      tag.className = 'r360-rail__tag';
-      tag.innerHTML = `<i aria-hidden="true"></i>Punta del Este`;
-      tag.setAttribute('aria-expanded', 'false');
+      // ese dato no está en el material del proyecto. Tocarla acerca la
+      // cámara al skyline (auditoría §4, Idea 2).
+      this.add(
+        this.fotoCard(skyline, {
+          caption: 'Desde la azotea del Bloque 2, la península. Tocá la etiqueta para acercarte.',
+        }),
+      );
       const nota = document.createElement('p');
-      nota.className = 'r360-rail__tagnote';
-      nota.hidden = true;
-      nota.textContent =
-        'La península, sobre el mar, desde la azotea del bloque. La distancia y los tiempos de viaje no están en el material del proyecto: los confirma el vendedor.';
-      tag.addEventListener('click', () => {
-        nota.hidden = !nota.hidden;
-        tag.setAttribute('aria-expanded', String(!nota.hidden));
-      });
-      card.querySelector('figure')!.appendChild(tag);
-      card.appendChild(nota);
-      this.scroll.appendChild(card);
+      nota.className = 'r360-rail__nota';
+      nota.textContent = 'Distancias y tiempos: te los pasa el vendedor.';
+      this.add(nota);
     }
 
     // El plano, a un toque: el trazo del acceso a los bloques se recorre en el
@@ -337,10 +548,10 @@ export class TourRail {
       `</ul>`;
     const btn = this.button('Abrir el masterplan', 'is-ghost', () => this.opts.onOpenPlan());
     plano.appendChild(btn);
-    this.scroll.appendChild(plano);
+    this.add(plano);
 
     if (this.content.llegada.render) {
-      this.scroll.appendChild(
+      this.add(
         this.renderCard(this.content.llegada.render, 'El acceso al complejo, como está proyectado.'),
       );
     }
@@ -348,12 +559,12 @@ export class TourRail {
 
   private renderBloque(): void {
     const c = this.content.bloque;
-    if (c.hero) this.scroll.appendChild(this.fotoCard(c.hero, { pushIn: true }));
+    if (c.hero) this.add(this.fotoCard(c.hero, { pushIn: true }));
 
-    for (const pair of c.pares) this.scroll.appendChild(this.sliderCard(pair));
+    for (const pair of c.pares) this.add(this.sliderCard(pair));
 
     if (c.fachadas.length) {
-      this.scroll.appendChild(
+      this.add(
         this.serieCard('fachadas', c.fachadas, {
           titulo: 'La fachada, de día y al atardecer',
         }),
@@ -365,13 +576,13 @@ export class TourRail {
       intro.className = 'r360-rail__lead r360-rail__lead--sep';
       intro.textContent =
         'Adentro: el paseo por la unidad modelo, en el orden en que se recorre una casa.';
-      this.scroll.appendChild(intro);
-      this.scroll.appendChild(this.serieCard('paseo', c.paseo, { ambientes: true }));
+      this.add(intro);
+      this.add(this.serieCard('paseo', c.paseo, { ambientes: true }));
       const nota = document.createElement('p');
       nota.className = 'r360-rail__nota';
       nota.textContent =
-        'Unidad modelo del Bloque 2. Qué letra de tipología se fotografió está a confirmar con el fotógrafo.';
-      this.scroll.appendChild(nota);
+        'Unidad modelo del Bloque 2.';
+      this.add(nota);
     }
 
     const acciones = document.createElement('div');
@@ -386,12 +597,12 @@ export class TourRail {
     }
     const visita = this.ctaLink('visita');
     if (visita) acciones.appendChild(visita);
-    this.scroll.appendChild(acciones);
+    this.add(acciones);
 
     const transicion = document.createElement('p');
     transicion.className = 'r360-rail__nota r360-rail__nota--transicion';
     transicion.textContent = 'Lo que sigue todavía no está construido. Lo mostramos como proyecto.';
-    this.scroll.appendChild(transicion);
+    this.add(transicion);
   }
 
   private renderAmenities(): void {
@@ -403,7 +614,7 @@ export class TourRail {
       `<p class="r360-rail__lead">El sector de amenities está en el punto más bajo del terreno, junto a la Ruta 10: ` +
       `piscina, piscina infantil, rincón de fuego y laguna.</p>`;
     donde.appendChild(this.button('Ver el sector en el plano', 'is-ghost', () => this.opts.onOpenPlan()));
-    this.scroll.appendChild(donde);
+    this.add(donde);
 
     // El interruptor Proyecto/Hoy (spec §4): la única variable que acá importa
     // es el tiempo, y las dos imágenes ya existen.
@@ -419,17 +630,24 @@ export class TourRail {
       stage.className = 'r360-rail__switch-stage';
       wrap.appendChild(stage);
 
+      // Las dos imágenes APILADAS y un fundido cruzado, no un nodo que
+      // reemplaza a otro (auditoría §3): que sean el mismo lugar en dos
+      // momentos tiene que verse, y reemplazar el nodo además volvía a pedir
+      // la imagen en cada toque.
+      const proyecto = this.renderCard(
+        c.renders[0]!,
+        'Acá va a estar la piscina, el rincón de fuego y la laguna.',
+      );
+      const hoy = this.fotoCard(c.hoy!, {
+        caption: 'El sector, hoy. Los amenities se construyen con las etapas siguientes.',
+      });
+      stage.append(proyecto, hoy);
+
       const pintar = (modo: 'proyecto' | 'hoy') => {
-        stage.innerHTML = '';
-        if (modo === 'proyecto') {
-          stage.appendChild(this.renderCard(c.renders[0]!, 'Acá va a estar la piscina, el rincón de fuego y la laguna.'));
-        } else {
-          stage.appendChild(
-            this.fotoCard(c.hoy!, {
-              caption: 'El sector, hoy. Los amenities se construyen con las etapas siguientes.',
-            }),
-          );
-        }
+        proyecto.classList.toggle('is-on', modo === 'proyecto');
+        hoy.classList.toggle('is-on', modo === 'hoy');
+        proyecto.setAttribute('aria-hidden', String(modo !== 'proyecto'));
+        hoy.setAttribute('aria-hidden', String(modo !== 'hoy'));
         for (const b of wrap.querySelectorAll<HTMLButtonElement>('[data-modo]')) {
           const on = b.dataset.modo === modo;
           b.classList.toggle('is-on', on);
@@ -441,11 +659,11 @@ export class TourRail {
         if (b?.dataset.modo) pintar(b.dataset.modo as 'proyecto' | 'hoy');
       });
       pintar('proyecto');
-      this.scroll.appendChild(wrap);
+      this.add(wrap);
     }
 
     for (const r of c.renders.slice(1)) {
-      this.scroll.appendChild(
+      this.add(
         this.renderCard(
           r,
           r.slug === 'complejo-laguna'
@@ -458,15 +676,15 @@ export class TourRail {
     const nota = document.createElement('p');
     nota.className = 'r360-rail__nota';
     nota.textContent =
-      'Los cuatro amenities aparecen en esta vista. La fecha de entrega de los amenities no está en el material del proyecto: se pregunta al vendedor.';
-    this.scroll.appendChild(nota);
+      'Los cuatro amenities aparecen en esta vista. Fecha de amenities: consultá al vendedor.';
+    this.add(nota);
 
     if (c.otros.length) {
       const h = document.createElement('h3');
       h.className = 'r360-rail__otros-title';
       h.textContent = 'Otras vistas del proyecto';
-      this.scroll.appendChild(h);
-      for (const r of c.otros) this.scroll.appendChild(this.renderCard(r, r.name));
+      this.add(h);
+      for (const r of c.otros) this.add(this.renderCard(r, r.name));
     }
   }
 
@@ -496,29 +714,63 @@ export class TourRail {
       video.playsInline = true;
       video.muted = true;
       video.loop = true;
-      video.preload = 'none';
+      // `muted` + `playsInline` es exactamente lo que los navegadores piden
+      // para dejar arrancar solo: faltaba pedirlo (auditoría §2.6). Antes
+      // había además un `preload = 'none'` que otra línea pisaba con
+      // `'metadata'` tres sentencias después; queda uno solo.
+      video.autoplay = true;
+      video.preload = 'metadata';
       const poster = this.content.video.poster;
       if (poster) video.poster = this.resolve(poster.url);
       card.appendChild(video);
+
       const cap = document.createElement('p');
-      cap.className = 'r360-rail__caption';
-      cap.textContent = 'El video real de la obra. Arranca silenciado: el sonido se activa con el control.';
+      cap.className = 'r360-rail__caption r360-rail__caption--sobre';
+      cap.textContent = 'La obra terminada, filmada. Arranca sin sonido: activalo con el control.';
       card.appendChild(cap);
-      this.scroll.appendChild(card);
-      // Sólo empieza a descargar cuando el visitante llega al tramo (spec §1,
-      // Tramo 4: "nunca es puerta").
-      video.preload = 'metadata';
+
+      // Pantalla completa a la vista: son 83 segundos de obra real y el
+      // control nativo la esconde detrás de un ícono de 20 px.
+      const full = document.createElement('button');
+      full.type = 'button';
+      full.className = 'r360-rail__full';
+      full.textContent = '⛶ Pantalla completa';
+      full.addEventListener('click', () => {
+        const anyVideo = video as HTMLVideoElement & { webkitEnterFullscreen?: () => void };
+        if (video.requestFullscreen) void video.requestFullscreen().catch(() => undefined);
+        else anyVideo.webkitEnterFullscreen?.();
+      });
+      card.appendChild(full);
+
+      this.add(card);
+
+      // NUNCA una puerta (spec §1, Tramo 4): el tramo ya está dibujado y el
+      // video arranca solo cuando entra en pantalla. Si el navegador rechaza
+      // el `play()`, quedan los controles nativos y no pasa nada más.
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (e.isIntersecting) void video.play().catch(() => undefined);
+              else video.pause();
+            }
+          },
+          { threshold: 0.5 },
+        );
+        io.observe(video);
+        this.seriesCleanup.push(() => io.disconnect());
+      }
       return;
     }
 
     const falta = document.createElement('div');
     falta.className = 'r360-rail__card r360-rail__falta';
     falta.innerHTML =
-      `<h3>El video todavía no está publicado</h3>` +
-      `<p>El reel real de la obra (83 segundos, filmado el 2 de septiembre de 2026) existe y está recomprimido, ` +
-      `pero todavía no forma parte de esta versión del recorrido. Cuando entre al manifiesto aparece acá, con sus capítulos.</p>` +
-      `<p class="r360-rail__nota">Mientras tanto, todo lo que se ve en los tramos anteriores es fotografía real de ese mismo día.</p>`;
-    this.scroll.appendChild(falta);
+      `<h3>El video llega en unos días</h3>` +
+      `<p>La filmación de la obra terminada, del 2 de septiembre de 2026, todavía no está en esta versión del recorrido. ` +
+      `Pedísela al vendedor y te la manda.</p>` +
+      `<p class="r360-rail__nota">Todo lo que se ve en los tramos anteriores es fotografía real de ese mismo día.</p>`;
+    this.add(falta);
   }
 
   private renderUnidades(): void {
@@ -527,10 +779,11 @@ export class TourRail {
       const resumen = resumenDeBloque(bloque.codes, avail);
       const card = document.createElement('div');
       card.className = 'r360-rail__card r360-rail__bloque';
-      const desde = resumen.desde ? ` · desde ${formatPrice(resumen.desde)}` : '';
       card.innerHTML =
         `<h3>${escapeHtml(bloque.label)}</h3>` +
-        `<p class="r360-rail__nota">${resumen.total} unidades · ${resumen.disponibles} disponibles${escapeHtml(desde)}</p>`;
+        `<p class="r360-rail__nota">${escapeHtml(
+          resumenLinea(resumen, resumen.desde ? formatPrice(resumen.desde) : null),
+        )}</p>`;
 
       const grid = document.createElement('div');
       grid.className = 'r360-rail__grid';
@@ -560,7 +813,7 @@ export class TourRail {
         if (btn?.dataset.unit) this.opts.onOpenUnit(btn.dataset.unit);
       });
       card.appendChild(grid);
-      this.scroll.appendChild(card);
+      this.add(card);
     }
 
     const cond = document.createElement('div');
@@ -570,8 +823,8 @@ export class TourRail {
       `<p>50% de anticipo + 12 cuotas mensuales al 6% anual. Gastos de ocupación 4% aparte. ` +
       `Cochera incluida. Entrega diciembre 2026.</p>` +
       `<p class="r360-rail__nota">Precios de lista, septiembre 2026, sujetos a modificación sin previo aviso. ` +
-      `La cuota exacta la confirma el vendedor: la fórmula completa no está publicada.</p>`;
-    this.scroll.appendChild(cond);
+      `La cuota exacta te la arma el vendedor.</p>`;
+    this.add(cond);
   }
 
   private renderConsultar(): void {
@@ -581,7 +834,7 @@ export class TourRail {
     card.innerHTML =
       `<h3>¿Seguimos por WhatsApp?</h3>` +
       `<p>Escribile al vendedor con lo que estuviste mirando. El mensaje va prellenado y con el link exacto.</p>`;
-    this.scroll.appendChild(card);
+    this.add(card);
 
     const acciones = document.createElement('div');
     acciones.className = 'r360-rail__acciones';
@@ -589,7 +842,7 @@ export class TourRail {
       const link = this.ctaLink(kind, kind === 'visita');
       if (link) acciones.appendChild(link);
     }
-    this.scroll.appendChild(acciones);
+    this.add(acciones);
 
     if (bloque) {
       const ver = document.createElement('div');
@@ -597,7 +850,7 @@ export class TourRail {
       ver.appendChild(
         this.button(`Elegir una unidad del ${bloque.label}`, 'is-ghost', () => this.opts.onOpenUnit(bloque.code)),
       );
-      this.scroll.appendChild(ver);
+      this.add(ver);
     }
 
     const nota = document.createElement('p');
@@ -606,11 +859,11 @@ export class TourRail {
     nota.textContent = contacto
       ? `Valores de lista de septiembre 2026, a confirmar por el vendedor (${contacto}).`
       : 'Valores de lista de septiembre 2026, a confirmar por el vendedor.';
-    this.scroll.appendChild(nota);
+    this.add(nota);
 
     // "Qué es real en este recorrido" (spec §5.2): el inventario del material,
     // contado con los números del propio manifiesto — nada escrito a mano.
-    this.scroll.appendChild(this.queEsReal());
+    this.add(this.queEsReal());
   }
 
   private queEsReal(): HTMLElement {
@@ -702,7 +955,8 @@ export class TourRail {
     const fig = document.createElement('figure');
     fig.className = 'r360-rail__frame is-foto';
     if (opts.pushIn && !reducedMotion()) fig.classList.add('is-pushin');
-    fig.style.aspectRatio = `${item.width} / ${item.height}`;
+    // Sin `aspect-ratio`: la foto ya no vive en una caja de 250 px con la
+    // forma del archivo, ocupa la pantalla y `object-fit: cover` recorta.
     // Blur-up: la miniatura de ~15 KB pinta el color y la forma al instante y
     // la de 2000 px se funde encima cuando llega.
     fig.style.backgroundImage = `url("${this.resolve(item.thumbUrl)}")`;
@@ -715,22 +969,24 @@ export class TourRail {
     fadeIn(img);
     fig.appendChild(img);
 
-    const chapa = chapaFor(item.procedencia);
-    if (chapa) fig.appendChild(this.chapaEl(chapa.kind, chapa.text, chapa.detail));
+    this.chapaSiCorresponde(fig, item.procedencia);
+    this.tagDePunta(fig, item);
 
     fig.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.r360-rail__chapa, .r360-rail__tag')) return;
       this.openFoto(item);
     });
-    card.appendChild(fig);
 
-    const caption = opts.caption ?? item.caption;
+    // La caption va SOBRE la foto, abajo, con el degradado de la bienvenida:
+    // así la imagen llega hasta el borde y el texto sigue siendo legible.
+    const caption = opts.caption ?? captionSinChapa(item.caption);
     if (caption) {
-      const p = document.createElement('p');
-      p.className = 'r360-rail__caption';
+      const p = document.createElement('figcaption');
+      p.className = 'r360-rail__caption r360-rail__caption--sobre';
       p.textContent = caption;
-      card.appendChild(p);
+      fig.appendChild(p);
     }
+    card.appendChild(fig);
     return card;
   }
 
@@ -747,14 +1003,58 @@ export class TourRail {
     img.src = this.resolve(r.url);
     fadeIn(img);
     fig.appendChild(img);
-    const chapa = chapaFor(r.procedencia);
-    if (chapa) fig.appendChild(this.chapaEl(chapa.kind, chapa.text, chapa.detail));
+    this.chapaSiCorresponde(fig, r.procedencia);
     card.appendChild(fig);
     const p = document.createElement('p');
     p.className = 'r360-rail__caption';
     p.textContent = caption ?? r.name;
     card.appendChild(p);
     return card;
+  }
+
+  /**
+   * La chapa, una vez por tramo y después sólo cuando cambia la naturaleza del
+   * material (auditoría §2.13): en el Tramo 2 aparecía 17 veces. Quién decide
+   * es `chapaVisible`; acá sólo se lleva la cuenta del tramo en curso.
+   */
+  private chapaSiCorresponde(fig: HTMLElement, procedencia: Parameters<typeof chapaFor>[0]): void {
+    const chapa = chapaFor(procedencia);
+    if (!chapa || !chapaVisible(this.chapaPrev, chapa.kind)) return;
+    this.chapaPrev = chapa.kind;
+    fig.appendChild(this.chapaEl(chapa.kind, chapa.text, chapa.detail));
+  }
+
+  /**
+   * Idea 2 — la Punta como protagonista. En las dos fotos donde el skyline
+   * está a la vista, tocar la etiqueta acerca la cámara sobre la imagen que ya
+   * está cargada: 2,5×, 600 ms, centrado en el horizonte. Ni un byte más de
+   * red, y es el argumento que ningún render puede dar.
+   */
+  private tagDePunta(fig: HTMLElement, item: PhotoTourItem): void {
+    if (!esVistaDePunta(item)) return;
+    const ancla = puntaAnclaje(item.id);
+    fig.classList.add('is-punta');
+    if (ancla) {
+      fig.style.setProperty('--r360-punta-tag', `${(ancla.etiqueta * 100).toFixed(1)}%`);
+      fig.style.setProperty('--r360-punta-horizonte', `${(ancla.horizonte * 100).toFixed(1)}%`);
+    }
+    const tag = document.createElement('button');
+    tag.type = 'button';
+    tag.className = 'r360-rail__tag';
+    tag.innerHTML = `<i aria-hidden="true"></i>Punta del Este`;
+    const rotular = (cerca: boolean) => {
+      tag.setAttribute('aria-pressed', String(cerca));
+      tag.setAttribute(
+        'aria-label',
+        cerca ? 'Punta del Este: alejar la cámara' : 'Punta del Este: acercar la cámara al skyline',
+      );
+    };
+    rotular(false);
+    tag.addEventListener('click', (e) => {
+      e.stopPropagation();
+      rotular(fig.classList.toggle('is-cerca'));
+    });
+    fig.appendChild(tag);
   }
 
   private chapaEl(kind: 'foto' | 'render', text: string, detail: string): HTMLElement {
@@ -813,12 +1113,19 @@ export class TourRail {
     card.className = 'r360-rail__card r360-rail__serie';
     if (opts.titulo) {
       const h = document.createElement('h3');
+      h.className = 'r360-rail__serie-title';
       h.textContent = opts.titulo;
       card.appendChild(h);
     }
 
     let tira: HTMLElement | null = null;
     if (opts.ambientes) {
+      // La tira desbordaba 587 px en 375 de ancho, con la barra oculta y sin
+      // ninguna señal: "Terraza" y "La vista" no existían para quien no
+      // arrastraba (auditoría §2.9). Ahora el envoltorio pone un degradado en
+      // el borde derecho y el ambiente activo se trae solo a la vista.
+      const wrap = document.createElement('div');
+      wrap.className = 'r360-rail__tirawrap';
       tira = document.createElement('div');
       tira.className = 'r360-rail__tira';
       tira.setAttribute('role', 'tablist');
@@ -836,7 +1143,8 @@ export class TourRail {
           return `<button type="button" role="tab" class="r360-rail__amb" data-index="${first}" aria-selected="false">${escapeHtml(amb)}</button>`;
         })
         .join('');
-      card.appendChild(tira);
+      wrap.appendChild(tira);
+      card.appendChild(wrap);
     }
 
     const track = document.createElement('div');
@@ -855,11 +1163,11 @@ export class TourRail {
       img.src = this.resolve(item.url);
       fadeIn(img);
       slide.appendChild(img);
-      const chapa = chapaFor(item.procedencia);
-      if (chapa) slide.appendChild(this.chapaEl(chapa.kind, chapa.text, chapa.detail));
+      this.chapaSiCorresponde(slide, item.procedencia);
+      this.tagDePunta(slide, item);
       slide.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('.r360-rail__chapa')) return;
-        this.openFoto(item);
+        if ((e.target as HTMLElement).closest('.r360-rail__chapa, .r360-rail__tag')) return;
+        this.openFoto(item, items);
       });
       track.appendChild(slide);
     }
@@ -874,6 +1182,22 @@ export class TourRail {
     pie.append(caption, contador);
     card.appendChild(pie);
 
+    // Con mouse, una pista de scroll horizontal con la barra oculta era
+    // irrecorrible: 0 botones y `cursor: auto` (auditoría §2.17). Las flechas
+    // sólo se dibujan donde hay puntero fino (CSS); acá siempre existen para
+    // que el teclado también las alcance.
+    const flecha = (dir: 'prev' | 'next'): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `r360-rail__flecha r360-rail__flecha--${dir}`;
+      b.textContent = dir === 'prev' ? '‹' : '›';
+      b.setAttribute('aria-label', dir === 'prev' ? 'Foto anterior de la serie' : 'Foto siguiente de la serie');
+      return b;
+    };
+    const prev = flecha('prev');
+    const next = flecha('next');
+    card.append(prev, next);
+
     const paint = () => {
       const i = serieIndex(this.state, id, items.length);
       const item = items[i];
@@ -884,8 +1208,13 @@ export class TourRail {
           const on = items[Number(b.dataset.index)]?.ambiente === item?.ambiente;
           b.classList.toggle('is-active', on);
           b.setAttribute('aria-selected', String(on));
+          // El ambiente activo se trae solo: los dos mejores estaban fuera de
+          // pantalla y nada avisaba (auditoría §2.9).
+          if (on) b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
         }
       }
+      prev.disabled = i <= 0;
+      next.disabled = i >= items.length - 1;
     };
 
     // El índice sale del scroll real, que es la única verdad de dónde quedó el
@@ -913,6 +1242,12 @@ export class TourRail {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-index]');
       if (b) goTo(Number(b.dataset.index));
     });
+    const paso = (delta: number) => () => {
+      const i = serieIndex(this.state, id, items.length);
+      goTo(Math.min(items.length - 1, Math.max(0, i + delta)));
+    };
+    prev.addEventListener('click', paso(-1));
+    next.addEventListener('click', paso(1));
     track.addEventListener('keydown', (e) => {
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
       e.preventDefault();
@@ -929,9 +1264,20 @@ export class TourRail {
 
   // ------------------------------------------------------- capa: foto grande
 
-  /** Toque = entrar: la foto a pantalla completa. Atrás la cierra, y sólo a ella. */
-  private openFoto(item: PhotoTourItem): void {
-    this.layerEl.innerHTML = '';
+  /**
+   * Toque = entrar: la foto a pantalla completa. Atrás la cierra, y sólo a ella.
+   *
+   * Hasta acá "entrar" ENTREGABA MENOS que no entrar: la capa dibujaba la foto
+   * a 343×229 en un teléfono donde el riel ya la mostraba a 375×250 (auditoría
+   * §2.5). Ahora ocupa la pantalla entera, hace pinch-zoom y —cuando la foto
+   * viene de una serie— pasa a la hermana con el dedo, con las flechas o con
+   * el teclado.
+   */
+  private openFoto(item: PhotoTourItem, hermanas: readonly PhotoTourItem[] = []): void {
+    const lista = hermanas.length ? hermanas : [item];
+    let i = Math.max(0, lista.findIndex((x) => x.id === item.id));
+
+    this.closeLayerUi();
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'r360-close r360-rail__layer-close';
@@ -939,19 +1285,92 @@ export class TourRail {
     close.textContent = '×';
     close.addEventListener('click', () => this.closeFotoByGesture());
 
+    const stage = document.createElement('div');
+    stage.className = 'r360-rail__layer-stage';
     const img = document.createElement('img');
-    img.src = this.resolve(item.url);
-    img.alt = item.caption ?? item.ambiente ?? '';
+    stage.appendChild(img);
 
-    this.layerEl.append(close, img);
-    const chapa = chapaFor(item.procedencia);
-    if (chapa) this.layerEl.appendChild(this.chapaEl(chapa.kind, chapa.text, chapa.detail));
-    if (item.caption) {
-      const p = document.createElement('p');
-      p.className = 'r360-rail__caption r360-rail__layer-caption';
-      p.textContent = item.caption;
-      this.layerEl.appendChild(p);
-    }
+    const cuenta = document.createElement('span');
+    cuenta.className = 'r360-rail__layer-count';
+    cuenta.hidden = lista.length < 2;
+
+    const caption = document.createElement('p');
+    caption.className = 'r360-rail__caption r360-rail__layer-caption';
+
+    const nav = (dir: 'prev' | 'next'): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `r360-rail__layer-nav r360-rail__layer-nav--${dir}`;
+      b.textContent = dir === 'prev' ? '‹' : '›';
+      b.setAttribute('aria-label', dir === 'prev' ? 'Foto anterior' : 'Foto siguiente');
+      b.hidden = lista.length < 2;
+      return b;
+    };
+    const prevBtn = nav('prev');
+    const nextBtn = nav('next');
+
+    this.layerEl.append(stage, close, cuenta, prevBtn, nextBtn, caption);
+    this.pinch = new PinchZoom(stage, img);
+
+    let chapaEl: HTMLElement | null = null;
+    const pintar = () => {
+      const it = lista[i]!;
+      img.src = this.resolve(it.url);
+      img.alt = it.caption ?? it.ambiente ?? '';
+      this.pinch?.reset();
+      caption.textContent = it.caption ?? '';
+      cuenta.textContent = `${i + 1}/${lista.length}`;
+      prevBtn.disabled = i <= 0;
+      nextBtn.disabled = i >= lista.length - 1;
+      chapaEl?.remove();
+      chapaEl = null;
+      // Acá la chapa va SIEMPRE: es una foto sola, fuera de la secuencia del
+      // tramo, y la regla de "una por tramo" no la alcanza.
+      const chapa = chapaFor(it.procedencia);
+      if (chapa) {
+        chapaEl = this.chapaEl(chapa.kind, chapa.text, chapa.detail);
+        this.layerEl.appendChild(chapaEl);
+      }
+    };
+    const mover = (delta: number) => {
+      const next = Math.min(lista.length - 1, Math.max(0, i + delta));
+      if (next === i) return;
+      i = next;
+      pintar();
+    };
+    prevBtn.addEventListener('click', () => mover(-1));
+    nextBtn.addEventListener('click', () => mover(1));
+
+    // Swipe entre hermanas — sólo con la foto SIN acercar: con dos dedos
+    // encima, el gesto horizontal es del zoom, no de la navegación.
+    let desde: { x: number; y: number } | null = null;
+    const onStart = (e: TouchEvent) => {
+      desde = e.touches.length === 1 ? { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY } : null;
+    };
+    const onEnd = (e: TouchEvent) => {
+      const d = desde;
+      desde = null;
+      if (!d || !this.pinch?.sinAcercar || lista.length < 2) return;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - d.x;
+      if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(t.clientY - d.y)) return;
+      mover(dx < 0 ? 1 : -1);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); mover(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); mover(-1); }
+    };
+    stage.addEventListener('touchstart', onStart, { passive: true });
+    stage.addEventListener('touchend', onEnd, { passive: true });
+    this.layerEl.addEventListener('keydown', onKey);
+    this.layerCleanup.push(() => {
+      stage.removeEventListener('touchstart', onStart);
+      stage.removeEventListener('touchend', onEnd);
+      this.layerEl.removeEventListener('keydown', onKey);
+    });
+
+    pintar();
     this.layerEl.hidden = false;
     close.focus();
 
@@ -969,6 +1388,9 @@ export class TourRail {
   }
 
   private closeLayerUi(): void {
+    for (const off of this.layerCleanup.splice(0)) off();
+    this.pinch?.destroy();
+    this.pinch = null;
     this.layerEl.hidden = true;
     this.layerEl.innerHTML = '';
   }

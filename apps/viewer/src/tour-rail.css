@@ -2,6 +2,14 @@
  * El riel de seis tramos. Móvil primero: 375 px, una mano, todo lo tocable
  * de 44 px para arriba y en el tercio inferior.
  *
+ * PANTALLA POR PANTALLA (auditoría §4, Idea 1). El riel dejó de ser un feed
+ * de fotos de 250 px con 231 px de chrome encima. Ahora cada pieza es una
+ * PANTALLA entera (`scroll-snap-type: y mandatory`, cada sección al 100 % del
+ * alto útil), la foto va a sangre de borde a borde y la caption vive SOBRE la
+ * foto, abajo, con el mismo degradado que usa la bienvenida. El pie del riel
+ * y la barra de pestañas se fundieron en una sola franja de 60 px: el chrome
+ * bajó de 231 a 112 px y la foto pasó de 250 a ~700 px en 375×812.
+ *
  * La regla visual que ordena el archivo (spec §4): **foto y render nunca se
  * ven igual**. La foto va a sangre (borde a borde, sin marco); el render va
  * enmarcado, con margen y un filete de 1 px. Es una regla que se siente sin
@@ -12,12 +20,14 @@
 .r360-rail {
   position: absolute;
   /* Empieza DEBAJO de la barra superior (que sigue dando marca y compartir) y
-     TERMINA arriba de las pestañas: el riel es una capa del recorrido, no una
-     pantalla que se traga la navegación. */
+     llega HASTA ABAJO: el pie del riel ocupa la franja donde antes estaban las
+     pestañas, que se esconden mientras el recorrido está a la vista
+     (`styles.css`, `body.r360-rail-open`). Dos barras apiladas eran 179 px de
+     navegación duplicada sobre 812. */
   top: calc(52px + env(safe-area-inset-top));
   left: 0;
   right: 0;
-  bottom: calc(var(--r360-nav-h) + var(--r360-safe-b));
+  bottom: 0;
   z-index: 65; /* sobre la leyenda y los overlays del plano (60-62), bajo las hojas (70+) */
   display: flex;
   flex-direction: column;
@@ -26,26 +36,71 @@
 
 .r360-rail__scroll {
   flex: 1;
+  /* `min-height: 0` no es cosmético: sin él, un ítem flex no baja de su
+     contenido y el `height: 100%` de cada pantalla se mide contra una caja
+     que creció con el contenido, no contra el hueco visible. */
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  padding: 10px 0 16px;
+  /* Una pieza por pantalla, y el gesto se detiene en cada una: es la
+     diferencia entre pasar fotos y recorrer un lugar. */
+  scroll-snap-type: y mandatory;
 }
 
-.r360-rail__head { padding: 4px 16px 10px; }
+/* Cada pieza del tramo, a pantalla completa. */
+.r360-rail__pantalla {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+/* Las pantallas de TEXTO (el plano, las acciones, las condiciones) no se
+   recortan: ocupan al menos la pantalla y crecen si hace falta. */
+.r360-rail__pantalla--texto {
+  height: auto;
+  min-height: 100%;
+  justify-content: center;
+  padding: 68px 0 20px;
+  box-sizing: border-box;
+}
+.r360-rail__pantalla--media > * { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; }
+
+/* El título del tramo flota SOBRE la primera foto, con su propio degradado:
+   no le come alto a la imagen. */
+.r360-rail__head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  padding: 8px 16px 26px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(6, 10, 15, .72), rgba(6, 10, 15, 0));
+}
 .r360-rail__step {
   margin: 0 0 2px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .09em;
   text-transform: uppercase;
-  color: #7f95ab;
+  color: #cfdcea;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
 }
-.r360-rail__head h2 { margin: 0; font-size: 21px; line-height: 1.2; letter-spacing: -.01em; }
+.r360-rail__head h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -.01em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .8);
+}
 
 .r360-rail__card { margin: 0 0 20px; }
 .r360-rail__card h3 { margin: 0 16px 6px; font-size: 15px; line-height: 1.3; }
 .r360-rail__card > p { margin: 0 16px 8px; font-size: 13.5px; line-height: 1.5; }
+.r360-rail__pantalla--texto > *:last-child { margin-bottom: 0; }
 
 .r360-rail__lead { margin: 0 16px 12px; font-size: 14px; line-height: 1.5; }
 .r360-rail__lead--sep {
@@ -94,30 +149,51 @@
 .r360-rail__frame img.is-on,
 .r360-rail__slide img.is-on { opacity: 1; }
 
-/* Foto real: borde a borde. Ocupa todo porque existe. */
-.r360-rail__frame.is-foto { width: 100%; }
+/* Foto real: borde a borde y de arriba abajo. Ocupa todo porque existe. */
+.r360-rail__frame.is-foto { flex: 1; width: 100%; min-height: 0; }
 
-/* Render del proyecto: en un cuadro, siempre. */
+/* Render del proyecto: en un cuadro, siempre — pero centrado en su pantalla. */
+.r360-rail__pantalla--media > .r360-rail__render { justify-content: center; }
 .r360-rail__frame.is-render {
+  flex: none;
   margin: 0 16px;
   padding: 6px;
   border: 1px solid rgba(110, 168, 254, .55);
   border-radius: 6px;
   aspect-ratio: 3 / 2;
+  max-height: 72%;
   background-color: rgba(110, 168, 254, .06);
   cursor: default;
 }
-.r360-rail__frame.is-render img { border-radius: 3px; }
+.r360-rail__frame.is-render img { border-radius: 3px; object-fit: contain; }
 
 /* Push-in imperceptible de la apertura (spec §2): 1,00 → 1,06 en 8 s. */
 .r360-rail__frame.is-pushin img { animation: r360-pushin 8s ease-out forwards; }
 @keyframes r360-pushin { from { transform: scale(1); } to { transform: scale(1.06); } }
 
+/* La caption, SOBRE la foto, abajo, con el degradado de la bienvenida. */
+.r360-rail__caption--sobre {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 48px 16px 16px;
+  font-size: 14px;
+  color: #eef4fa;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .8);
+  background: linear-gradient(to top, rgba(6, 10, 15, .92) 10%, rgba(6, 10, 15, .35) 55%, rgba(6, 10, 15, 0));
+  pointer-events: none;
+}
+
 /* ------------------------------------------------------- chapa de procedencia */
-/* Va como caption, no como descargo legal: sin asterisco, sin letra chica gris. */
+/* Va como caption, no como descargo legal: sin asterisco, sin letra chica gris.
+   Y una vez por tramo, no una por foto (auditoría §2.13). */
 
 .r360-rail__chapa {
   position: absolute;
+  z-index: 4;
   max-width: calc(100% - 24px);
   display: inline-flex;
   align-items: center;
@@ -135,7 +211,7 @@
   cursor: help;
   backdrop-filter: blur(4px);
 }
-.r360-rail__chapa.is-foto { left: 12px; bottom: 12px; }
+.r360-rail__chapa.is-foto { left: 12px; top: 68px; bottom: auto; }
 .r360-rail__chapa.is-render {
   top: 12px;
   left: 12px;
@@ -148,8 +224,12 @@
 
 .r360-rail__tag {
   position: absolute;
-  top: 38%;
+  /* El horizonte de `04` está al 31-33 % del alto de la imagen; la píldora se
+     ancla justo encima para señalar la ciudad y no el bosque (auditoría
+     §2.10). Antes estaba al 38 %: debajo del skyline. */
+  top: var(--r360-punta-tag, 27%);
   left: 46%;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -162,7 +242,8 @@
   color: #fff;
   background: rgba(6, 10, 15, .68);
   border: 1px solid rgba(255, 255, 255, .35);
-  cursor: pointer;
+  cursor: zoom-in;
+  transition: opacity .3s ease, transform .3s ease;
 }
 .r360-rail__tag i {
   width: 8px;
@@ -178,15 +259,35 @@
   color: #c3d0dc;
 }
 
+/* Idea 2 — la Punta como protagonista: tocar la etiqueta acerca la cámara al
+   skyline sobre la imagen que YA está cargada (2000 px de ancho: a 2,5× sigue
+   nítida). Sin pedir un byte más. */
+.r360-rail__frame.is-punta img,
+.r360-rail__slide.is-punta img {
+  transition: transform .6s cubic-bezier(.22, .61, .36, 1), opacity .35s ease;
+  transform-origin: 50% var(--r360-punta-horizonte, 30%);
+}
+.r360-rail__frame.is-punta.is-cerca img,
+.r360-rail__slide.is-punta.is-cerca img { transform: scale(2.5); }
+/* Con la cámara acercada, la etiqueta ya cumplió: se corre para no tapar lo
+   que fue a mostrar. */
+.r360-rail__frame.is-cerca .r360-rail__tag,
+.r360-rail__slide.is-cerca .r360-rail__tag { top: auto; bottom: 84px; left: 12px; cursor: zoom-out; }
+
 /* --------------------------------------------- series (horizontal = hermanos) */
 
+.r360-rail__serie { position: relative; }
 .r360-rail__track {
   display: flex;
+  flex: 1;
+  min-height: 0;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   overscroll-behavior-x: contain;
+  cursor: grab;
 }
+.r360-rail__track:active { cursor: grabbing; }
 .r360-rail__track::-webkit-scrollbar { display: none; }
 .r360-rail__track:focus-visible { outline: 2px solid var(--r360-accent); outline-offset: -2px; }
 .r360-rail__slide {
@@ -194,34 +295,94 @@
   flex: 0 0 100%;
   width: 100%;
   margin: 0;
-  aspect-ratio: 3 / 2;
   scroll-snap-align: center;
   background-size: cover;
   background-position: center;
   cursor: zoom-in;
 }
+/* El pie de la serie (caption + contador) también va sobre la foto. */
 .r360-rail__seriepie {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   gap: 10px;
-  margin-top: 8px;
-  padding: 0 16px;
+  padding: 48px 16px 16px;
+  background: linear-gradient(to top, rgba(6, 10, 15, .92) 10%, rgba(6, 10, 15, .35) 55%, rgba(6, 10, 15, 0));
+  pointer-events: none;
 }
-.r360-rail__seriepie .r360-rail__caption { flex: 1; margin: 0; }
+.r360-rail__seriepie .r360-rail__caption {
+  flex: 1;
+  margin: 0;
+  color: #eef4fa;
+  font-size: 14px;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .8);
+}
 .r360-rail__contador {
   flex: none;
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  opacity: .6;
+  color: #cfdcea;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
 }
 
-/* Tira de ambientes: dónde estoy en la casa (y salto directo). */
+/* Flechas de escritorio: con mouse, una pista con la barra oculta era
+   irrecorrible (auditoría §2.17). En táctil no aparecen: ahí está el dedo. */
+.r360-rail__flecha {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  display: none;
+  place-items: center;
+  width: var(--r360-tap);
+  height: var(--r360-tap);
+  margin-top: calc(var(--r360-tap) / -2);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--r360-fg);
+  background: rgba(6, 10, 15, .72);
+  border: 1px solid var(--r360-border);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.r360-rail__flecha--prev { left: 10px; }
+.r360-rail__flecha--next { right: 10px; }
+.r360-rail__flecha[disabled] { opacity: .28; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .r360-rail__flecha { display: grid; }
+}
+
+/* Tira de ambientes: dónde estoy en la casa (y salto directo). Va sobre la
+   foto, arriba, y el degradado del borde derecho dice que sigue. */
+.r360-rail__tirawrap {
+  position: absolute;
+  top: 62px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+}
+.r360-rail__tirawrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 34px;
+  pointer-events: none;
+  background: linear-gradient(to left, rgba(6, 10, 15, .85), rgba(6, 10, 15, 0));
+}
 .r360-rail__tira {
   display: flex;
   gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
+  scroll-padding: 0 16px;
   padding: 0 16px 10px;
 }
 .r360-rail__tira::-webkit-scrollbar { display: none; }
@@ -234,15 +395,29 @@
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: #93a4b5;
-  background: rgba(255, 255, 255, .06);
-  border: 1px solid transparent;
+  color: #dbe6f1;
+  background: rgba(6, 10, 15, .6);
+  border: 1px solid rgba(255, 255, 255, .16);
   cursor: pointer;
+  backdrop-filter: blur(4px);
 }
 .r360-rail__amb.is-active {
-  color: var(--r360-fg);
-  background: rgba(31, 111, 235, .22);
+  color: #fff;
+  background: rgba(31, 111, 235, .85);
   border-color: var(--r360-accent);
+}
+
+/* --------------------------------------------------- deslizador antes/después */
+/* Nunca se veía entero con su caption: 563 px de alto en 581 de viewport
+   (auditoría §2.18). Se acota a ~70 % y la comparación entra completa. */
+/* Con el título del tramo flotando arriba, el deslizador se corre un poco
+   hacia abajo para que su rótulo "Hoy · foto real" no se le monte. */
+.r360-rail__pantalla--media > .r360-rail__slider { justify-content: center; padding-top: 56px; }
+.r360-rail__slider .r360-ba {
+  width: auto;
+  max-width: 100%;
+  max-height: 70%;
+  margin: 0 auto;
 }
 
 /* ------------------------------------------------------------------ acciones */
@@ -309,15 +484,23 @@
 .r360-rail__estados { margin: 0 0 4px; padding-left: 18px; font-size: 13px; line-height: 1.6; }
 .r360-rail__estados b { font-weight: 700; }
 
-.r360-rail__switch { margin-bottom: 20px; }
+/* Conmutador Proyecto/Hoy: las dos imágenes APILADAS y un fundido cruzado, no
+   un nodo que reemplaza a otro (auditoría §3). Que sean el mismo lugar tiene
+   que verse. */
+.r360-rail__switch { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .r360-rail__toggle {
+  position: absolute;
+  top: 62px;
+  left: 16px;
+  right: 16px;
+  z-index: 4;
   display: flex;
   gap: 4px;
-  margin: 0 16px 10px;
   padding: 3px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .06);
+  background: rgba(6, 10, 15, .66);
   border: 1px solid var(--r360-border);
+  backdrop-filter: blur(6px);
 }
 .r360-rail__toggle button {
   flex: 1;
@@ -326,13 +509,29 @@
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  color: #93a4b5;
+  color: #cfdcea;
   background: none;
   border: 0;
   cursor: pointer;
 }
 .r360-rail__toggle button.is-on { color: #fff; background: var(--r360-accent); }
-.r360-rail__switch-stage .r360-rail__card { margin-bottom: 0; }
+/* El conmutador y la chapa comparten la franja de arriba: la chapa baja para
+   que "Proyecto/Hoy" se lea entero. */
+.r360-rail__switch .r360-rail__chapa.is-foto,
+.r360-rail__switch .r360-rail__chapa.is-render { top: 122px; left: 16px; }
+.r360-rail__switch-stage { position: relative; flex: 1; min-height: 0; }
+.r360-rail__switch-stage > .r360-rail__card {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .45s ease;
+  pointer-events: none;
+}
+.r360-rail__switch-stage > .r360-rail__card.is-on { opacity: 1; pointer-events: auto; }
 
 .r360-rail__grid {
   display: grid;
@@ -363,38 +562,71 @@
 .r360-rail__unidad span { font-size: 10.5px; opacity: .65; }
 .r360-rail__unidad em { font-size: 11.5px; font-style: normal; font-weight: 700; }
 
+/* ---------------------------------------------------------------- el video */
+/* Ochenta y tres segundos de obra terminada filmada: la mejor pieza del lote.
+   Ocupa la pantalla, arranca sola y silenciada, y NUNCA es una puerta. */
+.r360-rail__video { position: relative; }
 .r360-rail__video video {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
+  object-fit: contain;
   background: #000;
+}
+.r360-rail__full {
+  position: absolute;
+  right: 12px;
+  top: 62px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--r360-tap);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(6, 10, 15, .72);
+  border: 1px solid rgba(255, 255, 255, .28);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
 }
 
 /* --------------------------------------------------------------- el riel/pie */
+/* El pie y las pestañas son la MISMA franja: seis puntos y "Siguiente". */
 
 .r360-rail__foot {
   flex: none;
-  padding: 8px 12px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--r360-nav-h);
+  padding: 0 10px;
+  padding-bottom: var(--r360-safe-b);
   background: rgba(13, 17, 23, .96);
   border-top: 1px solid var(--r360-border);
   backdrop-filter: blur(10px);
 }
 .r360-rail__dots {
+  flex: 1;
   display: flex;
   gap: 2px;
-  margin-bottom: 8px;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .r360-rail__dots::-webkit-scrollbar { display: none; }
 .r360-rail__dot {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 4px;
-  min-width: 52px;
-  min-height: 44px;
-  padding: 6px 2px;
+  min-width: 34px;
+  min-height: var(--r360-tap);
+  padding: 4px 2px;
   font: inherit;
   font-size: 10px;
   font-weight: 600;
@@ -403,27 +635,32 @@
   border: 0;
   cursor: pointer;
 }
+/* En 375 px, seis rótulos y un botón no entran en 60 px de alto y 375 de
+   ancho: quedan los puntos (con su `aria-label` intacto) y el rótulo vuelve
+   apenas hay lugar. */
+.r360-rail__dot span { display: none; }
 .r360-rail__dot i {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, .25);
   transition: background-color .15s ease, transform .15s ease;
 }
 .r360-rail__dot.is-done i { background: rgba(110, 168, 254, .6); }
 .r360-rail__dot.is-active { color: var(--r360-fg); }
-.r360-rail__dot.is-active i { background: var(--r360-accent); transform: scale(1.5); }
+.r360-rail__dot.is-active i { background: var(--r360-accent); transform: scale(1.6); }
 .r360-rail__next {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 48px;
-  padding: 10px 16px;
-  border-radius: 10px;
+  min-height: var(--r360-tap);
+  padding: 0 16px;
+  border-radius: 999px;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
+  white-space: nowrap;
   color: #fff;
   background: var(--r360-accent);
   border: 0;
@@ -443,44 +680,151 @@
 .r360-rail[hidden],
 .r360-rail [hidden] { display: none !important; }
 
+/* "Toque = entrar" tiene que ENTREGAR: la foto ampliada medía 343×229 contra
+   los 375×250 del riel — tocar para ampliar achicaba (auditoría §2.5). Ahora
+   es pantalla completa de verdad, con pinch-zoom y swipe entre hermanas. */
 .r360-rail__layer {
   position: fixed;
   inset: 0;
   z-index: 95;
+  display: block;
+  background: rgba(3, 6, 10, .98);
+}
+.r360-rail__layer-stage {
+  position: absolute;
+  inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 16px;
-  background: rgba(3, 6, 10, .95);
+  overflow: hidden;
+  touch-action: none;
 }
-.r360-rail__layer img { max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 4px; }
-.r360-rail__layer .r360-rail__chapa { position: static; align-self: flex-start; }
-.r360-rail__layer-caption { margin: 0; max-width: 40em; text-align: center; }
+.r360-rail__layer img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.r360-rail__layer .r360-rail__chapa {
+  top: auto;
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  left: 12px;
+}
+.r360-rail__layer-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 40px 16px calc(16px + env(safe-area-inset-bottom));
+  text-align: center;
+  color: #eef4fa;
+  background: linear-gradient(to top, rgba(3, 6, 10, .9), rgba(3, 6, 10, 0));
+  pointer-events: none;
+}
 .r360-rail__layer-close {
   position: absolute;
   top: max(16px, env(safe-area-inset-top));
   right: 16px;
+  z-index: 2;
   background: var(--r360-panel);
+}
+.r360-rail__layer-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: var(--r360-tap);
+  height: var(--r360-tap);
+  margin-top: calc(var(--r360-tap) / -2);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--r360-fg);
+  background: rgba(6, 10, 15, .72);
+  border: 1px solid var(--r360-border);
+  cursor: pointer;
+}
+.r360-rail__layer-nav--prev { left: 12px; }
+.r360-rail__layer-nav--next { right: 12px; }
+.r360-rail__layer-nav[disabled] { opacity: .28; pointer-events: none; }
+.r360-rail__layer-count {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  left: 16px;
+  z-index: 2;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #cfdcea;
+  background: rgba(6, 10, 15, .66);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .r360-rail__frame.is-pushin img { animation: none; }
   .r360-rail__frame img,
   .r360-rail__slide img,
+  .r360-rail__frame.is-punta img,
+  .r360-rail__slide.is-punta img,
+  .r360-rail__switch-stage > .r360-rail__card,
   .r360-rail__btn,
   .r360-rail__next,
   .r360-rail__dot i { transition: none !important; }
 }
 
-/* Escritorio: el riel no se estira a lo ancho de un monitor — el recorrido es
-   una columna de lectura, como en el teléfono, centrada. */
+/* Escritorio: el recorrido sigue siendo una columna de lectura, centrada, y
+   con el alto acotado para que la pieza entre entera con su caption. */
 @media (min-width: 720px) {
-  .r360-rail__scroll > * { max-width: 620px; margin-left: auto; margin-right: auto; }
-  .r360-rail__foot > .r360-rail__dots,
-  .r360-rail__foot > .r360-rail__next { max-width: 620px; margin-left: auto; margin-right: auto; }
+  .r360-rail__pantalla > *,
+  .r360-rail__pantalla--texto > * { max-width: 620px; margin-left: auto; margin-right: auto; }
+  .r360-rail__head { padding-left: max(16px, calc(50% - 310px)); padding-right: max(16px, calc(50% - 310px)); }
+  .r360-rail__foot > .r360-rail__dots { max-width: 460px; }
+  .r360-rail__dot { min-width: 60px; }
+  .r360-rail__dot span { display: block; }
   .r360-rail__frame.is-foto { border-radius: 10px; }
+  .r360-rail__slider .r360-ba { max-height: 62%; }
 }
 
 .r360-rail__otros-title { margin: 4px 16px 10px; font-size: 15px; }
+
+/* Título de una serie, sobre la primera foto (no le come alto a la imagen). */
+.r360-rail__serie-title {
+  position: absolute;
+  top: 62px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 0 16px;
+  font-size: 15px;
+  color: #eef4fa;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .85);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------- marca */
+/* Con el recorrido abierto la barra superior mostraba "Masterplan" —el nombre
+   de la escena que quedó debajo— y en ninguna pantalla aparecía el nombre del
+   proyecto (auditoría §2.8). El logo se resuelve contra el `tour.json`: cada
+   proyecto trae el suyo. */
+.r360-rail__marca {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  left: 12px;
+  z-index: 66;
+  display: flex;
+  align-items: center;
+  height: var(--r360-tap);
+  pointer-events: none;
+}
+.r360-rail__marca[hidden] { display: none !important; }
+.r360-rail__marca img { display: block; height: 17px; width: auto; opacity: .95; }
+.r360-rail__marca b { font-size: 15px; font-weight: 700; letter-spacing: .04em; }

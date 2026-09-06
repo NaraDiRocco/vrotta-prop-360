@@ -212,6 +212,29 @@ export function serieIndex(state: RailState, id: string, length: number): number
   return Math.min(Math.max(0, raw), Math.max(0, length - 1));
 }
 
+// ------------------------------------------------- el pie fusionado del riel
+
+/**
+ * El pie del riel y la barra de pestañas son UNA franja de ~60 px (auditoría
+ * §4, Idea 1): en 375×812 el chrome baja de 231 a 112 px y la foto pasa de 250
+ * a ~700. En esa franja no entra "Siguiente: el Bloque 2, construido →" al lado
+ * de seis puntos, así que el botón se rotula corto y el nombre del tramo que
+ * viene queda en el `aria-label`: quien ve la pantalla ya tiene el punto
+ * resaltado; quien la escucha necesita el nombre.
+ */
+export interface RailNextLabel {
+  /** Lo que se lee en el botón. */
+  label: string;
+  /** Lo que anuncia el lector de pantalla. */
+  aria: string;
+}
+
+export function railNextLabel(tramo: TramoId): RailNextLabel | null {
+  const next = TRAMOS[tramoIndex(tramo) + 1];
+  if (!next) return null;
+  return { label: 'Siguiente', aria: `Siguiente: ${next.asNext}` };
+}
+
 // ------------------------------------------------------ chapas de procedencia
 
 /**
@@ -279,6 +302,47 @@ export function chapaFor(p: Procedencia | undefined | null): Chapa | null {
     };
   }
   return null; // `ia`: no hay chapa fuera del deslizador.
+}
+
+export type ChapaKind = Chapa['kind'];
+
+/**
+ * La caption no repite lo que la chapa ya dice. Varias vienen del manifiesto
+ * cerradas con "Foto real, 2 sep 2026." y quedaban justo encima de la chapa
+ * "Foto real · 2 sep 2026" (auditoría §2.13). Se recorta esa frase final y
+ * nada más: el resto de la caption es del cliente y no se toca.
+ */
+export function captionSinChapa(caption: string | null | undefined): string | null {
+  if (!caption) return null;
+  const texto = caption.trim();
+  // Una caption que ES la chapa y nada más no deja nada que decir.
+  if (/^Foto real(\s*[·,]\s*[^.]*)?\.?$/i.test(texto)) return null;
+  // El signo de puntuación anterior es lo que distingue una frase FINAL
+  // agregada ("… Ruta 10. Foto real, 2 sep 2026.") de una caption que empieza
+  // hablando de la foto ("Foto real del living, sin muebles.").
+  const limpia = texto.replace(/([.!?])\s*Foto real[^.]*\.\s*$/i, '$1').trim();
+  return limpia || null;
+}
+
+/**
+ * ¿Se dibuja la chapa en esta pieza? La fecha como prueba funciona **una vez
+ * por tramo**; diecisiete veces seguidas es ruido (auditoría §2.13). La regla
+ * es: la primera pieza del tramo la lleva, y después sólo cuando cambia la
+ * NATURALEZA del material (foto → render → foto). `prev` es la naturaleza de
+ * la última pieza que sí llevó chapa; `null` al empezar cada tramo.
+ */
+export function chapaVisible(prev: ChapaKind | null, kind: ChapaKind | null): boolean {
+  return !!kind && kind !== prev;
+}
+
+/** La misma regla sobre una secuencia entera — es la que se prueba. */
+export function chapasVisibles(kinds: readonly (ChapaKind | null)[]): boolean[] {
+  let prev: ChapaKind | null = null;
+  return kinds.map((kind) => {
+    const show = chapaVisible(prev, kind);
+    if (show) prev = kind;
+    return show;
+  });
 }
 
 // ------------------------------------------------------ contenido por tramo
@@ -561,19 +625,95 @@ export function railCtaMessage(kind: RailCtaKind, ctx: RailCtaContext): string {
 export interface BloqueResumen {
   total: number;
   disponibles: number;
+  /** Cuántas están marcadas "próximamente": un bloque entero así NO está agotado. */
+  proximamente: number;
+  /** Cuántas ya pasaron por el mercado: vendidas, reservadas o bloqueadas. */
+  enVenta: number;
   desde: { a: number; c: string } | null;
 }
 
 export function resumenDeBloque(codes: readonly string[], availability: AvailabilityFile | null): BloqueResumen {
   let disponibles = 0;
+  let proximamente = 0;
+  let enVenta = 0;
   let desde: { a: number; c: string } | null = null;
   for (const code of codes) {
     const entry = availability?.units[code];
-    if (!entry || entry.s !== 'disponible') continue;
+    if (!entry) continue;
+    if (entry.s === 'proximamente') proximamente += 1;
+    if (entry.s === 'vendido' || entry.s === 'reservado' || entry.s === 'bloqueado') enVenta += 1;
+    if (entry.s !== 'disponible') continue;
     disponibles += 1;
     if (entry.p && (!desde || entry.p.a < desde.a)) desde = entry.p;
   }
-  return { total: codes.length, disponibles, desde };
+  return { total: codes.length, disponibles, proximamente, enVenta, desde };
+}
+
+/**
+ * La línea que se lee bajo el nombre del bloque. "Bloque 3 · 11 unidades · 0
+ * disponibles" se leía como AGOTADO cuando lo que pasa es que todavía no salió
+ * a la venta (auditoría §2.15): un bloque cuyas unidades están todas en
+ * "próximamente" lo dice con esa palabra, no con un cero.
+ */
+export function resumenLinea(r: BloqueResumen, desdeTexto: string | null): string {
+  const partes = [`${r.total} ${r.total === 1 ? 'unidad' : 'unidades'}`];
+  if (r.disponibles > 0) {
+    partes.push(`${r.disponibles} ${r.disponibles === 1 ? 'disponible' : 'disponibles'}`);
+    if (desdeTexto) partes.push(`desde ${desdeTexto}`);
+  } else if (r.proximamente > 0 && r.enVenta === 0) {
+    // Nadie compró nada porque todavía no se vende: no hace falta que TODAS
+    // tengan el dato (hoy a B3-K le falta el estado en `availability.json`) —
+    // alcanza con que ninguna esté vendida, reservada ni bloqueada.
+    partes.push('próximamente');
+  } else {
+    partes.push('sin unidades disponibles');
+  }
+  return partes.join(' · ');
+}
+
+// ------------------------------------------------------------ la Punta, cerca
+
+/**
+ * Las dos fotos donde el skyline de Punta del Este está a la vista (auditoría
+ * §4, Idea 2): la aérea del Tramo 1 y la de la terraza que cierra el paseo.
+ * Son las únicas del lote donde acercar la cámara tiene sentido, y sólo si el
+ * archivo tiene resolución de sobra: a 2000 px de ancho, 2,5× sigue nítido.
+ */
+const PUNTA_IDS: readonly string[] = [ID_SKYLINE_AEREO, ID_SKYLINE_TERRAZA];
+
+/** Ancho mínimo del original para poder acercar sin que se vea el pixel. */
+const PUNTA_ANCHO_MIN = 1600;
+
+export function esVistaDePunta(item: Pick<PhotoTourItem, 'id' | 'width'>): boolean {
+  return PUNTA_IDS.includes(item.id) && item.width >= PUNTA_ANCHO_MIN;
+}
+
+/**
+ * Dónde está el horizonte en cada una de esas dos fotos, como fracción del
+ * alto de la imagen. Son medidas, no gustos: la etiqueta se ancla justo
+ * encima del skyline y el acercamiento se centra en él. Estaban las dos
+ * clavadas al 38 % —debajo del horizonte, sobre los árboles (auditoría
+ * §2.10)— y el horizonte no está en el mismo lugar en las dos: la aérea mira
+ * la península desde arriba y la de la terraza, desde el nivel del bloque.
+ *
+ * Las dos entran a pantalla completa recortadas SÓLO en horizontal (son
+ * apaisadas en una pantalla vertical), así que la fracción de la imagen y la
+ * fracción de la caja coinciden.
+ */
+export interface PuntaAnclaje {
+  /** Alto al que se pone la píldora, para que señale la ciudad. */
+  etiqueta: number;
+  /** Centro del acercamiento. */
+  horizonte: number;
+}
+
+const PUNTA_ANCLAJES: Readonly<Record<string, PuntaAnclaje>> = {
+  [ID_SKYLINE_AEREO]: { etiqueta: 0.27, horizonte: 0.32 },
+  [ID_SKYLINE_TERRAZA]: { etiqueta: 0.4, horizonte: 0.45 },
+};
+
+export function puntaAnclaje(id: string): PuntaAnclaje | null {
+  return PUNTA_ANCLAJES[id] ?? null;
 }
 
 // ------------------------------------------------------------- la bienvenida
@@ -608,6 +748,18 @@ export function welcomePhotos(tour: TourManifest): { hero: PhotoTourItem | null;
     segunda: pick(items, ID_SKYLINE_TERRAZA),
   };
 }
+
+/**
+ * Lo que se lee cuando la bienvenida pasa a la segunda foto. La caption del
+ * manifiesto ("Desde esta terraza: Punta del Este sobre el mar. Sin retoque.")
+ * ocupa tres líneas de 26 px y, puesta como titular, empujaba los botones y
+ * dejaba "Sin retoque." como portada (auditoría §2.11). El titular NO cambia:
+ * esta línea entra debajo, corta, y la foto entra ya acercada al skyline.
+ */
+export const WELCOME_SEGUNDA_CAPTION = 'Desde la terraza de una unidad: Punta del Este.';
+
+/** Lugar, para el que llega desde un anuncio y no sabe dónde está parado. */
+export const WELCOME_LUGAR = 'Punta Ballena · Uruguay';
 
 /** Clave de la marca local "ya vi la bienvenida". Una sola, compartida. */
 export const WELCOME_SEEN_KEY = 'r360:bienvenida-vista';

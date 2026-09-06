@@ -347,3 +347,48 @@ body.r360-rail-open .r360-units-mount,
 body.r360-rail-open .r360-filmstrip,
 body.r360-rail-open .r360-hint,
 body.r360-rail-open .r360-bar__counter { display: none !important; }
+
+/*
+ * El pie del riel y la barra de pestañas eran DOS barras apiladas: 119 + 60 px
+ * de navegación sobre 812, el 22 % de la pantalla (auditoría §2.16 y §4, Idea
+ * 1). Mientras el recorrido está a la vista queda una sola franja de 60 px —la
+ * del riel, con los seis puntos y "Siguiente"—, y el plano y las unidades
+ * siguen a un toque desde adentro de cada tramo.
+ */
+body.r360-rail-open .r360-nav { display: none !important; }
+/*
+ * Y la barra superior dejaba de decir la verdad: mostraba "Masterplan", el
+ * nombre de la escena que quedó abajo. Con el riel abierto el nombre se
+ * esconde y en su lugar entra la marca del proyecto, que la dibuja el propio
+ * riel (`.r360-rail__marca`) porque es quien sabe dónde vive el logo.
+ */
+body.r360-rail-open .r360-scene-name { visibility: hidden; }
+
+/*
+ * `⎄` (U+2384, "símbolo de composición") no es un ícono de compartir: no lo
+ * es en ninguna tipografía del sistema (auditoría §2.8). Se reemplaza el
+ * glifo por una máscara con el ícono de verdad, sin tocar el marcado.
+ */
+.r360-share { font-size: 0; }
+.r360-share::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: var(--r360-icon-share) center / contain no-repeat;
+  mask: var(--r360-icon-share) center / contain no-repeat;
+}
+:root {
+  --r360-icon-share: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7'/%3E%3Cpath d='M12 15V3'/%3E%3Cpath d='m8 7 4-4 4 4'/%3E%3C/svg%3E");
+}
+
+/*
+ * "Ver las 9 unidades del Bloque 2" abría la hoja en `peek` (262 px) con la
+ * grilla a 600 px fuera de pantalla: el botón prometía unidades y mostraba un
+ * CTA (auditoría §2.4). La hoja DE BLOQUE —la única que trae grilla— abre
+ * directo a la altura donde la grilla se ve; la ficha de una unidad sigue
+ * conviviendo con el plano en `peek`.
+ */
+@media (max-width: 640px) {
+  .r360-panel[data-height="peek"]:has(.r360-units-grid) { height: 60vh; }
+}

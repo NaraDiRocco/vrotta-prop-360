@@ -16,7 +16,16 @@
  * no toca nada, el loop sigue y no pasa nada más.
  */
 import './welcome.css';
-import { TRAMOS, chapaFor, type TramoId } from './tour-rail.model.ts';
+import {
+  TRAMOS,
+  WELCOME_LUGAR,
+  WELCOME_SEGUNDA_CAPTION,
+  chapaFor,
+  esVistaDePunta,
+  puntaAnclaje,
+  type TramoId,
+} from './tour-rail.model.ts';
+import { MARCA_SVG, montarMarca } from './tour-rail.ts';
 import type { PhotoTourItem } from '@r360/core';
 import { escapeHtml } from './polygons.ts';
 
@@ -24,6 +33,13 @@ export interface WelcomeOptions {
   container: HTMLElement;
   /** Título grande: "El Bloque 2 ya está construido." */
   headline: string;
+  /**
+   * Nombre del proyecto, para el `alt` del logo y como respaldo en texto.
+   * Opcional: quien monta la bienvenida hoy (`ui.ts`) todavía no lo pasa y
+   * este pase no puede tocar ese archivo; sin él la marca es el logo y el
+   * lugar, que es lo que la auditoría pedía.
+   */
+  project?: string;
   hero: PhotoTourItem;
   segunda: PhotoTourItem | null;
   /** Resuelve una URL relativa al `tour.json`. */
@@ -56,7 +72,18 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
     fig.className = 'r360-welcome__shot';
     fig.style.backgroundImage = `url("${opts.resolve(f.thumbUrl)}")`;
     if (i === 0) fig.classList.add('is-on');
-    if (!reducedMotion()) fig.classList.add('is-pushin');
+    // La segunda foto entra YA ACERCADA al skyline (auditoría §4, Idea 2): en
+    // 375 px de ancho, la península era una franja gris de pocos píxeles. El
+    // archivo tiene 2000 px, así que el acercamiento sale de la imagen que ya
+    // está cargada y no cuesta un byte.
+    if (esVistaDePunta(f)) {
+      fig.classList.add('is-punta');
+      const ancla = puntaAnclaje(f.id);
+      // El acercamiento se centra en el horizonte MEDIDO de esa foto: si se
+      // centrara en el medio de la imagen, la pantalla se llenaría de cielo.
+      if (ancla) fig.style.setProperty('--r360-punta-horizonte', `${(ancla.horizonte * 100).toFixed(1)}%`);
+    }
+    else if (!reducedMotion()) fig.classList.add('is-pushin');
     const img = document.createElement('img');
     img.alt = '';
     img.decoding = 'async';
@@ -74,11 +101,21 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
     return { fig, item: f };
   });
 
+  // Marca y lugar: el que llega desde un anuncio no sabía dónde estaba
+  // parado — en toda la bienvenida no aparecía ni el logo ni "Punta Ballena"
+  // (auditoría §1 y §2.8).
+  const marca = document.createElement('div');
+  marca.className = 'r360-welcome__marca';
+  marca.innerHTML = `<span>${escapeHtml(WELCOME_LUGAR)}</span>`;
+  // El logo antes del lugar; si el archivo no está, queda el lugar solo.
+  montarMarca(marca, opts.resolve(MARCA_SVG), opts.project ?? '');
+
   const info = document.createElement('div');
   info.className = 'r360-welcome__info';
   const chapa = chapaFor(opts.hero.procedencia);
   info.innerHTML =
     `<h1>${escapeHtml(opts.headline)}</h1>` +
+    `<p class="r360-welcome__cap" hidden></p>` +
     (chapa ? `<p class="r360-welcome__chapa">${escapeHtml(chapa.text)}</p>` : '');
 
   const acciones = document.createElement('div');
@@ -105,21 +142,25 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
        </button>`,
   ).join('');
 
-  el.append(stage, info, acciones, riel);
+  el.append(stage, marca, info, acciones, riel);
   opts.container.appendChild(el);
   requestAnimationFrame(() => el.classList.add('is-on'));
 
   let timer: ReturnType<typeof setInterval> | null = null;
   let visible = 0;
+  const cap = info.querySelector<HTMLElement>('.r360-welcome__cap')!;
   if (capas.length > 1 && !reducedMotion()) {
     timer = setInterval(() => {
       capas[visible]!.fig.classList.remove('is-on');
       visible = (visible + 1) % capas.length;
       capas[visible]!.fig.classList.add('is-on');
-      const cap = capas[visible]!.item.caption;
-      const h1 = info.querySelector('h1');
-      if (visible > 0 && cap && h1) h1.textContent = cap;
-      else if (h1) h1.textContent = opts.headline;
+      // El TITULAR NO CAMBIA. Antes lo reemplazaba la caption entera del
+      // manifiesto —tres líneas de 26 px que empujaban los botones y dejaban
+      // "Sin retoque." de portada (auditoría §2.11)—; ahora el argumento
+      // comercial se queda arriba y la vista se anuncia en una línea corta.
+      const texto = visible > 0 ? WELCOME_SEGUNDA_CAPTION : '';
+      cap.textContent = texto;
+      cap.hidden = !texto;
     }, CROSSFADE_MS);
   }
 

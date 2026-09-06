@@ -49,7 +49,46 @@
 .r360-welcome__shot.is-pushin img { animation: r360-welcome-pushin 8s ease-out forwards; }
 @keyframes r360-welcome-pushin { from { transform: scale(1); } to { transform: scale(1.06); } }
 
+/* La foto de la Punta entra YA ACERCADA al skyline: en 375 px de ancho, la
+   península era una franja de píxeles grises sobre el mar (auditoría §4, Idea
+   2). El origen está en el horizonte, no en el centro de la imagen. */
+.r360-welcome__shot.is-punta img {
+  transform-origin: 50% var(--r360-punta-horizonte, 30%);
+  transform: scale(1.9);
+  animation: r360-welcome-punta 9s ease-out forwards;
+}
+@keyframes r360-welcome-punta { from { transform: scale(1.9); } to { transform: scale(2.05); } }
+
+/* Marca y lugar, arriba: quien llega desde un anuncio tiene que saber de qué
+   proyecto y de qué lugar le están hablando (auditoría §1). */
+.r360-welcome__marca {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: 20px;
+  right: 20px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.r360-welcome__marca img { display: block; height: 20px; width: auto; }
+.r360-welcome__marca b { font-size: 18px; font-weight: 700; letter-spacing: .05em; }
+.r360-welcome__marca span {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: #cfdcea;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .85);
+}
+
 .r360-welcome__info { position: relative; }
+.r360-welcome__cap {
+  margin: 0 0 6px;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #eef4fa;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .8);
+}
 .r360-welcome__info h1 {
   margin: 0 0 6px;
   font-size: 26px;
@@ -125,7 +164,11 @@
   .r360-welcome__info h1 { font-size: 34px; max-width: 14em; }
 }
 
+.r360-welcome [hidden] { display: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
   .r360-welcome, .r360-welcome__shot, .r360-welcome__shot img { transition: none !important; }
   .r360-welcome__shot.is-pushin img { animation: none; }
+  /* El acercamiento se queda: no es movimiento, es el encuadre de la foto. */
+  .r360-welcome__shot.is-punta img { animation: none; transform: scale(1.9); }
 }
