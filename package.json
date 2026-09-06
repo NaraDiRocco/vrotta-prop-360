@@ -7,7 +7,8 @@
     "dev:viewer": "pnpm --filter @r360/viewer dev",
     "dev:admin": "pnpm --filter @r360/admin dev",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "test:rls": "pnpm --dir supabase/tests/rls test"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
