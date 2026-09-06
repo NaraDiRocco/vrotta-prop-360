@@ -1536,7 +1536,10 @@
       "areaTotalM2": 163.42,
       "attrs": {
         "tipologia": "Dúplex",
-        "superficieCubiertaM2": 109.68
+        "superficieCubiertaM2": 109.68,
+        "numeroComercial": "201",
+        "plano3d": "./baleia/media/planos-3d/unidad-A-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-A.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-a-vf.webp",
@@ -1550,7 +1553,9 @@
       "areaTotalM2": 160.5,
       "attrs": {
         "tipologia": "Dúplex",
-        "superficieCubiertaM2": 107.76
+        "superficieCubiertaM2": 107.76,
+        "plano3d": "./baleia/media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-B.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-b-vf.webp",
@@ -1564,7 +1569,9 @@
       "areaTotalM2": 160.5,
       "attrs": {
         "tipologia": "Dúplex",
-        "superficieCubiertaM2": 107.76
+        "superficieCubiertaM2": 107.76,
+        "plano3d": "./baleia/media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-C.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-c-vf.webp",
@@ -1578,7 +1585,9 @@
       "areaTotalM2": 160.5,
       "attrs": {
         "tipologia": "Dúplex",
-        "superficieCubiertaM2": 107.76
+        "superficieCubiertaM2": 107.76,
+        "plano3d": "./baleia/media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-D.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-d-vf.webp",
@@ -1592,7 +1601,9 @@
       "areaTotalM2": 160.5,
       "attrs": {
         "tipologia": "Dúplex",
-        "superficieCubiertaM2": 107.76
+        "superficieCubiertaM2": 107.76,
+        "plano3d": "./baleia/media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-E.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-e-vf.webp",
@@ -1606,7 +1617,10 @@
       "areaTotalM2": 84.45,
       "attrs": {
         "tipologia": "1 dormitorio",
-        "superficieCubiertaM2": 54.15
+        "superficieCubiertaM2": 54.15,
+        "numeroComercial": "206",
+        "plano3d": "./baleia/media/planos-3d/unidad-F-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-F_B2-G.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidades-fyg-vf.webp",
@@ -1620,7 +1634,10 @@
       "areaTotalM2": 82.5,
       "attrs": {
         "tipologia": "1 dormitorio",
-        "superficieCubiertaM2": 60.05
+        "superficieCubiertaM2": 60.05,
+        "numeroComercial": "207",
+        "plano3d": "./baleia/media/planos-3d/unidad-G-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-F_B2-G.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidades-fyg-vf.webp",
@@ -1634,7 +1651,9 @@
       "areaTotalM2": 94.4,
       "attrs": {
         "tipologia": "1 dormitorio",
-        "superficieCubiertaM2": 52.62
+        "superficieCubiertaM2": 52.62,
+        "plano3d": "./baleia/media/planos-3d/unidad-H-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-H_B2-I.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidades-hei-vf.webp",
@@ -1648,7 +1667,9 @@
       "areaTotalM2": 86.85,
       "attrs": {
         "tipologia": "1 dormitorio",
-        "superficieCubiertaM2": 52.62
+        "superficieCubiertaM2": 52.62,
+        "plano3d": "./baleia/media/planos-3d/unidad-I-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-H_B2-I.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidades-hei-vf.webp",
@@ -1850,6 +1871,7 @@
       }
     }
   },
+  "brandLogo": "./baleia/marca/baleia-logo-blanco.svg",
   "contact": {
     "whatsapp": "+59895559230",
     "name": "Caetano Negocios Inmobiliarios"
