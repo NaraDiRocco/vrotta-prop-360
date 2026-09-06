@@ -18,11 +18,14 @@ import type {
   MaterialUploadVia,
 } from '../material/types.ts';
 import { generateShareToken } from '../material/share.ts';
+import { generateInvitationToken, hashInvitationToken } from '../invitations/token.ts';
+import { invitationStatus } from '../invitations/status.ts';
 import {
   completenessOf,
   type AdminClientSummary,
   type CreateUnitsOptions,
   type CreateUnitsResult,
+  type InvitationWithLink,
   type LeadListFilters,
   type MaterialShareContext,
   type NewGroupInput,
@@ -31,14 +34,18 @@ import {
   type NewProjectInput,
   type NewSceneInput,
   type NewTenantInput,
+  type NewTenantInvitationInput,
   type NewUnitInput,
   type NewUnitTypeInput,
   type Repo,
+  type SendInvitationEmailResult,
   type Structure,
 } from './repo.ts';
 import type {
   GroupRow,
   HealthRow,
+  InvitationPreview,
+  InvitationRow,
   JobRow,
   LeadPatch,
   LeadRow,
@@ -54,6 +61,7 @@ import type {
   SceneRow,
   SessionUser,
   StatusLogEntry,
+  TenantMemberRow,
   TenantRef,
   UnitPatch,
   UnitPrice,
@@ -650,6 +658,280 @@ export class SupabaseRepo implements Repo {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from('platform_members').delete().eq('user_id', userId);
     if (error) throw new Error(error.message);
+  }
+
+  /* ── Equipo de una inmobiliaria e invitaciones (P2c) ────────────────── */
+
+  private async tenantIdBySlug(tenantSlug: string): Promise<string | null> {
+    const { tenantId } = await this.projectQuery(tenantSlug);
+    return tenantId;
+  }
+
+  async listTenantMembers(tenantSlug: string): Promise<TenantMemberRow[]> {
+    const tenantId = await this.tenantIdBySlug(tenantSlug);
+    if (!tenantId) return [];
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from('memberships')
+      .select('id, user_id, role, created_at, membership_projects(project_id)')
+      .eq('tenant_id', tenantId)
+      .order('created_at');
+    if (error) throw new Error(error.message);
+
+    // Igual que `listPlatformMembers`: `memberships` no guarda el email,
+    // sólo `user_id`. Leer `auth.users` exige la Admin API.
+    const service = createServiceClient();
+    return Promise.all(
+      (data ?? []).map(async (raw) => {
+        const r = asRecord(raw);
+        const userId = String(r['user_id']);
+        const { data: userRes } = await service.auth.admin.getUserById(userId);
+        const projects = (r['membership_projects'] as Record<string, unknown>[] | null) ?? [];
+        return {
+          userId,
+          email: userRes.user?.email ?? '(sin email)',
+          role: (r['role'] as Role) ?? 'sales',
+          projectIds: projects.map((p) => String(p['project_id'])),
+          createdAt: String(r['created_at'] ?? ''),
+        };
+      }),
+    );
+  }
+
+  async updateTenantMember(
+    tenantSlug: string,
+    userId: string,
+    patch: { role?: Role; projectIds?: string[] },
+  ): Promise<void> {
+    const tenantId = await this.tenantIdBySlug(tenantSlug);
+    if (!tenantId) throw new Error(`No encontré el cliente «${tenantSlug}».`);
+    const supabase = await createSupabaseServerClient();
+
+    if (patch.role !== undefined) {
+      const { error } = await supabase
+        .from('memberships')
+        .update({ role: patch.role })
+        .eq('tenant_id', tenantId)
+        .eq('user_id', userId);
+      if (error) throw new Error(error.message);
+    }
+
+    if (patch.projectIds !== undefined) {
+      const { data: membership, error: findError } = await supabase
+        .from('memberships')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (findError) throw new Error(findError.message);
+      if (!membership) throw new Error('No encontré a esa persona en el equipo.');
+      const membershipId = String(asRecord(membership)['id']);
+
+      // Reemplazo completo: borrar y volver a insertar es más simple y más
+      // seguro que un diff fila por fila para una lista que como mucho
+      // tiene un puñado de proyectos.
+      const { error: delError } = await supabase
+        .from('membership_projects')
+        .delete()
+        .eq('membership_id', membershipId);
+      if (delError) throw new Error(delError.message);
+
+      if (patch.projectIds.length > 0) {
+        const { error: insError } = await supabase
+          .from('membership_projects')
+          .insert(patch.projectIds.map((projectId) => ({ membership_id: membershipId, project_id: projectId })));
+        if (insError) throw new Error(insError.message);
+      }
+    }
+  }
+
+  async removeTenantMember(tenantSlug: string, userId: string): Promise<void> {
+    const tenantId = await this.tenantIdBySlug(tenantSlug);
+    if (!tenantId) throw new Error(`No encontré el cliente «${tenantSlug}».`);
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from('memberships').delete().eq('tenant_id', tenantId).eq('user_id', userId);
+    if (error) throw new Error(error.message);
+  }
+
+  private toInvitation(raw: unknown, invitedByEmail: string | null): InvitationRow {
+    const r = asRecord(raw);
+    const acceptedAt = r['accepted_at'] ? String(r['accepted_at']) : null;
+    const revokedAt = r['revoked_at'] ? String(r['revoked_at']) : null;
+    const expiresAt = String(r['expires_at']);
+    return {
+      id: String(r['id']),
+      scope: (r['scope'] as InvitationRow['scope']) ?? 'tenant',
+      tenantId: r['tenant_id'] ? String(r['tenant_id']) : null,
+      role: (r['role'] as Role | null) ?? null,
+      platformRole: (r['platform_role'] as PlatformRole | null) ?? null,
+      projectIds: ((r['project_ids'] as string[] | null) ?? []).map(String),
+      email: String(r['email']),
+      invitedByEmail,
+      createdAt: String(r['created_at'] ?? ''),
+      expiresAt,
+      acceptedAt,
+      revokedAt,
+      status: invitationStatus({ acceptedAt, revokedAt, expiresAt }),
+    };
+  }
+
+  async listTenantInvitations(tenantSlug: string): Promise<InvitationRow[]> {
+    const tenantId = await this.tenantIdBySlug(tenantSlug);
+    if (!tenantId) return [];
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from('invitations')
+      .select('id, scope, tenant_id, role, platform_role, project_ids, email, invited_by, created_at, expires_at, accepted_at, revoked_at')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const service = createServiceClient();
+    return Promise.all(
+      (data ?? []).map(async (raw) => {
+        const r = asRecord(raw);
+        const invitedBy = r['invited_by'] ? String(r['invited_by']) : null;
+        let invitedByEmail: string | null = null;
+        if (invitedBy) {
+          const { data: userRes } = await service.auth.admin.getUserById(invitedBy);
+          invitedByEmail = userRes.user?.email ?? null;
+        }
+        return this.toInvitation(raw, invitedByEmail);
+      }),
+    );
+  }
+
+  async createTenantInvitation(
+    tenantSlug: string,
+    input: NewTenantInvitationInput,
+    invitedByUserId: string,
+  ): Promise<InvitationWithLink> {
+    const tenantId = await this.tenantIdBySlug(tenantSlug);
+    if (!tenantId) throw new Error(`No encontré el cliente «${tenantSlug}».`);
+    const supabase = await createSupabaseServerClient();
+
+    const token = generateInvitationToken();
+    const tokenHash = hashInvitationToken(token);
+    const normalized = input.email.trim().toLowerCase();
+
+    const { data, error } = await supabase
+      .from('invitations')
+      .insert({
+        scope: 'tenant',
+        tenant_id: tenantId,
+        role: input.role,
+        project_ids: input.projectIds,
+        email: normalized,
+        token_hash: tokenHash,
+        invited_by: invitedByUserId,
+      })
+      .select('id, scope, tenant_id, role, platform_role, project_ids, email, invited_by, created_at, expires_at, accepted_at, revoked_at')
+      .single();
+    if (error) throw new Error(error.message);
+
+    return { invitation: this.toInvitation(data, null), link: `/invite/${token}` };
+  }
+
+  async revokeInvitation(tenantSlug: string, invitationId: string): Promise<void> {
+    const tenantId = await this.tenantIdBySlug(tenantSlug);
+    if (!tenantId) throw new Error(`No encontré el cliente «${tenantSlug}».`);
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase
+      .from('invitations')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('id', invitationId)
+      .eq('tenant_id', tenantId);
+    if (error) throw new Error(error.message);
+  }
+
+  async resendInvitation(tenantSlug: string, invitationId: string): Promise<InvitationWithLink> {
+    const tenantId = await this.tenantIdBySlug(tenantSlug);
+    if (!tenantId) throw new Error(`No encontré el cliente «${tenantSlug}».`);
+    const supabase = await createSupabaseServerClient();
+
+    const { data: existing, error: findError } = await supabase
+      .from('invitations')
+      .select('accepted_at')
+      .eq('id', invitationId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+    if (findError) throw new Error(findError.message);
+    if (!existing) throw new Error('No encontré esa invitación.');
+    if (asRecord(existing)['accepted_at']) throw new Error('Esta invitación ya fue aceptada: no hace falta reenviarla.');
+
+    const token = generateInvitationToken();
+    const tokenHash = hashInvitationToken(token);
+
+    const { data, error } = await supabase
+      .from('invitations')
+      .update({
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        revoked_at: null,
+      })
+      .eq('id', invitationId)
+      .eq('tenant_id', tenantId)
+      .select('id, scope, tenant_id, role, platform_role, project_ids, email, invited_by, created_at, expires_at, accepted_at, revoked_at')
+      .single();
+    if (error) throw new Error(error.message);
+
+    return { invitation: this.toInvitation(data, null), link: `/invite/${token}` };
+  }
+
+  /**
+   * `inviteUserByEmail` es lo primero que se intenta: da de alta la cuenta Y
+   * dispara el mail de invitación desde el mailer de GoTrue (hoy sin SMTP
+   * configurado, así que en producción esto va a fallar hasta que se
+   * conecte Resend — ver nota en el plan). Si falla porque el email YA
+   * tiene cuenta, se intenta un magic link para esa cuenta existente en vez
+   * de dejar a esa persona sin ningún intento de aviso. Si ambos caminos
+   * fallan, se informa el motivo real: nunca se devuelve `sent: true` sin
+   * que la llamada a Supabase haya devuelto éxito de verdad.
+   */
+  async sendInvitationEmail(email: string, redirectUrl: string): Promise<SendInvitationEmailResult> {
+    const service = createServiceClient();
+
+    const { error: inviteError } = await service.auth.admin.inviteUserByEmail(email, { redirectTo: redirectUrl });
+    if (!inviteError) return { sent: true };
+
+    const looksLikeExistingUser = /already|registrad|existe/i.test(inviteError.message);
+    if (looksLikeExistingUser) {
+      const { error: linkError } = await service.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
+        options: { redirectTo: redirectUrl },
+      });
+      if (!linkError) return { sent: true };
+      return { sent: false, reason: linkError.message };
+    }
+
+    return { sent: false, reason: inviteError.message };
+  }
+
+  async resolveInvitationByToken(token: string): Promise<InvitationPreview | null> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc('invitation_preview', { p_token: token });
+    if (error) throw new Error(error.message);
+    const row = Array.isArray(data) ? asRecord(data[0]) : null;
+    if (!row || Object.keys(row).length === 0) return null;
+    return {
+      scope: (row['scope'] as InvitationPreview['scope']) ?? 'tenant',
+      tenantName: row['tenant_name'] ? String(row['tenant_name']) : null,
+      role: (row['role'] as Role | null) ?? null,
+      platformRole: (row['platform_role'] as PlatformRole | null) ?? null,
+      email: String(row['email'] ?? ''),
+    };
+  }
+
+  async acceptInvitation(token: string): Promise<{ scope: 'tenant' | 'platform'; tenantSlug: string | null }> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc('accept_invitation', { p_token: token });
+    if (error) throw new Error(error.message);
+    const result = asRecord(data);
+    return {
+      scope: (result['scope'] as 'tenant' | 'platform') ?? 'tenant',
+      tenantSlug: result['tenantSlug'] ? String(result['tenantSlug']) : null,
+    };
   }
 
   async createProject(tenantSlug: string, input: NewProjectInput): Promise<ProjectRow> {

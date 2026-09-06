@@ -14,14 +14,17 @@ import type { UnitStatus } from '@r360/core';
 import type { PublishSnapshot } from '../publish/diff.ts';
 import type {
   GroupRow,
+  InvitationRow,
   JobRow,
   LeadRow,
   PlatformMemberRow,
   PreviewTokenRow,
   ProjectRow,
+  Role,
   SceneRow,
   SessionUser,
   StatusLogEntry,
+  TenantMemberRow,
   UnitPrice,
   UnitRow,
   UnitTypeRow,
@@ -66,6 +69,22 @@ export interface MockDb {
    * `/admin/team` no arranca vacío en modo mock.
    */
   platformMembers: PlatformMemberRow[];
+  /**
+   * Equipo de la inmobiliaria (`memberships`), con `tenantId` de más (no
+   * viaja en `TenantMemberRow`: cada método ya recibe el `tenantSlug` y
+   * filtra por él, igual que `listMaterial(projectId)` no repite el
+   * `projectId` en cada fila). Sembrado con tres personas para que la
+   * pantalla de equipo se pueda probar sin Supabase: el demo (Administrador,
+   * es quien tiene la sesión) y dos cuentas ficticias.
+   */
+  tenantMembers: (TenantMemberRow & { tenantId: string })[];
+  /**
+   * Invitaciones pendientes/vencidas/revocadas. En mock el token viaja EN
+   * CLARO en `token` (nunca en producción, ver migración 0020): acá no hay
+   * infraestructura de hash que valga la pena simular, y nadie audita el
+   * mock buscando el token en un `select`.
+   */
+  invitations: (InvitationRow & { token: string })[];
 }
 
 const NOW = '2026-08-01T12:00:00.000Z';
@@ -650,6 +669,50 @@ function build(): MockDb {
         email: 'demo@recorrido360.local',
         role: 'admin',
         createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ],
+    tenantMembers: [
+      {
+        userId: '00000000-0000-0000-0000-0000000000ff',
+        tenantId: T,
+        email: 'demo@recorrido360.local',
+        role: 'owner',
+        projectIds: [],
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        userId: '00000000-0000-0000-0000-0000000000f1',
+        tenantId: T,
+        email: 'gestor.demo@baleia.local',
+        role: 'editor',
+        projectIds: [],
+        createdAt: '2026-02-10T00:00:00.000Z',
+      },
+      {
+        userId: '00000000-0000-0000-0000-0000000000f2',
+        tenantId: T,
+        email: 'vendedor.demo@baleia.local',
+        role: 'sales',
+        projectIds: [P_BALEIA],
+        createdAt: '2026-03-01T00:00:00.000Z',
+      },
+    ],
+    invitations: [
+      {
+        id: 'inv0000-0000-0000-0000-000000000001',
+        token: 'inv_demo_pendiente',
+        scope: 'tenant',
+        tenantId: T,
+        role: 'sales' as Role,
+        platformRole: null,
+        projectIds: [P_LOMAS],
+        email: 'nuevo.vendedor@baleia.local',
+        invitedByEmail: 'demo@recorrido360.local',
+        createdAt: '2026-08-30T00:00:00.000Z',
+        expiresAt: '2026-09-13T00:00:00.000Z',
+        acceptedAt: null,
+        revokedAt: null,
+        status: 'pendiente',
       },
     ],
   };

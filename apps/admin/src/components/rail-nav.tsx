@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Inbox, LayoutGrid } from 'lucide-react';
+import { Building2, Inbox, LayoutGrid, Users } from 'lucide-react';
 import type { Actor } from '@/lib/data/types.ts';
-import { isPlatform } from '@/lib/roles.ts';
+import { canInviteTenantUsers, isPlatform } from '@/lib/roles.ts';
 
 /**
  * Rail de secciones: icono + etiqueta permanente y estado activo visible.
@@ -17,12 +17,17 @@ import { isPlatform } from '@/lib/roles.ts';
  * Para un actor de plataforma se suma "Clientes", que vuelve a `/admin`: es
  * la puerta de salida de "estoy operando dentro de un cliente puntual" hacia
  * "estoy viendo todos los clientes".
+ *
+ * "Equipo" (`/t/[tenant]/team`) aparece con la misma capacidad que gatea la
+ * pantalla (`canInviteTenantUsers`): Administrador de la inmobiliaria o
+ * cualquier Vrotta Admin operando dentro de ese cliente.
  */
 export function RailNav({ tenant, actor }: { tenant: string; actor: Actor }) {
   const pathname = usePathname();
   const items = [
     { href: `/t/${tenant}/p`, label: 'Proyectos', Icon: LayoutGrid, show: true },
     { href: `/t/${tenant}/leads`, label: 'Leads', Icon: Inbox, show: true },
+    { href: `/t/${tenant}/team`, label: 'Equipo', Icon: Users, show: canInviteTenantUsers(actor) },
     { href: '/admin', label: 'Clientes', Icon: Building2, show: isPlatform(actor) },
   ].filter((item) => item.show);
 

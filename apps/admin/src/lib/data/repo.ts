@@ -19,6 +19,8 @@ import type {
 import type {
   GroupRow,
   HealthRow,
+  InvitationPreview,
+  InvitationRow,
   JobRow,
   LeadPatch,
   LeadRow,
@@ -29,9 +31,11 @@ import type {
   ProjectRow,
   PublicationRow,
   PublishState,
+  Role,
   SceneRow,
   SessionUser,
   StatusLogEntry,
+  TenantMemberRow,
   TenantRef,
   UnitPatch,
   UnitPrice,
@@ -53,6 +57,34 @@ export interface AdminClientSummary {
   pendingMaterialCount: number;
   /** `publishedAt` de la publicación más reciente entre todos sus proyectos, o null si ninguno publicó nunca. */
   lastPublishedAt: string | null;
+}
+
+/** Invitación nueva a la propia inmobiliaria (`scope='tenant'`). */
+export interface NewTenantInvitationInput {
+  email: string;
+  role: Role;
+  /** Vacío = sin restricción (acceso a todo el tenant). Sólo tiene sentido para `role: 'sales'`. */
+  projectIds: string[];
+}
+
+/**
+ * Lo que devuelve crear o reenviar una invitación: la fila para refrescar la
+ * lista, y el PATH con el token EN CLARO — la única vez que existe fuera de
+ * la cabeza de quien lo generó. El repo no lo vuelve a poder leer después de
+ * este momento (sólo se guarda el hash, ver migración 0020). Es un path
+ * relativo (`/invite/<token>`), no una URL absoluta: el repo no sabe en qué
+ * dominio corre el panel — eso lo agrega la ruta de API con `request.nextUrl.origin`.
+ */
+export interface InvitationWithLink {
+  invitation: InvitationRow;
+  link: string;
+}
+
+/** Resultado de intentar mandar el mail de invitación. Nunca lanza. */
+export interface SendInvitationEmailResult {
+  sent: boolean;
+  /** Motivo legible si `sent` es `false`, para mostrárselo a quien invitó. */
+  reason?: string;
 }
 
 export interface NewSceneInput {
@@ -305,6 +337,54 @@ export interface Repo {
   addPlatformMember(email: string, role: PlatformRole): Promise<PlatformMemberRow>;
   updatePlatformMemberRole(userId: string, role: PlatformRole): Promise<void>;
   removePlatformMember(userId: string): Promise<void>;
+
+  /* ── Equipo de una inmobiliaria e invitaciones (P2c) ──────────────────
+   * A diferencia de `platform_members` (arriba), acá SÍ existe invitar a
+   * alguien sin cuenta todavía: es lo que resuelve `invitations` (0020). */
+
+  /** Miembros actuales del tenant (`memberships`), con email resuelto. */
+  listTenantMembers(tenantSlug: string): Promise<TenantMemberRow[]>;
+  /** Cambiar rol y/o los proyectos asignados (sólo importa para `sales`). */
+  updateTenantMember(
+    tenantSlug: string,
+    userId: string,
+    patch: { role?: Role; projectIds?: string[] },
+  ): Promise<void>;
+  removeTenantMember(tenantSlug: string, userId: string): Promise<void>;
+
+  /** Invitaciones del tenant que todavía no fueron aceptadas ni son inútiles hace mucho: incluye vencidas/revocadas recientes para que la pantalla las muestre tachadas. */
+  listTenantInvitations(tenantSlug: string): Promise<InvitationRow[]>;
+  /** Crea la invitación. `invitedByUserId` es quien la emite (sesión actual). */
+  createTenantInvitation(
+    tenantSlug: string,
+    input: NewTenantInvitationInput,
+    invitedByUserId: string,
+  ): Promise<InvitationWithLink>;
+  /** Marca `revoked_at`. No borra la fila: se sigue viendo en la lista, tachada. */
+  revokeInvitation(tenantSlug: string, invitationId: string): Promise<void>;
+  /** Nuevo token y vencimiento para la MISMA invitación (mismo email y rol). */
+  resendInvitation(tenantSlug: string, invitationId: string): Promise<InvitationWithLink>;
+
+  /**
+   * Intenta mandar el mail de invitación. `redirectUrl` es ABSOLUTA (la
+   * arma la ruta de API con `request.nextUrl.origin` + `/auth/callback`):
+   * Supabase exige una URL completa para `inviteUserByEmail`/`generateLink`.
+   * Nunca lanza: el servidor de correo todavía no está configurado (se suma
+   * Resend en las próximas horas), así que esto casi siempre devuelve
+   * `{ sent: false, reason }` — y ESO ESTÁ BIEN: la invitación ya está
+   * creada, el link ya existe, el llamador siempre tiene qué mostrar aunque
+   * el mail no haya salido.
+   */
+  sendInvitationEmail(email: string, redirectUrl: string): Promise<SendInvitationEmailResult>;
+
+  /** Para `/invite/[token]`, SIN sesión: a qué tenant y con qué rol invita. null si el token no sirve más. */
+  resolveInvitationByToken(token: string): Promise<InvitationPreview | null>;
+  /**
+   * Acepta la invitación con la sesión actual (RPC `accept_invitation`).
+   * Lanza con el mensaje de la base (ya pensado para mostrar tal cual) si no
+   * se pudo: email distinto, vencida, revocada, ya aceptada.
+   */
+  acceptInvitation(token: string): Promise<{ scope: 'tenant' | 'platform'; tenantSlug: string | null }>;
 }
 
 export function isMockMode(): boolean {

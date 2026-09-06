@@ -26,11 +26,13 @@ import {
 } from '../material/mock-store.ts';
 import { isShareLinkUsable } from '../material/share.ts';
 import { latestPublishedAt, pendingMaterialCount } from '../admin/summary.ts';
+import { invitationStatus } from '../invitations/status.ts';
 import {
   completenessOf,
   type AdminClientSummary,
   type CreateUnitsOptions,
   type CreateUnitsResult,
+  type InvitationWithLink,
   type LeadListFilters,
   type MaterialShareContext,
   type NewGroupInput,
@@ -39,14 +41,18 @@ import {
   type NewProjectInput,
   type NewSceneInput,
   type NewTenantInput,
+  type NewTenantInvitationInput,
   type NewUnitInput,
   type NewUnitTypeInput,
   type Repo,
+  type SendInvitationEmailResult,
   type Structure,
 } from './repo.ts';
 import type {
   GroupRow,
   HealthRow,
+  InvitationPreview,
+  InvitationRow,
   JobRow,
   LeadPatch,
   LeadRow,
@@ -61,6 +67,7 @@ import type {
   SceneRow,
   SessionUser,
   StatusLogEntry,
+  TenantMemberRow,
   TenantRef,
   UnitPatch,
   UnitPrice,
@@ -403,6 +410,159 @@ export class MockRepo implements Repo {
   async removePlatformMember(userId: string): Promise<void> {
     const db = mockDb();
     db.platformMembers = db.platformMembers.filter((m) => m.userId !== userId);
+  }
+
+  /* ── Equipo de una inmobiliaria e invitaciones (P2c) ────────────────── */
+
+  private tenantIdOf(tenantSlug: string): string | null {
+    const membership = mockDb().user.memberships.find((m) => m.tenantSlug === tenantSlug);
+    return membership?.tenantId ?? null;
+  }
+
+  async listTenantMembers(tenantSlug: string): Promise<TenantMemberRow[]> {
+    const tenantId = this.tenantIdOf(tenantSlug);
+    if (!tenantId) return [];
+    return mockDb()
+      .tenantMembers.filter((m) => m.tenantId === tenantId)
+      .map(({ tenantId: _tenantId, ...rest }) => rest);
+  }
+
+  async updateTenantMember(
+    tenantSlug: string,
+    userId: string,
+    patch: { role?: Role; projectIds?: string[] },
+  ): Promise<void> {
+    const tenantId = this.tenantIdOf(tenantSlug);
+    const member = mockDb().tenantMembers.find((m) => m.tenantId === tenantId && m.userId === userId);
+    if (!member) throw new Error('No encontré a esa persona en el equipo.');
+    if (patch.role !== undefined) member.role = patch.role;
+    if (patch.projectIds !== undefined) member.projectIds = patch.projectIds;
+  }
+
+  async removeTenantMember(tenantSlug: string, userId: string): Promise<void> {
+    const tenantId = this.tenantIdOf(tenantSlug);
+    const db = mockDb();
+    db.tenantMembers = db.tenantMembers.filter((m) => !(m.tenantId === tenantId && m.userId === userId));
+  }
+
+  async listTenantInvitations(tenantSlug: string): Promise<InvitationRow[]> {
+    const tenantId = this.tenantIdOf(tenantSlug);
+    if (!tenantId) return [];
+    return mockDb()
+      .invitations.filter((i) => i.tenantId === tenantId)
+      .map(({ token: _token, ...rest }) => ({ ...rest, status: invitationStatus(rest) }));
+  }
+
+  async createTenantInvitation(
+    tenantSlug: string,
+    input: NewTenantInvitationInput,
+    invitedByUserId: string,
+  ): Promise<InvitationWithLink> {
+    const tenantId = this.tenantIdOf(tenantSlug);
+    if (!tenantId) throw new Error(`No encontré el cliente «${tenantSlug}».`);
+    const db = mockDb();
+    const normalized = input.email.trim().toLowerCase();
+    const invitedBy = db.user.id === invitedByUserId ? db.user.email : invitedByUserId;
+    const token = `inv_mock_${crypto.randomUUID().replace(/-/g, '')}`;
+    const row: InvitationRow & { token: string } = {
+      id: crypto.randomUUID(),
+      token,
+      scope: 'tenant',
+      tenantId,
+      role: input.role,
+      platformRole: null,
+      projectIds: input.projectIds,
+      email: normalized,
+      invitedByEmail: invitedBy,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      acceptedAt: null,
+      revokedAt: null,
+      status: 'pendiente',
+    };
+    db.invitations.push(row);
+    const { token: _t, ...invitation } = row;
+    return { invitation, link: `/invite/${token}` };
+  }
+
+  async revokeInvitation(tenantSlug: string, invitationId: string): Promise<void> {
+    const tenantId = this.tenantIdOf(tenantSlug);
+    const inv = mockDb().invitations.find((i) => i.id === invitationId && i.tenantId === tenantId);
+    if (!inv) throw new Error('No encontré esa invitación.');
+    inv.revokedAt = new Date().toISOString();
+  }
+
+  async resendInvitation(tenantSlug: string, invitationId: string): Promise<InvitationWithLink> {
+    const tenantId = this.tenantIdOf(tenantSlug);
+    const inv = mockDb().invitations.find((i) => i.id === invitationId && i.tenantId === tenantId);
+    if (!inv) throw new Error('No encontré esa invitación.');
+    inv.token = `inv_mock_${crypto.randomUUID().replace(/-/g, '')}`;
+    inv.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    inv.revokedAt = null;
+    const { token, ...invitation } = inv;
+    return { invitation: { ...invitation, status: invitationStatus(invitation) }, link: `/invite/${token}` };
+  }
+
+  async sendInvitationEmail(_email: string, _link: string): Promise<SendInvitationEmailResult> {
+    // En mock no hay servidor de correo ni tiene sentido simularlo: el
+    // circuito "sin mail, copiar el link" es justamente el que se puede
+    // probar acá sin configurar nada.
+    return { sent: false, reason: 'Modo mock: no se manda correo. Copiá el link de invitación.' };
+  }
+
+  async resolveInvitationByToken(token: string): Promise<InvitationPreview | null> {
+    const inv = mockDb().invitations.find((i) => i.token === token);
+    if (!inv) return null;
+    if (invitationStatus(inv) !== 'pendiente') return null;
+    const tenant = mockDb().user.memberships.find((m) => m.tenantId === inv.tenantId);
+    return {
+      scope: inv.scope,
+      tenantName: tenant?.tenantName ?? null,
+      role: inv.role,
+      platformRole: inv.platformRole,
+      email: inv.email,
+    };
+  }
+
+  async acceptInvitation(token: string): Promise<{ scope: 'tenant' | 'platform'; tenantSlug: string | null }> {
+    const db = mockDb();
+    const inv = db.invitations.find((i) => i.token === token);
+    if (!inv) throw new Error('Esta invitación no existe o ya no es válida.');
+    if (inv.revokedAt) throw new Error('Esta invitación fue revocada.');
+    if (inv.acceptedAt) throw new Error('Esta invitación ya fue aceptada.');
+    if (new Date(inv.expiresAt).getTime() <= Date.now()) {
+      throw new Error('Esta invitación venció. Pedí que te manden una nueva.');
+    }
+    if (inv.email !== db.user.email.toLowerCase()) {
+      throw new Error(`Esta invitación es para otra dirección de email (${inv.email}), no para ${db.user.email}.`);
+    }
+
+    if (inv.scope === 'tenant' && inv.tenantId) {
+      const existing = db.tenantMembers.find((m) => m.tenantId === inv.tenantId && m.userId === db.user.id);
+      if (!existing) {
+        db.tenantMembers.push({
+          userId: db.user.id,
+          tenantId: inv.tenantId,
+          email: db.user.email,
+          role: inv.role ?? 'sales',
+          projectIds: inv.projectIds,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } else if (inv.scope === 'platform' && inv.platformRole) {
+      if (!db.platformMembers.some((m) => m.userId === db.user.id)) {
+        db.platformMembers.push({
+          userId: db.user.id,
+          email: db.user.email,
+          role: inv.platformRole,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    inv.acceptedAt = new Date().toISOString();
+    const tenant = mockDb().user.memberships.find((m) => m.tenantId === inv.tenantId);
+    return { scope: inv.scope, tenantSlug: tenant?.tenantSlug ?? null };
   }
 
   async createProject(tenantSlug: string, input: NewProjectInput): Promise<ProjectRow> {

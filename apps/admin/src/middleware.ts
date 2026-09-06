@@ -12,8 +12,24 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
  *
  * `/signup`, `/forgot-password` y `/reset-password` son, junto con `/login`,
  * los únicos lugares del panel donde por definición todavía no hay sesión.
+ *
+ * `/invite` (y `/api/invitations`, que sólo resuelve el preview del token —
+ * aceptar sí exige sesión, lo valida el propio endpoint) tiene que mostrar
+ * a qué inmobiliaria invitaron a alguien ANTES de que esa persona inicie
+ * sesión: si el middleware lo mandara al login primero, no habría forma de
+ * mostrar ese mensaje sin loguearse a ciegas.
  */
-const PUBLIC_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password', '/auth', '/m', '/api/material'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/auth',
+  '/m',
+  '/api/material',
+  '/invite',
+  '/api/invitations',
+];
 
 /**
  * Renueva la sesión de Supabase en cada request y saca del panel a quien no

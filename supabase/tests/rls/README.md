@@ -58,12 +58,20 @@ panel. Es más lento que pgTAP, pero para 45 tests no importa (corre en
 - **Storage del bucket `material`**: aislamiento por carpeta de proyecto
   (un owner de A no ve ni puede subir dentro de la carpeta del proyecto
   de B).
+- **Invitaciones (`invitations`, migración 0020)**: aceptar con un email
+  distinto al de la invitación falla (no es transferible); aceptar una
+  invitación vencida falla; aceptar una revocada falla; aceptar dos veces
+  el mismo token no duplica el membership (idempotente: la segunda vez
+  falla porque ya tiene `accepted_at`); el token en claro no aparece en
+  ningún `select` de la tabla — ni con la sesión de un owner (RLS) ni con
+  el service client (la tabla, tal como la define 0020, ni siquiera tiene
+  una columna para guardarlo).
 
 Fuera de alcance a propósito: todo lo de la migración **0021** (la
-restrictiva, que le saca a la inmobiliaria estructura/escenas/publicar) y
-la tabla `invitations` de la **0020** — ninguna de las dos existe todavía
-en `supabase/migrations`. Cuando se escriban, este harness es el lugar
-natural para sumarles sus tests (el plan ya lo prevé como paso posterior).
+restrictiva, que le saca a la inmobiliaria estructura/escenas/publicar) —
+todavía no existe en `supabase/migrations`. Cuando se escriba, este
+harness es el lugar natural para sumarle sus tests (el plan ya lo prevé
+como paso posterior).
 
 ## Cómo correrlos
 

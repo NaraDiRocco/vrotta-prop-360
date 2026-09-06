@@ -19,8 +19,22 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createHash } from 'node:crypto';
 import { API_URL, ANON_KEY } from './lib/env.ts';
-import { buildScenario, svc, type Scenario } from './lib/fixtures.ts';
+import { buildScenario, insertOrThrow, svc, type Scenario } from './lib/fixtures.ts';
+
+/**
+ * Mismo algoritmo que `hashInvitationToken` en
+ * apps/admin/src/lib/invitations/token.ts (y que la RPC `accept_invitation`,
+ * vía `extensions.digest(p_token, 'sha256')`): sha256 en hex. Este harness
+ * no puede importar el código del panel (paquete/workspace separado, ver
+ * README.md), así que lo repite acá — si alguno de los tres diverge, estos
+ * tests lo detectan (el hash no matchearía y `accept_invitation` fallaría
+ * con "no existe").
+ */
+function hashToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex');
+}
 
 async function localSupabaseReachable(): Promise<boolean> {
   try {
@@ -579,6 +593,149 @@ describe.skipIf(!reachable)('RLS: roles de plataforma y de inmobiliaria (0009–
           { contentType: 'text/plain' },
         );
       expect(error).not.toBeNull();
+    });
+  });
+
+  // ── 10. Invitaciones (migración 0020) ────────────────────────────────────
+  // Los cinco casos del plan (§7): no transferible (email distinto), no
+  // vencida, no revocada, idempotente (aceptar dos veces no duplica
+  // membership) y el token en claro nunca aparece en un select. El alta de
+  // cada invitación se hace con el service client directamente sobre la
+  // tabla (svc bypassa RLS): no es lo que se está probando acá — lo que se
+  // prueba es la RPC `accept_invitation` y que `invitations` nunca devuelve
+  // el token.
+  describe('invitations (0020): accept_invitation y no-transferibilidad', () => {
+    let invitee: { userId: string; email: string; client: SupabaseClient };
+
+    beforeAll(async () => {
+      const email = `rls-invitee-${crypto.randomUUID()}@test.r360.local`;
+      const password = 'Test-P4ssword!';
+      const { data, error } = await svc.auth.admin.createUser({ email, password, email_confirm: true });
+      if (error || !data.user) throw new Error(`no pude crear la usuaria invitada: ${error?.message}`);
+      const client = createClient(API_URL, ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+      const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+      if (signInError) throw new Error(`no pude loguear a la invitada: ${signInError.message}`);
+      invitee = { userId: data.user.id, email, client };
+    });
+
+    afterAll(async () => {
+      await invitee.client.auth.signOut().catch(() => {});
+      await svc.auth.admin.deleteUser(invitee.userId).catch(() => {});
+    });
+
+    async function insertInvitation(overrides: {
+      email: string;
+      expiresAt?: string;
+      revokedAt?: string | null;
+    }) {
+      const token = `inv_test_${crypto.randomUUID()}`;
+      const row = await insertOrThrow('invitations', {
+        scope: 'tenant',
+        tenant_id: scenario.tenantA.tenantId,
+        role: 'editor',
+        project_ids: [],
+        email: overrides.email.toLowerCase(),
+        token_hash: hashToken(token),
+        expires_at: overrides.expiresAt ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        revoked_at: overrides.revokedAt ?? null,
+      });
+      return { token, row };
+    }
+
+    test('aceptar con un email distinto al de la invitación falla', async () => {
+      // La invitación es para `invitee.email`, pero quien la acepta es
+      // inmo_b_owner: sesiones distintas, emails distintos. No es
+      // transferible: reenviar el link a otra persona no le sirve.
+      const { token } = await insertInvitation({ email: invitee.email });
+      const { error } = await scenario.users.inmoBOwner.client.rpc('accept_invitation', { p_token: token });
+      expect(error).not.toBeNull();
+      expect(error?.message).toMatch(/otra dirección de email/i);
+
+      const { count } = await svc
+        .from('memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', scenario.tenantA.tenantId)
+        .eq('user_id', scenario.users.inmoBOwner.userId);
+      expect(count).toBe(0);
+    });
+
+    test('aceptar una invitación vencida falla', async () => {
+      const { token } = await insertInvitation({
+        email: invitee.email,
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      });
+      const { error } = await invitee.client.rpc('accept_invitation', { p_token: token });
+      expect(error).not.toBeNull();
+      expect(error?.message).toMatch(/venci/i);
+    });
+
+    test('aceptar una invitación revocada falla', async () => {
+      const { token } = await insertInvitation({
+        email: invitee.email,
+        revokedAt: new Date().toISOString(),
+      });
+      const { error } = await invitee.client.rpc('accept_invitation', { p_token: token });
+      expect(error).not.toBeNull();
+      expect(error?.message).toMatch(/revocada/i);
+    });
+
+    test('aceptar dos veces no duplica el membership (idempotente)', async () => {
+      const { token } = await insertInvitation({ email: invitee.email });
+
+      const { data: first, error: firstError } = await invitee.client.rpc('accept_invitation', { p_token: token });
+      expect(firstError, firstError?.message).toBeNull();
+      expect(first).toMatchObject({ scope: 'tenant' });
+
+      const { count: countAfterFirst } = await svc
+        .from('memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', scenario.tenantA.tenantId)
+        .eq('user_id', invitee.userId);
+      expect(countAfterFirst).toBe(1);
+
+      // Reintentar con el MISMO token: la invitación ya tiene accepted_at,
+      // así que la RPC rechaza en vez de insertar una segunda membership.
+      const { error: secondError } = await invitee.client.rpc('accept_invitation', { p_token: token });
+      expect(secondError).not.toBeNull();
+      expect(secondError?.message).toMatch(/ya fue aceptada/i);
+
+      const { count: countAfterSecond } = await svc
+        .from('memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', scenario.tenantA.tenantId)
+        .eq('user_id', invitee.userId);
+      expect(countAfterSecond).toBe(1);
+
+      // Limpieza: sacar a la invitada del tenant A para no interferir con
+      // otros tests de esta misma suite que cuentan miembros del tenant.
+      await svc.from('memberships').delete().eq('tenant_id', scenario.tenantA.tenantId).eq('user_id', invitee.userId);
+    });
+
+    test('el token en claro no aparece en ningún select de invitations', async () => {
+      const { token } = await insertInvitation({ email: `rls-plaintext-check-${crypto.randomUUID()}@test.r360.local` });
+
+      // inmo_a_owner SÍ puede leer invitaciones de su propio tenant (RLS
+      // `invitations_select`): es la lectura real que usa `/t/[tenant]/team`.
+      const { data, error } = await scenario.users.inmoAOwner.client.from('invitations').select('*');
+      expect(error, error?.message).toBeNull();
+      for (const row of data ?? []) {
+        expect(Object.keys(row)).not.toContain('token');
+        expect(Object.values(row)).not.toContain(token);
+      }
+
+      // Ni siquiera con la service key (que sí bypassa RLS) hay una columna
+      // `token`: la tabla, tal como la define la migración 0020, sólo tiene
+      // `token_hash`. Esto documenta que no es sólo la RLS la que oculta el
+      // token — es que nunca se escribió en ningún lado.
+      const { data: svcRow, error: svcError } = await svc
+        .from('invitations')
+        .select('*')
+        .eq('token_hash', hashToken(token))
+        .single();
+      expect(svcError, svcError?.message).toBeNull();
+      expect(svcRow).not.toHaveProperty('token');
+      expect(svcRow?.token_hash).toBe(hashToken(token));
+      expect(svcRow?.token_hash).not.toBe(token);
     });
   });
 });

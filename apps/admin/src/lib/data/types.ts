@@ -53,6 +53,57 @@ export interface TenantRef {
   name: string;
 }
 
+/* ── Equipo de una inmobiliaria e invitaciones (P2c) ──────────────────── */
+
+/**
+ * Un miembro actual de la inmobiliaria (`memberships`), con el email ya
+ * resuelto (igual que `PlatformMemberRow`: la tabla no lo guarda, sale de la
+ * Admin API). `projectIds` vacío significa "todos los proyectos del
+ * tenant" (ver `membership_projects` en 0002) — sólo importa de verdad para
+ * un Vendedor; para Administrador/Gestor siempre viene vacío porque nunca
+ * se les restringe.
+ */
+export interface TenantMemberRow {
+  userId: string;
+  email: string;
+  role: Role;
+  projectIds: string[];
+  createdAt: string;
+}
+
+export type InvitationScope = 'tenant' | 'platform';
+
+/**
+ * Una fila de `invitations`, recortada para el panel: nunca el hash del
+ * token (no tiene sentido mostrarlo, y exponerlo igualaría el riesgo de leer
+ * la tabla con el de leer el token en claro). `status` se deriva acá, no en
+ * la base, para no repetir la misma lógica de fechas en cada pantalla.
+ */
+export interface InvitationRow {
+  id: string;
+  scope: InvitationScope;
+  tenantId: string | null;
+  role: Role | null;
+  platformRole: PlatformRole | null;
+  projectIds: string[];
+  email: string;
+  invitedByEmail: string | null;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  status: 'pendiente' | 'aceptada' | 'vencida' | 'revocada';
+}
+
+/** Lo que ve `/invite/[token]` SIN sesión (RPC `invitation_preview`). */
+export interface InvitationPreview {
+  scope: InvitationScope;
+  tenantName: string | null;
+  role: Role | null;
+  platformRole: PlatformRole | null;
+  email: string;
+}
+
 export type ProjectKind = 'loteo' | 'edificio' | 'complejo' | 'mixto';
 
 export interface ProjectRow {

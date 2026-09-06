@@ -198,7 +198,8 @@ async function buildTenant(label: 'a' | 'b'): Promise<TenantFixture> {
   };
 }
 
-async function insertOrThrow(table: string, row: Record<string, unknown>) {
+/** Exportado: lo reutiliza rls.test.ts para sembrar filas de `invitations` directo con el service client. */
+export async function insertOrThrow(table: string, row: Record<string, unknown>) {
   const { data, error } = await svc.from(table).insert(row).select().single();
   if (error) throw new Error(`fixture: insert en ${table} falló: ${error.message}`);
   return data as { id: string } & Record<string, unknown>;
