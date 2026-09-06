@@ -9,28 +9,32 @@
  * la monta (`ui.ts`) decide qué hacer con cada toque.
  */
 
-export type NavTab = 'plan' | 'views' | 'units';
+/**
+ * `views` (la galería de renders) dejó de ser una pestaña: el recorrido
+ * guiado de seis tramos ocupa ese lugar (spec de experiencia §1, "el
+ * Recorrido reemplaza a Vistas"). Los renders no se pierden — viven dentro
+ * del Tramo 1 y del Tramo 3, enmarcados y etiquetados como proyecto, que es
+ * donde significan algo; sueltos en una grilla sólo competían con las fotos
+ * reales sin decir cuál era cuál.
+ */
+export type NavTab = 'tour' | 'plan' | 'units';
 
 export interface NavBarOptions {
   container: HTMLElement;
-  /** Cantidad de vistas (renders) para el contador de la pestaña. */
-  viewsCount: number;
   onSelect: (tab: NavTab) => void;
 }
 
 const TABS: ReadonlyArray<{ id: NavTab; icon: string; label: string }> = [
-  { id: 'plan', icon: '⌂', label: 'Plano' },
-  { id: 'views', icon: '▣', label: 'Vistas' },
+  { id: 'tour', icon: '⌂', label: 'Recorrido' },
+  { id: 'plan', icon: '▦', label: 'Plano' },
   { id: 'units', icon: '☰', label: 'Unidades' },
 ];
 
 export class NavBar {
   readonly el: HTMLElement;
-  private active: NavTab = 'plan';
-  private viewsCount: number;
+  private active: NavTab = 'tour';
 
   constructor(private readonly opts: NavBarOptions) {
-    this.viewsCount = opts.viewsCount;
     this.el = document.createElement('nav');
     this.el.className = 'r360-nav';
     this.el.setAttribute('aria-label', 'Navegación del recorrido');
@@ -55,13 +59,12 @@ export class NavBar {
   }
 
   private render(): void {
-    this.el.innerHTML = TABS.map((t) => {
-      const count = t.id === 'views' && this.viewsCount ? ` <b>${this.viewsCount}</b>` : '';
-      return `<button type="button" class="r360-nav__tab" data-tab="${t.id}" aria-current="false">
+    this.el.innerHTML = TABS.map(
+      (t) => `<button type="button" class="r360-nav__tab" data-tab="${t.id}" aria-current="false">
           <span class="r360-nav__icon" aria-hidden="true">${t.icon}</span>
-          <span class="r360-nav__label">${t.label}${count}</span>
-        </button>`;
-    }).join('');
+          <span class="r360-nav__label">${t.label}</span>
+        </button>`,
+    ).join('');
   }
 
   private onClick = (e: Event): void => {

@@ -49,6 +49,20 @@ import { Sheet, type SnapPoint } from './sheet.ts';
 // que ese módulo espera (ver su comentario de cabecera): esta ficha arma el
 // contexto y dibuja lo que `buildCta` le devuelve, sin reinventar el mensaje.
 import { buildCta, ctaContextFor, deepLink } from './contact.ts';
+// El recorrido guiado de seis tramos es una pieza propia (`tour-rail.ts` +
+// su modelo puro `tour-rail.model.ts`): esta capa sólo lo monta y le presta
+// dos cosas que ya sabe hacer — abrir la ficha de una unidad y volver al
+// plano. Ni un `if` del recorrido vive acá.
+import { mountTourRail, type TourRail } from './tour-rail.ts';
+import { mountWelcome, type WelcomeHandle } from './welcome.ts';
+import {
+  WELCOME_SEEN_KEY,
+  buildRailContent,
+  parseTramoHash,
+  shouldShowWelcome,
+  welcomePhotos,
+  type TramoId,
+} from './tour-rail.model.ts';
 
 export interface UiOptions {
   container: HTMLElement;
@@ -61,7 +75,7 @@ export interface UiOptions {
 }
 
 /** Capas que empujan historia; el orden de cierre es el orden inverso al de apertura. */
-type Layer = 'lightbox' | 'panel' | 'gallery' | 'units';
+type Layer = 'lightbox' | 'panel' | 'units';
 
 const THUMB = (url: string) => url.replace(/\.webp$/i, '.thumb.webp');
 const NUM = new Intl.NumberFormat('es-AR');
@@ -200,12 +214,12 @@ export class ViewerUi {
   private readonly shareBtn: HTMLButtonElement;
   private readonly counter: HTMLElement;
   private readonly filmstrip: HTMLElement;
-  private readonly gallery: HTMLElement;
   private readonly units: HTMLElement;
   private readonly panel: HTMLElement;
   private readonly lightbox: HTMLElement;
   private readonly nav: NavBar;
-  private readonly gallerySheet: Sheet;
+  private readonly rail: TourRail;
+  private welcome: WelcomeHandle | null = null;
   private readonly unitsSheet: Sheet;
   private readonly panelSheet: Sheet;
   private readonly base: URL;
@@ -225,10 +239,6 @@ export class ViewerUi {
         <button class="r360-btn r360-icon-btn r360-share" aria-label="Compartir">&#9092;</button>
       </div>
       <div class="r360-filmstrip" hidden></div>
-      <div class="r360-gallery r360-sheet" hidden>
-        <div class="r360-sheet__handle"><i></i></div>
-        <div class="r360-sheet__body r360-gallery__grid"></div>
-      </div>
       <div class="r360-units r360-sheet" hidden>
         <div class="r360-sheet__handle"><i></i></div>
         <div class="r360-sheet__body r360-units__list"></div>
@@ -245,23 +255,15 @@ export class ViewerUi {
     this.shareBtn = this.root.querySelector('.r360-share')!;
     this.counter = this.root.querySelector('.r360-bar__counter')!;
     this.filmstrip = this.root.querySelector('.r360-filmstrip')!;
-    this.gallery = this.root.querySelector('.r360-gallery')!;
     this.units = this.root.querySelector('.r360-units')!;
     this.panel = this.root.querySelector('.r360-panel')!;
     this.lightbox = this.root.querySelector('.r360-lightbox')!;
 
     this.nav = new NavBar({
       container: this.root,
-      viewsCount: this.galleryScenes().length,
       onSelect: (tab) => this.onNavSelect(tab),
     });
 
-    this.gallerySheet = new Sheet({
-      el: this.gallery,
-      handle: this.gallery.querySelector('.r360-sheet__handle')!,
-      snaps: SINGLE_SNAP(0.72),
-      onClose: () => this.onSheetGestureClose('gallery'),
-    });
     this.unitsSheet = new Sheet({
       el: this.units,
       handle: this.units.querySelector('.r360-sheet__handle')!,
@@ -275,8 +277,18 @@ export class ViewerUi {
       onClose: () => this.onSheetGestureClose('panel'),
     });
 
-    this.renderGallery(this.galleryScenes());
     this.renderUnitsTab();
+
+    this.rail = mountTourRail({
+      container: opts.container,
+      tour: opts.tour,
+      availability: opts.availability,
+      tourUrl: opts.tourUrl,
+      onOpenUnit: (code) => this.openUnit(code, undefined, { fresh: true }),
+      onOpenPlan: () => this.goPlan(),
+      onOpened: () => this.nav.setActive('tour'),
+      onClosed: () => this.nav.setActive('plan'),
+    });
 
     this.backBtn.addEventListener('click', () => this.go(this.opts.tour.start));
     this.shareBtn.addEventListener('click', () => this.share());
@@ -296,6 +308,7 @@ export class ViewerUi {
     // el controlador no puede enfocarla, pero la ficha sí puede abrirla.
     const { unitCode } = parseHash(location.hash);
     if (unitCode && opts.tour.units[unitCode]) this.openUnit(unitCode, undefined, { fresh: true });
+    this.openingSequence();
   }
 
   destroy(): void {
@@ -307,7 +320,8 @@ export class ViewerUi {
     this.opts.container.removeEventListener('touchstart', this.onSwipeStart);
     this.opts.container.removeEventListener('touchend', this.onSwipeEnd);
     this.nav.destroy();
-    this.gallerySheet.destroy();
+    this.rail.destroy();
+    this.welcome?.close();
     this.unitsSheet.destroy();
     this.panelSheet.destroy();
     this.pinch?.destroy();
@@ -317,12 +331,56 @@ export class ViewerUi {
   // ------------------------------------------------------------ navegación
 
   private onNavSelect(tab: NavTab): void {
-    if (tab === 'plan') { this.go(this.opts.tour.start); return; }
-    if (tab === 'views') { this.openGallery(); return; }
+    if (tab === 'tour') { this.rail.show(); return; }
+    if (tab === 'plan') { this.goPlan(); return; }
     this.openUnitsTab();
   }
 
-  private galleryScenes(): Scene[] {
+  /** El plano: cierra el recorrido guiado (sin tocar la historia) y vuelve al masterplan. */
+  private goPlan(): void {
+    this.rail.hideQuiet();
+    this.go(this.opts.tour.start);
+    this.nav.setActive('plan');
+  }
+
+  /**
+   * Qué se ve al llegar (spec §2). La bienvenida es fotografía real y no
+   * bloquea nada; se saltea en los tres casos que decide `shouldShowWelcome`,
+   * y ahí el visitante aterriza donde pidió: su tramo, su unidad, o el plano.
+   */
+  private openingSequence(): void {
+    const tramo = parseTramoHash(location.hash);
+    const { hero, segunda } = welcomePhotos(this.opts.tour);
+    let seen = false;
+    try { seen = localStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch { /* modo privado */ }
+
+    if (!hero || !shouldShowWelcome({ hash: location.hash, seen })) {
+      if (tramo) this.rail.show(tramo);
+      else this.nav.setActive('plan');
+      return;
+    }
+
+    const bloque = buildRailContent(this.opts.tour).bloque.bloque;
+    const marcarVista = () => {
+      try { localStorage.setItem(WELCOME_SEEN_KEY, '1'); } catch { /* modo privado */ }
+      this.welcome = null;
+    };
+    this.welcome = mountWelcome({
+      container: this.opts.container,
+      // La línea de apertura es un hecho verificable del material, no un
+      // eslogan: hay fotos del bloque terminado, con fecha.
+      headline: bloque ? `El ${bloque.label} ya está construido.` : `${this.opts.tour.project}, en fotos reales.`,
+      hero,
+      segunda,
+      resolve: (u) => this.resolve(u),
+      onStart: (t: TramoId) => { marcarVista(); this.rail.show(t); },
+      onPlan: () => { marcarVista(); this.goPlan(); },
+    });
+  }
+
+  /** Las escenas que no son el plano de arranque: los renders del proyecto,
+   *  para el contador "3/7" y la tira de puntos cuando se está adentro de uno. */
+  private otherScenes(): Scene[] {
     return [...this.opts.tour.scenes]
       .filter((s) => s.slug !== this.opts.tour.start)
       .sort((a, b) => a.sort - b.sort);
@@ -332,6 +390,7 @@ export class ViewerUi {
     // Una navegación explícita de escena colapsa cualquier hoja abierta: son
     // capas de la escena actual, no algo que sobreviva a cambiar de escena.
     this.closeAllLayers();
+    this.rail.hideQuiet();
     this.opts.controller.goTo(slug);
     this.syncScene();
   }
@@ -342,12 +401,12 @@ export class ViewerUi {
     const isStart = slug === this.opts.tour.start;
     this.sceneName.textContent = scene?.name ?? '';
     this.backBtn.hidden = isStart;
-    this.nav.setActive(isStart ? 'plan' : 'views');
+    this.nav.setActive(this.rail.isOpen ? 'tour' : 'plan');
     // En un render no hay polígonos: la leyenda de estados no explica nada
     // de lo que se está viendo, así que se guarda hasta volver al plano.
     document.body.classList.toggle('r360-no-legend', !isStart);
 
-    const scenes = this.galleryScenes();
+    const scenes = this.otherScenes();
     const idx = scenes.findIndex((s) => s.slug === slug);
     if (!isStart && idx >= 0) {
       this.counter.hidden = false;
@@ -378,44 +437,6 @@ export class ViewerUi {
       this.shareBtn.innerHTML = original;
       this.shareBtn.classList.remove('is-on');
     }, 1400);
-  }
-
-  // -------------------------------------------------------- galería (Vistas)
-
-  private renderGallery(scenes: Scene[]): void {
-    const grid = this.gallery.querySelector('.r360-gallery__grid')!;
-    grid.innerHTML = scenes
-      .map((s) => {
-        // Una escena de panorámica no trae `source.url`: su imagen vive
-        // troceada en tiles bajo `source.base`. Sin este caso la miniatura
-        // quedaba con `src` vacío y la galería mostraba un hueco justo para
-        // las escenas 360, que son las que más ganas dan de mirar.
-        // El pipeline emite `poster.webp` + `poster.thumb.webp` al lado de
-        // los tiles, con la misma convención de nombre que el resto.
-        const url =
-          'url' in s.source
-            ? this.resolve(s.source.url)
-            : this.resolve(`${s.source.base}/poster.webp`);
-        return `<button class="r360-thumb" data-slug="${escapeHtml(s.slug)}">
-            <img loading="lazy" alt="" src="${escapeHtml(THUMB(url))}"
-                 data-full="${escapeHtml(url)}" />
-            <span>${escapeHtml(s.name)}</span>
-          </button>`;
-      })
-      .join('');
-    for (const img of grid.querySelectorAll<HTMLImageElement>('img[data-full]')) {
-      img.addEventListener('error', () => { img.src = img.dataset.full!; }, { once: true });
-    }
-    grid.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLElement>('.r360-thumb');
-      if (btn?.dataset.slug) this.go(btn.dataset.slug);
-    });
-  }
-
-  private openGallery(): void {
-    this.pushLayer('gallery');
-    this.gallerySheet.open(0);
-    this.nav.setActive('views');
   }
 
   // ------------------------------------------------------- pestaña Unidades
@@ -756,13 +777,12 @@ export class ViewerUi {
   private hideLayer(name: Layer): void {
     if (name === 'lightbox') { this.closeLightboxUi(); }
     else if (name === 'panel') { this.panelSheet.close(); }
-    else if (name === 'gallery') { this.gallerySheet.close(); }
     else if (name === 'units') { this.unitsSheet.close(); }
   }
 
   private afterLayerClosed(name: Layer): void {
     if (name === 'panel') document.body.classList.remove('r360-panel-open');
-    if (name === 'gallery' || name === 'units') this.nav.setActive(this.opts.controller.slug === this.opts.tour.start ? 'plan' : 'views');
+    if (name === 'units') this.nav.setActive(this.rail.isOpen ? 'tour' : 'plan');
   }
 
   private closeAllLayers(): void {
@@ -845,7 +865,7 @@ export class ViewerUi {
     const dy = t.clientY - start.y;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
 
-    const scenes = this.galleryScenes();
+    const scenes = this.otherScenes();
     const idx = scenes.findIndex((s) => s.slug === this.opts.controller.slug);
     if (idx < 0) return;
     const nextIdx = dx < 0 ? idx + 1 : idx - 1;

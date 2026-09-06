@@ -174,3 +174,20 @@
 }
 
 .r360-cta:active { background: #1fb457; }
+
+/*
+ * En el teléfono el masterplan se muestra girado 90° (`plan-orientation.ts`):
+ * el extremo BAJO del terreno —donde están los amenities, contra la Ruta 10—
+ * queda en la franja inferior de la pantalla, que es exactamente donde vivía
+ * este chip. Tapaba el sector del que habla el Tramo 3. Se muda arriba, bajo
+ * la barra: ahí sólo pisa el borde del perímetro, y sigue en el campo visual
+ * del que acaba de abrir el plano.
+ */
+@media (max-width: 640px) {
+  .r360-hint {
+    top: calc(env(safe-area-inset-top) + 56px);
+    bottom: auto;
+    transform: translate(-50%, -12px);
+  }
+  .r360-hint.is-on { transform: translate(-50%, 0); }
+}

@@ -1,0 +1,477 @@
+/*
+ * El riel de seis tramos. Móvil primero: 375 px, una mano, todo lo tocable
+ * de 44 px para arriba y en el tercio inferior.
+ *
+ * La regla visual que ordena el archivo (spec §4): **foto y render nunca se
+ * ven igual**. La foto va a sangre (borde a borde, sin marco); el render va
+ * enmarcado, con margen y un filete de 1 px. Es una regla que se siente sin
+ * leerse — en dos tramos el visitante ya asocia "lo que está en un cuadro es
+ * proyecto".
+ */
+
+.r360-rail {
+  position: absolute;
+  /* Empieza DEBAJO de la barra superior (que sigue dando marca y compartir) y
+     TERMINA arriba de las pestañas: el riel es una capa del recorrido, no una
+     pantalla que se traga la navegación. */
+  top: calc(52px + env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  bottom: calc(var(--r360-nav-h) + var(--r360-safe-b));
+  z-index: 65; /* sobre la leyenda y los overlays del plano (60-62), bajo las hojas (70+) */
+  display: flex;
+  flex-direction: column;
+  background: var(--r360-bg);
+}
+
+.r360-rail__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 0 16px;
+}
+
+.r360-rail__head { padding: 4px 16px 10px; }
+.r360-rail__step {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: #7f95ab;
+}
+.r360-rail__head h2 { margin: 0; font-size: 21px; line-height: 1.2; letter-spacing: -.01em; }
+
+.r360-rail__card { margin: 0 0 20px; }
+.r360-rail__card h3 { margin: 0 16px 6px; font-size: 15px; line-height: 1.3; }
+.r360-rail__card > p { margin: 0 16px 8px; font-size: 13.5px; line-height: 1.5; }
+
+.r360-rail__lead { margin: 0 16px 12px; font-size: 14px; line-height: 1.5; }
+.r360-rail__lead--sep {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--r360-border);
+}
+.r360-rail__caption {
+  margin: 8px 16px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #c3d0dc;
+}
+.r360-rail__nota {
+  margin: 8px 16px 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  opacity: .7;
+}
+.r360-rail__nota--transicion {
+  margin-top: 4px;
+  padding: 10px 16px;
+  border-left: 2px solid var(--r360-accent);
+  opacity: .9;
+}
+
+/* ------------------------------------------------- foto (a sangre) y render */
+
+.r360-rail__frame {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  cursor: zoom-in;
+}
+.r360-rail__frame img,
+.r360-rail__slide img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .35s ease;
+}
+.r360-rail__frame img.is-on,
+.r360-rail__slide img.is-on { opacity: 1; }
+
+/* Foto real: borde a borde. Ocupa todo porque existe. */
+.r360-rail__frame.is-foto { width: 100%; }
+
+/* Render del proyecto: en un cuadro, siempre. */
+.r360-rail__frame.is-render {
+  margin: 0 16px;
+  padding: 6px;
+  border: 1px solid rgba(110, 168, 254, .55);
+  border-radius: 6px;
+  aspect-ratio: 3 / 2;
+  background-color: rgba(110, 168, 254, .06);
+  cursor: default;
+}
+.r360-rail__frame.is-render img { border-radius: 3px; }
+
+/* Push-in imperceptible de la apertura (spec §2): 1,00 → 1,06 en 8 s. */
+.r360-rail__frame.is-pushin img { animation: r360-pushin 8s ease-out forwards; }
+@keyframes r360-pushin { from { transform: scale(1); } to { transform: scale(1.06); } }
+
+/* ------------------------------------------------------- chapa de procedencia */
+/* Va como caption, no como descargo legal: sin asterisco, sin letra chica gris. */
+
+.r360-rail__chapa {
+  position: absolute;
+  max-width: calc(100% - 24px);
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  color: #fff;
+  background: rgba(6, 10, 15, .72);
+  border: 0;
+  cursor: help;
+  backdrop-filter: blur(4px);
+}
+.r360-rail__chapa.is-foto { left: 12px; bottom: 12px; }
+.r360-rail__chapa.is-render {
+  top: 12px;
+  left: 12px;
+  color: #d6e6ff;
+  border: 1px solid rgba(110, 168, 254, .5);
+}
+.r360-rail__chapa.is-expanded { font-weight: 500; max-width: calc(100% - 24px); }
+
+/* ------------------------------------------------------ etiqueta sobre la foto */
+
+.r360-rail__tag {
+  position: absolute;
+  top: 38%;
+  left: 46%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--r360-tap);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(6, 10, 15, .68);
+  border: 1px solid rgba(255, 255, 255, .35);
+  cursor: pointer;
+}
+.r360-rail__tag i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, .25);
+}
+.r360-rail__tagnote {
+  margin: 8px 16px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #c3d0dc;
+}
+
+/* --------------------------------------------- series (horizontal = hermanos) */
+
+.r360-rail__track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.r360-rail__track::-webkit-scrollbar { display: none; }
+.r360-rail__track:focus-visible { outline: 2px solid var(--r360-accent); outline-offset: -2px; }
+.r360-rail__slide {
+  position: relative;
+  flex: 0 0 100%;
+  width: 100%;
+  margin: 0;
+  aspect-ratio: 3 / 2;
+  scroll-snap-align: center;
+  background-size: cover;
+  background-position: center;
+  cursor: zoom-in;
+}
+.r360-rail__seriepie {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 0 16px;
+}
+.r360-rail__seriepie .r360-rail__caption { flex: 1; margin: 0; }
+.r360-rail__contador {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  opacity: .6;
+}
+
+/* Tira de ambientes: dónde estoy en la casa (y salto directo). */
+.r360-rail__tira {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 16px 10px;
+}
+.r360-rail__tira::-webkit-scrollbar { display: none; }
+.r360-rail__amb {
+  flex: none;
+  /* Es navegación, no decoración: entra en la regla de 44 px. */
+  min-height: var(--r360-tap);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #93a4b5;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.r360-rail__amb.is-active {
+  color: var(--r360-fg);
+  background: rgba(31, 111, 235, .22);
+  border-color: var(--r360-accent);
+}
+
+/* ------------------------------------------------------------------ acciones */
+
+.r360-rail__acciones {
+  display: grid;
+  gap: 8px;
+  margin: 0 16px 20px;
+}
+.r360-rail__acciones--pie {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--r360-border);
+}
+.r360-rail__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .1s ease, background-color .1s ease;
+}
+.r360-rail__btn:active { transform: scale(.98); }
+.r360-rail__btn.is-primary { color: #fff; background: var(--r360-accent); border: 1px solid var(--r360-accent); }
+.r360-rail__btn.is-ghost {
+  color: var(--r360-fg);
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid var(--r360-border);
+}
+.r360-rail__btn.is-wa { color: #06281a; background: var(--r360-wa); border: 1px solid var(--r360-wa); }
+
+/* ------------------------------------------------------------ piezas varias */
+
+.r360-rail__plan,
+.r360-rail__bloque,
+.r360-rail__cierre,
+.r360-rail__real,
+.r360-rail__falta {
+  margin: 0 16px 20px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--r360-border);
+}
+.r360-rail__plan > p,
+.r360-rail__plan h3,
+.r360-rail__bloque > p,
+.r360-rail__bloque h3,
+.r360-rail__cierre > p,
+.r360-rail__cierre h3,
+.r360-rail__real > p,
+.r360-rail__real h3,
+.r360-rail__falta > p,
+.r360-rail__falta h3 { margin-left: 0; margin-right: 0; }
+.r360-rail__plan .r360-rail__btn { margin-top: 12px; }
+
+.r360-rail__estados { margin: 0 0 4px; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.r360-rail__estados b { font-weight: 700; }
+
+.r360-rail__switch { margin-bottom: 20px; }
+.r360-rail__toggle {
+  display: flex;
+  gap: 4px;
+  margin: 0 16px 10px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid var(--r360-border);
+}
+.r360-rail__toggle button {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #93a4b5;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.r360-rail__toggle button.is-on { color: #fff; background: var(--r360-accent); }
+.r360-rail__switch-stage .r360-rail__card { margin-bottom: 0; }
+
+.r360-rail__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+}
+.r360-rail__unidad {
+  display: grid;
+  gap: 2px;
+  min-height: var(--r360-tap);
+  padding: 8px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--r360-border);
+  border-left: 3px solid #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.r360-rail__unidad[data-estado="disponible"] { border-left-color: #16A34A; }
+.r360-rail__unidad[data-estado="vendido"] { border-left-color: #DC2626; }
+.r360-rail__unidad[data-estado="reservado"] { border-left-color: #D97706; }
+.r360-rail__unidad[data-estado="bloqueado"] { border-left-color: #7C3AED; }
+.r360-rail__unidad[data-estado="proximamente"] { border-left-color: #0D9488; }
+.r360-rail__unidad b { font-size: 13px; }
+.r360-rail__unidad span { font-size: 10.5px; opacity: .65; }
+.r360-rail__unidad em { font-size: 11.5px; font-style: normal; font-weight: 700; }
+
+.r360-rail__video video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+/* --------------------------------------------------------------- el riel/pie */
+
+.r360-rail__foot {
+  flex: none;
+  padding: 8px 12px 10px;
+  background: rgba(13, 17, 23, .96);
+  border-top: 1px solid var(--r360-border);
+  backdrop-filter: blur(10px);
+}
+.r360-rail__dots {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.r360-rail__dots::-webkit-scrollbar { display: none; }
+.r360-rail__dot {
+  flex: 1 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 52px;
+  min-height: 44px;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  color: #64778c;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.r360-rail__dot i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .25);
+  transition: background-color .15s ease, transform .15s ease;
+}
+.r360-rail__dot.is-done i { background: rgba(110, 168, 254, .6); }
+.r360-rail__dot.is-active { color: var(--r360-fg); }
+.r360-rail__dot.is-active i { background: var(--r360-accent); transform: scale(1.5); }
+.r360-rail__next {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--r360-accent);
+  border: 0;
+  cursor: pointer;
+  transition: transform .1s ease;
+}
+.r360-rail__next:active { transform: scale(.98); }
+
+/* ----------------------------------------------------------- capa: foto grande */
+
+.r360-rail__layer {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(3, 6, 10, .95);
+}
+.r360-rail__layer img { max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 4px; }
+.r360-rail__layer .r360-rail__chapa { position: static; align-self: flex-start; }
+.r360-rail__layer-caption { margin: 0; max-width: 40em; text-align: center; }
+.r360-rail__layer-close {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  background: var(--r360-panel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .r360-rail__frame.is-pushin img { animation: none; }
+  .r360-rail__frame img,
+  .r360-rail__slide img,
+  .r360-rail__btn,
+  .r360-rail__next,
+  .r360-rail__dot i { transition: none !important; }
+}
+
+/* Escritorio: el riel no se estira a lo ancho de un monitor — el recorrido es
+   una columna de lectura, como en el teléfono, centrada. */
+@media (min-width: 720px) {
+  .r360-rail__scroll > * { max-width: 620px; margin-left: auto; margin-right: auto; }
+  .r360-rail__foot > .r360-rail__dots,
+  .r360-rail__foot > .r360-rail__next { max-width: 620px; margin-left: auto; margin-right: auto; }
+  .r360-rail__frame.is-foto { border-radius: 10px; }
+}
+
+.r360-rail__otros-title { margin: 4px 16px 10px; font-size: 15px; }

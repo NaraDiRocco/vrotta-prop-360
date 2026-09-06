@@ -260,8 +260,22 @@ const TRANSPARENT_PIXEL =
 
 // ----------------------------------------------------------------- controller
 
+/**
+ * Slugs que viven en el mismo espacio de hash que las escenas
+ * (`#/scene/llegada`) pero NO son escenas: son los tramos del recorrido
+ * guiado, que dibuja `tour-rail.ts`. El controlador tiene que ignorarlos en
+ * vez de "corregirlos" al masterplan — si no, entrar por el link de un tramo
+ * reescribía el hash y el visitante perdía la dirección que le mandaron.
+ * Quién es virtual lo decide quien monta el visor; este módulo no conoce el
+ * recorrido guiado.
+ */
+export interface SceneControllerOptions {
+  virtualSlugs?: readonly string[];
+}
+
 export class SceneController {
   private readonly scenes = new Map<string, Scene>();
+  private readonly virtual: Set<string>;
   private readonly bySceneId = new Map<string, Hotspot[]>();
   private pano: PanoramaRenderer | null = null;
   private plan: FloorplanRenderer | null = null;
@@ -272,8 +286,10 @@ export class SceneController {
     private readonly host: HTMLElement,
     private readonly tour: TourManifest,
     availability: AvailabilityFile | null,
+    opts: SceneControllerOptions = {},
   ) {
     this.availability = availability;
+    this.virtual = new Set(opts.virtualSlugs ?? []);
     for (const s of tour.scenes) this.scenes.set(s.slug, s);
     for (const h of tour.hotspots) {
       const list = this.bySceneId.get(h.sceneId) ?? [];
@@ -288,11 +304,17 @@ export class SceneController {
   /** Arranca en el hash si es válido; si no, en `tour.start`. */
   start(): void {
     const route = parseHash(location.hash);
+    // Un tramo del recorrido guiado: se monta la escena de arranque por
+    // debajo, pero el hash es del tramo y se deja intacto.
+    if (route.slug && this.virtual.has(route.slug)) {
+      this.goTo(this.tour.start, null, { keepHash: true });
+      return;
+    }
     const slug = route.slug && this.scenes.has(route.slug) ? route.slug : this.tour.start;
     this.goTo(slug, route.unitCode, { replaceHash: true });
   }
 
-  goTo(slug: string, unitCode: string | null = null, opts: { replaceHash?: boolean } = {}): void {
+  goTo(slug: string, unitCode: string | null = null, opts: { replaceHash?: boolean; keepHash?: boolean } = {}): void {
     const scene = this.scenes.get(slug);
     if (!scene) {
       console.warn(`[r360] Escena "${slug}" inexistente; se abre "${this.tour.start}".`);
@@ -318,7 +340,7 @@ export class SceneController {
     }
 
     const hash = buildHash(slug, unitCode);
-    if (location.hash !== hash) {
+    if (!opts.keepHash && location.hash !== hash) {
       if (opts.replaceHash) history.replaceState(null, '', hash);
       else history.pushState(null, '', hash);
     }
@@ -367,6 +389,7 @@ export class SceneController {
   private onHashChange = (): void => {
     const route = parseHash(location.hash);
     if (!route.slug) return;
+    if (this.virtual.has(route.slug)) return; // es un tramo, lo maneja el riel
     this.goTo(route.slug, route.unitCode, { replaceHash: true });
   };
 

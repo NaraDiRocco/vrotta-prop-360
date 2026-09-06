@@ -331,3 +331,19 @@ body.r360-no-legend #legend { display: none; }
   #legend { font-size: 11px; padding: 6px 8px; bottom: calc(var(--r360-nav-h) + var(--r360-safe-b) + 8px); }
   body.r360-panel-open #legend { display: none; }
 }
+
+/* --------------------------------------------------------- recorrido guiado */
+/*
+ * Mientras el riel de seis tramos está a la vista, el chrome del PLANO no
+ * tiene nada que hacer arriba de él: la leyenda de estados, el conmutador
+ * Estado/Precio y la tira de renders explican un mapa que en ese momento no
+ * se ve. Se esconden con una sola clase en `body` en vez de repartir
+ * `z-index` cada vez más altos.
+ */
+body.r360-rail-open #legend,
+body.r360-rail-open .r360-price-toggle,
+body.r360-rail-open .r360-price-legend,
+body.r360-rail-open .r360-units-mount,
+body.r360-rail-open .r360-filmstrip,
+body.r360-rail-open .r360-hint,
+body.r360-rail-open .r360-bar__counter { display: none !important; }

@@ -22,11 +22,13 @@ import '@photo-sphere-viewer/markers-plugin/index.css';
 import './styles.css';
 import './boot.css';
 
-import { STATUS_TOKENS, UNIT_STATUSES, type AvailabilityFile, type Scene, type TourManifest } from '@r360/core';
+import { STATUS_TOKENS, type AvailabilityFile, type Scene, type TourManifest } from '@r360/core';
 import { AvailabilityPoller } from './availability.ts';
 import { SceneController, buildHash, parseHash, type UnitClickPayload } from './scenes.ts';
 import { shouldRotate } from './plan-orientation.ts';
-import { formatPrice } from './polygons.ts';
+import { showOrientationChip } from './orientation-hint.ts';
+import { legendStatuses } from './legend.ts';
+import { TRAMO_SLUGS, parseTramoHash, shouldShowWelcome, welcomePhotos, WELCOME_SEEN_KEY } from './tour-rail.model.ts';
 
 export interface ViewerOptions {
   container: HTMLElement;
@@ -78,7 +80,16 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
   boot.setName(tour.project);
   const startScene = tour.scenes.find((s) => s.slug === tour.start) ?? tour.scenes[0];
   const planUrl = startScene && 'url' in startScene.source ? startScene.source.url : null;
-  if (planUrl && startScene && 'width' in startScene.source) {
+  // Lo primero que se ve es la BIENVENIDA, y la bienvenida es fotografía real
+  // (spec §2): el arranque desenfoca esa misma foto y mide esa misma descarga
+  // (~365 KB), no el masterplan de 1 MB que todavía no le hace falta a nadie.
+  // Sin `photoTour` en el manifiesto, se cae al comportamiento de siempre.
+  const heroUrl = welcomePhotos(tour).hero;
+  if (heroUrl) {
+    const abs = (u: string) => new URL(u, new URL(tourUrl, location.href)).href;
+    boot.setThumb(abs(heroUrl.thumbUrl), false);
+    await fetchWithProgress(abs(heroUrl.url), (v) => boot.setProgress(v));
+  } else if (planUrl && startScene && 'width' in startScene.source) {
     boot.setThumb(
       thumbUrl(planUrl),
       shouldRotate(startScene.source.width, startScene.source.height, container.clientWidth, container.clientHeight),
@@ -93,7 +104,10 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
     boot.indeterminate();
   }
 
-  const controller = new SceneController(container, tour, availability);
+  // Los seis tramos del recorrido guiado comparten el espacio de hash con las
+  // escenas (`#/scene/llegada`): el controlador los conoce como virtuales para
+  // no "corregirlos" al masterplan y romper el link que alguien compartió.
+  const controller = new SceneController(container, tour, availability, { virtualSlugs: TRAMO_SLUGS });
   controller.start();
 
   // Deep link a una unidad: aterrizar EN esa unidad, con zoom puesto. Es el
@@ -150,13 +164,22 @@ const thumbUrl = (url: string) => url.replace(/\.webp$/i, '.thumb.webp');
 /**
  * La leyenda se genera desde STATUS_TOKENS, nunca a mano: si el color de la
  * leyenda y el del polígono divergen, el visitante deja de confiar en el mapa.
+ *
+ * Y muestra SÓLO los estados que están en el plano (`legend.ts`): antes salían
+ * los cinco del contrato aunque el proyecto usara dos, y una leyenda que
+ * nombra colores que no existen en el mapa enseña mal el mapa. Se repinta con
+ * cada refresco de disponibilidad, porque el conjunto de estados presentes
+ * cambia cuando se vende o se libera una unidad.
  */
-function renderLegend(el: HTMLElement, tour: TourManifest): void {
-  el.innerHTML = UNIT_STATUSES.map((s) => {
-    const base = tour.theme?.states?.[s]?.base ?? STATUS_TOKENS[s].base;
-    return `<span><i style="background:${base}"></i>${STATUS_TOKENS[s].label}</span>`;
-  }).join('');
-  el.hidden = false;
+function renderLegend(el: HTMLElement, tour: TourManifest, availability: AvailabilityFile | null): void {
+  const statuses = legendStatuses(availability);
+  el.innerHTML = statuses
+    .map((s) => {
+      const base = tour.theme?.states?.[s]?.base ?? STATUS_TOKENS[s].base;
+      return `<span><i style="background:${base}"></i>${STATUS_TOKENS[s].label}</span>`;
+    })
+    .join('');
+  el.hidden = statuses.length === 0;
 }
 
 // ------------------------------------------------------------------ arranque
@@ -295,64 +318,6 @@ async function landOnDeepLink(
 
 const isPlanScene = (s: Scene) => s.kind === 'floorplan' || s.kind === 'map';
 
-// ------------------------------------------------------ chip de orientación
-
-/**
- * "5 bloques · 20 unidades · Tocá un bloque". El único onboarding del
- * recorrido: dice el tamaño de lo que hay y el gesto que lo abre, y se va solo.
- *
- * No aparece cuando el visitante llegó por un deep link de unidad: el destino
- * ya está decidido y explicarle el mapa sería ruido sobre la ficha que acaba
- * de abrirse.
- */
-function showOrientationChip(container: HTMLElement, tour: TourManifest, availability: AvailabilityFile | null): void {
-  if (parseHash(location.hash).unitCode) return;
-
-  const start = tour.scenes.find((s) => s.slug === tour.start);
-  const blocks = new Set(
-    tour.hotspots.filter((h) => h.sceneId === start?.id && h.unitCode).map((h) => h.unitCode!),
-  );
-  // Las entradas de `units` que agrupan a otras (un bloque) no son unidades
-  // vendibles: contarlas dos veces inflaría el número que le mostramos.
-  const units = Object.values(tour.units).filter((u) => !Array.isArray(u.attrs?.unitCodes)).length;
-  const parts: string[] = [];
-  if (blocks.size) parts.push(`<b>${blocks.size}</b> bloques`);
-  if (units) parts.push(`<b>${units}</b> unidades`);
-  if (!parts.length) return;
-
-  // "desde USD …" con el mínimo de los precios públicos disponibles: es lo
-  // primero que un comprador quiere saber, y mostrarlo de entrada filtra a
-  // favor. Si ningún precio es público, no se inventa nada y no va la línea.
-  const from = cheapestAvailable(availability);
-  if (from) parts.push(`desde <b>${formatPrice(from)}</b>`);
-  parts.push('Tocá un bloque para ver sus unidades');
-
-  const chip = document.createElement('div');
-  chip.className = 'r360-hint';
-  chip.setAttribute('role', 'status');
-  chip.innerHTML = parts.join(' · ');
-  container.appendChild(chip);
-  requestAnimationFrame(() => chip.classList.add('is-on'));
-
-  const dismiss = () => {
-    chip.classList.remove('is-on');
-    clearTimeout(timer);
-    container.removeEventListener('pointerdown', dismiss);
-    setTimeout(() => chip.remove(), 350);
-  };
-  const timer = setTimeout(dismiss, 5000);
-  container.addEventListener('pointerdown', dismiss, { once: true });
-}
-
-function cheapestAvailable(availability: AvailabilityFile | null): { a: number; c: string } | null {
-  let best: { a: number; c: string } | null = null;
-  for (const entry of Object.values(availability?.units ?? {})) {
-    if (entry.s !== 'disponible' || !entry.p) continue;
-    if (!best || entry.p.a < best.a) best = entry.p;
-  }
-  return best;
-}
-
 // Auto-arranque cuando la página trae #app (build standalone del visor).
 const root = document.getElementById('app');
 if (root) {
@@ -362,7 +327,10 @@ if (root) {
   const tourUrl = new URLSearchParams(location.search).get('tour') ?? './tour.json';
   mountViewer({ container: root, tourUrl }).then((handle) => {
     (window as unknown as Record<string, unknown>).r360 = handle;
-    if (legend) renderLegend(legend, handle.tour);
+    if (legend) {
+      renderLegend(legend, handle.tour, handle.poller.value);
+      root.addEventListener('r360:availability', () => renderLegend(legend, handle.tour, handle.poller.value));
+    }
     // La interfaz (galería, ficha de unidad, lightbox) se monta sólo en el
     // build standalone: un embed puede querer el recorrido pelado y poner su
     // propia UI escuchando `r360:unit-click`.
@@ -375,7 +343,16 @@ if (root) {
         tourUrl,
       }),
     );
-    showOrientationChip(root, handle.tour, handle.poller.value);
+    // El chip explica el plano: sólo se muestra cuando lo primero que se ve
+    // ES el plano. Si abre la bienvenida o un tramo del recorrido, el chip
+    // sería un cartel detrás de otra pantalla.
+    let vista = false;
+    try { vista = localStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch { /* modo privado */ }
+    const aterrizaEnElPlano =
+      !parseTramoHash(location.hash) &&
+      !parseHash(location.hash).unitCode &&
+      (!welcomePhotos(handle.tour).hero || !shouldShowWelcome({ hash: location.hash, seen: vista }));
+    if (aterrizaEnElPlano) showOrientationChip(root, handle.tour, handle.poller.value);
     root.addEventListener('r360:unit-click', (e) => {
       const d = (e as CustomEvent<UnitClickPayload>).detail;
       console.info('[r360] unidad seleccionada', d.unitCode, d.facts);
