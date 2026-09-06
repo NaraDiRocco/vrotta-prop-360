@@ -542,6 +542,9 @@ function build(): MockDb {
       id: '00000000-0000-0000-0000-0000000000ff',
       email: 'demo@recorrido360.local',
       memberships: [{ tenantId: T, tenantSlug: 'baleia', tenantName: 'Baleia', role: 'owner' }],
+      // El rol con el que se ve el panel en modo mock lo decide
+      // NEXT_PUBLIC_R360_MOCK_ACTOR, que lo aplica MockRepo.getSession().
+      platformRole: null,
     },
     projects: [
       {

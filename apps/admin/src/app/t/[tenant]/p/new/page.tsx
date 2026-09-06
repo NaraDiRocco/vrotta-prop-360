@@ -1,6 +1,6 @@
 import { AppShell } from '@/components/app-shell.tsx';
 import { NewProjectScreen } from '@/components/onboarding/new-project-screen.tsx';
-import { canEditStructure, requireAdmin } from '@/lib/auth.ts';
+import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { notFound } from 'next/navigation';
 
@@ -20,7 +20,12 @@ export default async function NewProjectPage({
   const { tenant } = await params;
   const { project: projectSlug, panel } = await searchParams;
   const { membership } = await requireAdmin(tenant);
-  if (!canEditStructure(membership.role)) notFound();
+  // P2a: acá va `canEditStructure(actor)`. Mientras tanto el panel sigue
+  // mostrando la estructura a Administrador y Gestor, igual que hasta hoy:
+  // la base recién se la cierra en 0021, después de migrar al equipo de
+  // Vrotta a platform_members.
+  const editaEstructura = membership.role === 'owner' || membership.role === 'editor';
+  if (!editaEstructura) notFound();
 
   const repo = getRepo();
   const projects = await repo.listProjects(tenant);

@@ -53,9 +53,11 @@ import type {
   ProjectRow,
   PublicationRow,
   PublishState,
+  Role,
   SceneRow,
   SessionUser,
   StatusLogEntry,
+  TenantRef,
   UnitPatch,
   UnitPrice,
   UnitRow,
@@ -67,9 +69,63 @@ import type {
  * recargar la página muestra el cambio, igual que contra Supabase. Se pierde
  * al reiniciar el proceso, que es exactamente lo que uno quiere de un mock.
  */
+/**
+ * Con qué rol se ve el panel en modo mock. Sin esto el usuario del seed es
+ * siempre `owner` de Baleia y la mitad del producto (todo lo de Vrotta, y la
+ * versión recortada que ve la inmobiliaria) no se puede mirar sin levantar
+ * Supabase.
+ *
+ *   NEXT_PUBLIC_R360_MOCK_ACTOR=platform_admin | platform_operator
+ *                              | owner | editor | sales
+ *
+ * Por defecto `owner`, que es como venía funcionando.
+ */
+export type MockActor = 'platform_admin' | 'platform_operator' | Role;
+
+function mockActor(): MockActor {
+  const raw = process.env['NEXT_PUBLIC_R360_MOCK_ACTOR'];
+  switch (raw) {
+    case 'platform_admin':
+    case 'platform_operator':
+    case 'owner':
+    case 'editor':
+    case 'sales':
+      return raw;
+    default:
+      return 'owner';
+  }
+}
+
 export class MockRepo implements Repo {
   async getSession(): Promise<SessionUser | null> {
-    return mockDb().user;
+    const user = mockDb().user;
+    const actor = mockActor();
+
+    if (actor === 'platform_admin' || actor === 'platform_operator') {
+      // Un usuario de Vrotta real NO tiene memberships. Acá se le dejan las
+      // del seed a propósito: son las que el mock usa para resolver qué
+      // proyectos tiene cada tenant. El gating no se ve afectado porque
+      // `requireTenant` mira `platformRole` primero y arma un actor de
+      // plataforma; las memberships nunca llegan a las funciones de roles.ts.
+      return { ...user, platformRole: actor === 'platform_admin' ? 'admin' : 'operator' };
+    }
+
+    return {
+      ...user,
+      platformRole: null,
+      memberships: user.memberships.map((m) => ({ ...m, role: actor })),
+    };
+  }
+
+  async listTenants(): Promise<TenantRef[]> {
+    const seen = new Set<string>();
+    const out: TenantRef[] = [];
+    for (const m of mockDb().user.memberships) {
+      if (seen.has(m.tenantId)) continue;
+      seen.add(m.tenantId);
+      out.push({ id: m.tenantId, slug: m.tenantSlug, name: m.tenantName });
+    }
+    return out;
   }
 
   private projectsOf(tenantSlug: string): ProjectRow[] {

@@ -30,6 +30,7 @@ import type {
   SceneRow,
   SessionUser,
   StatusLogEntry,
+  TenantRef,
   UnitPatch,
   UnitPrice,
   UnitRow,
@@ -152,6 +153,13 @@ export interface LeadListFilters {
 
 export interface Repo {
   getSession(): Promise<SessionUser | null>;
+  /**
+   * Todas las inmobiliarias que el usuario puede ver. Para alguien de Vrotta
+   * son todas (la RLS de 0019 cascadea la lectura); para un usuario de
+   * inmobiliaria, la suya. Alimenta el conmutador de clientes y la resolución
+   * del tenant por slug en `requireTenant`.
+   */
+  listTenants(): Promise<TenantRef[]>;
   listProjects(tenantSlug: string): Promise<ProjectCard[]>;
   getProject(tenantSlug: string, projectSlug: string): Promise<ProjectRow | null>;
   /** Por id, para los route handlers que sólo tienen el project_id de la URL. */

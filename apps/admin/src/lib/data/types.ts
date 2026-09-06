@@ -1,6 +1,10 @@
 import type { SceneKind, UnitStatus } from '@r360/core';
 
+/** Rol DENTRO de una inmobiliaria (`memberships.role`). */
 export type Role = 'owner' | 'editor' | 'sales';
+
+/** Rol en Vrotta, la plataforma (`platform_members.role`). Cruza tenants. */
+export type PlatformRole = 'admin' | 'operator';
 
 export interface Membership {
   tenantId: string;
@@ -13,6 +17,27 @@ export interface SessionUser {
   id: string;
   email: string;
   memberships: Membership[];
+  /**
+   * Rol de plataforma, o null si es un usuario de inmobiliaria. Alguien de
+   * Vrotta NO tiene memberships: opera todos los clientes por este campo.
+   */
+  platformRole: PlatformRole | null;
+}
+
+/**
+ * Quién está operando y desde dónde. Es lo único que se le pasa a las
+ * funciones de `roles.ts`: nunca un `Role` suelto, porque un rol de cliente y
+ * uno de plataforma no se comparan entre sí.
+ */
+export type Actor =
+  | { kind: 'platform'; role: PlatformRole }
+  | { kind: 'tenant'; role: Role };
+
+/** Identidad mínima de una inmobiliaria, para el chrome del panel. */
+export interface TenantRef {
+  id: string;
+  slug: string;
+  name: string;
 }
 
 export type ProjectKind = 'loteo' | 'edificio' | 'complejo' | 'mixto';

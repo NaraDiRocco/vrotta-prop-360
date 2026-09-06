@@ -41,6 +41,7 @@ import type {
   LeadPatch,
   LeadRow,
   Membership,
+  PlatformRole,
   PreviewTokenRow,
   ProjectCard,
   ProjectRow,
@@ -50,6 +51,7 @@ import type {
   SceneRow,
   SessionUser,
   StatusLogEntry,
+  TenantRef,
   UnitPatch,
   UnitPrice,
   UnitRow,
@@ -176,7 +178,30 @@ export class SupabaseRepo implements Repo {
       }];
     });
 
-    return { id: user.id, email: user.email ?? '', memberships };
+    // El rol de plataforma vive en `platform_members`, no en el token: la
+    // policy `platform_members_select_self` (0019) deja leer exactamente una
+    // fila, la propia. Si no hay fila, es un usuario de inmobiliaria.
+    const { data: platformRow } = await supabase
+      .from('platform_members')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const rawPlatformRole = platformRow ? asRecord(platformRow)['role'] : null;
+    const platformRole: PlatformRole | null =
+      rawPlatformRole === 'admin' || rawPlatformRole === 'operator' ? rawPlatformRole : null;
+
+    return { id: user.id, email: user.email ?? '', memberships, platformRole };
+  }
+
+  async listTenants(): Promise<TenantRef[]> {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase.from('tenants').select('id, slug, name').order('name');
+    return (data ?? []).flatMap((row) => {
+      const r = asRecord(row);
+      if (typeof r['slug'] !== 'string') return [];
+      return [{ id: String(r['id']), slug: r['slug'], name: String(r['name'] ?? r['slug']) }];
+    });
   }
 
   private async projectQuery(tenantSlug: string) {

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { canPublish, getSession, requireAdmin } from '@/lib/auth.ts';
+import { getSession, requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 
 /**
@@ -24,7 +24,11 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ projec
     return NextResponse.json({ error: 'Sólo el dueño del tenant puede revertir' }, { status: 403 });
   }
   const { membership } = await requireAdmin(ownerMembership.tenantSlug);
-  if (!canPublish(membership.role)) {
+  // P2b: esto pasa a `canPublish(actor)` sobre el tenant dueño del proyecto,
+  // resuelto sin buscar memberships (hoy, alguien de Vrotta no tiene ninguna
+  // y se lleva un 403). Por ahora se conserva la regla de siempre: publica
+  // el Administrador de la inmobiliaria.
+  if (membership.role !== 'owner') {
     return NextResponse.json({ error: 'Sólo el dueño del tenant puede revertir' }, { status: 403 });
   }
 

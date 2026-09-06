@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, FolderKanban, Home, Images, Network, Table2, UploadCloud, type LucideIcon } from 'lucide-react';
 import type { Role } from '@/lib/data/types.ts';
-import { canEditStructure } from '@/lib/roles.ts';
 
 const STORAGE_KEY = 'r360.projectnav.collapsed';
 
@@ -42,13 +41,18 @@ export function ProjectNav({
     });
   }
 
+  // P2a: este componente pasa a recibir `actor` y a preguntarle a roles.ts
+  // (canEditStructure / canManageScenes / canViewMaterial / canPublish).
+  // Hasta entonces conserva la regla de hoy, tal cual.
+  const editaEstructura = role === 'owner' || role === 'editor';
+
   const base = `/t/${tenant}/p/${project.slug}`;
   const items: { href: string; label: string; Icon: LucideIcon; show: boolean }[] = [
     { href: base, label: 'Resumen', Icon: Home, show: true },
     { href: `${base}/units`, label: 'Unidades', Icon: Table2, show: true },
-    { href: `${base}/structure`, label: 'Estructura', Icon: Network, show: canEditStructure(role) },
-    { href: `${base}/scenes`, label: 'Escenas', Icon: Images, show: canEditStructure(role) },
-    { href: `${base}/material`, label: 'Material', Icon: FolderKanban, show: canEditStructure(role) },
+    { href: `${base}/structure`, label: 'Estructura', Icon: Network, show: editaEstructura },
+    { href: `${base}/scenes`, label: 'Escenas', Icon: Images, show: editaEstructura },
+    { href: `${base}/material`, label: 'Material', Icon: FolderKanban, show: editaEstructura },
     { href: `${base}/publish`, label: 'Publicar', Icon: UploadCloud, show: role === 'owner' },
   ];
 

@@ -6,13 +6,17 @@ import { ProjectCardView } from '@/components/projects/project-card.tsx';
 import { requireAdmin } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { healthIssues } from '@/lib/health.ts';
-import { canEditStructure } from '@/lib/roles.ts';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default async function ProjectsPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
   const { membership } = await requireAdmin(tenant);
+  // P2a: acá va `canEditStructure(actor)`. Mientras tanto el panel sigue
+  // mostrando la estructura a Administrador y Gestor, igual que hasta hoy:
+  // la base recién se la cierra en 0021, después de migrar al equipo de
+  // Vrotta a platform_members.
+  const editaEstructura = membership.role === 'owner' || membership.role === 'editor';
   const repo = getRepo();
   const [projects, leads] = await Promise.all([repo.listProjects(tenant), repo.listLeads(tenant)]);
 
@@ -43,7 +47,7 @@ export default async function ProjectsPage({ params }: { params: Promise<{ tenan
       membership={membership}
       crumbs={[{ label: membership.tenantName, href: `/t/${tenant}/p` }, { label: 'Proyectos' }]}
       actions={
-        canEditStructure(membership.role) ? (
+        editaEstructura ? (
           <Link href={`/t/${tenant}/p/new`} className="r-btn" data-variant="primary">
             Nuevo proyecto
           </Link>
@@ -99,10 +103,10 @@ export default async function ProjectsPage({ params }: { params: Promise<{ tenan
                 color: 'var(--fg-muted)',
               }}
             >
-              <p style={{ marginBottom: canEditStructure(membership.role) ? 10 : 0 }}>
+              <p style={{ marginBottom: editaEstructura ? 10 : 0 }}>
                 No hay proyectos en este cliente todavía.
               </p>
-              {canEditStructure(membership.role) && (
+              {editaEstructura && (
                 <Link href={`/t/${tenant}/p/new`} className="r-btn" data-variant="primary">
                   Crear el primero →
                 </Link>
