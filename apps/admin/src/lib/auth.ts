@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { getRepo } from './data/index.ts';
 import { platformActor, tenantActor } from './roles.ts';
-import type { Actor, Membership, PlatformRole, SessionUser, TenantRef } from './data/types.ts';
+import type { Actor, Membership, PlatformRole, ProjectRow, SessionUser, TenantRef } from './data/types.ts';
 
 export {
   canEditStructure,
@@ -106,4 +106,86 @@ export async function requirePlatformAdmin(): Promise<PlatformContext> {
   const ctx = await requirePlatform();
   if (ctx.role !== 'admin') notFound();
   return ctx;
+}
+
+/**
+ * Resultado de resolver a quién representa la sesión frente a UN tenant
+ * puntual, para una ruta API. `actor` es null cuando el usuario no tiene
+ * ninguna relación con ese tenant (ni membership, ni plataforma): la ruta
+ * decide si eso es un 403 o un 404, según cuánto quiera revelar.
+ */
+export interface TenantActorLookup {
+  session: SessionUser;
+  actor: Actor | null;
+}
+
+/**
+ * Variante de `requireTenant` para route handlers (`POST /api/...`), no para
+ * páginas. `requireTenant`/`requireAdmin` usan `redirect()`/`notFound()`, que
+ * dentro de un handler de API terminan devolviéndole HTML de una redirección
+ * a un `fetch()` del panel en vez de un JSON con el código que corresponde —
+ * el bug que cierra esta función (ver P2b en publish/create). Nunca redirige:
+ * devuelve `null` si no hay sesión, o `actor: null` si la hay pero el tenant
+ * no existe o el usuario no tiene relación con él.
+ */
+export async function resolveTenantActor(tenantSlug: string): Promise<TenantActorLookup | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  if (session.platformRole) {
+    const tenants = await getRepo().listTenants();
+    const exists = tenants.some((t) => t.slug === tenantSlug);
+    return { session, actor: exists ? platformActor(session.platformRole) : null };
+  }
+
+  const membership = session.memberships.find((m) => m.tenantSlug === tenantSlug);
+  return { session, actor: membership ? tenantActor(membership.role) : null };
+}
+
+/**
+ * Misma idea que `resolveTenantActor`, pero resolviendo el tenant a partir
+ * del proyecto: para publish/revert y cualquier otra ruta que sólo tenga el
+ * `project_id` en la URL. El chequeo tiene que ser contra el tenant DUEÑO de
+ * ESE proyecto — nunca contra cualquier membership del usuario, porque ser
+ * owner de OTRO tenant no alcanza (y alguien de Vrotta no tiene ninguna).
+ * Devuelve `'sin-proyecto'` en vez de `null` para que la ruta pueda
+ * distinguir "no hay sesión" (401) de "el proyecto no existe" (404).
+ */
+export async function resolveProjectActor(
+  projectId: string,
+): Promise<(TenantActorLookup & { project: ProjectRow }) | 'sin-proyecto' | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  const project = await getRepo().getProjectById(projectId);
+  if (!project) return 'sin-proyecto';
+
+  if (session.platformRole) {
+    return { session, project, actor: platformActor(session.platformRole) };
+  }
+
+  const membership = session.memberships.find((m) => m.tenantId === project.tenantId);
+  return { session, project, actor: membership ? tenantActor(membership.role) : null };
+}
+
+/**
+ * Resultado de resolver el rol de plataforma de la sesión, para una ruta API.
+ */
+export interface PlatformActorLookup {
+  session: SessionUser;
+  role: PlatformRole;
+  actor: Actor;
+}
+
+/**
+ * Variante de `requirePlatform` para route handlers (`/api/admin/*`). Mismo
+ * motivo que `resolveTenantActor`/`resolveProjectActor`: `requirePlatform` usa
+ * `notFound()`, que en un Route Handler renderiza el 404 de PÁGINA (HTML), no
+ * un JSON — el mismo bug de `redirect()` con otro nombre. Devuelve `null` si
+ * no hay sesión o el usuario no es de plataforma; la ruta decide el status.
+ */
+export async function resolvePlatformActor(): Promise<PlatformActorLookup | null> {
+  const session = await getSession();
+  if (!session || !session.platformRole) return null;
+  return { session, role: session.platformRole, actor: platformActor(session.platformRole) };
 }

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession, requireAdmin } from '@/lib/auth.ts';
+import { getSession, resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
+import { canPublish } from '@/lib/roles.ts';
 
 /** Estado de publicación: versión en vivo, diff del borrador, advertencias. */
 export async function GET(_request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
@@ -12,30 +13,21 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ projec
   return NextResponse.json(state);
 }
 
-/** Publica el borrador actual. Sólo `owner` DEL TENANT DUEÑO DEL PROYECTO puede publicar. */
+/** Publica el borrador actual. Sólo quien pueda `canPublish` DEL TENANT DUEÑO DEL PROYECTO. */
 export async function POST(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const { project } = await ctx.params;
 
   // `project` es el id, no el slug (ver convención del resto de /api/p/[project]/*).
-  // El rol se valida contra el tenant DUEÑO de este proyecto, no contra
-  // cualquier membership del usuario: ser owner de OTRO tenant no alcanza
-  // (bug corregido — antes bastaba con `session.memberships.some(canPublish)`).
-  const { project } = await ctx.params;
-  const projectRow = await getRepo().getProjectById(project);
-  if (!projectRow) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
-
-  const ownerMembership = session.memberships.find((m) => m.tenantId === projectRow.tenantId);
-  if (!ownerMembership) {
-    return NextResponse.json({ error: 'Sólo el dueño del tenant puede publicar' }, { status: 403 });
-  }
-  const { membership } = await requireAdmin(ownerMembership.tenantSlug);
-  // P2b: esto pasa a `canPublish(actor)` sobre el tenant dueño del proyecto,
-  // resuelto sin buscar memberships (hoy, alguien de Vrotta no tiene ninguna
-  // y se lleva un 403). Por ahora se conserva la regla de siempre: publica
-  // el Administrador de la inmobiliaria.
-  if (membership.role !== 'owner') {
-    return NextResponse.json({ error: 'Sólo el dueño del tenant puede publicar' }, { status: 403 });
+  // El chequeo se resuelve contra el tenant DUEÑO de ESTE proyecto — nunca
+  // contra cualquier membership del usuario (ser owner de OTRO tenant no
+  // alcanza) — y sin usar `requireAdmin`/`requireTenant`: esas redirigen o
+  // hacen notFound(), pensadas para páginas; acá una API necesita 401/403/404
+  // limpios, nunca el HTML de una redirección (bug cerrado en P2b).
+  const resolved = await resolveProjectActor(project);
+  if (resolved === null) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (resolved === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!resolved.actor || !canPublish(resolved.actor)) {
+    return NextResponse.json({ error: 'No tenés permiso para publicar este proyecto' }, { status: 403 });
   }
 
   let raw: unknown;

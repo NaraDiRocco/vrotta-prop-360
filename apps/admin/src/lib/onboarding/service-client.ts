@@ -1,15 +1,18 @@
 /**
  * Cliente de Supabase con la service key.
  *
- * Existe por UN solo caso: crear un tenant. Las policies de `tenants` y
- * `memberships` sólo dejan escribir a quien ya es `owner` de ese tenant —
- * correcto, pero circular para el primer alta: nadie es owner de un tenant
- * que todavía no existe. El backend rompe el círculo creando el tenant y la
- * membership del usuario que lo pide, en ese orden, con privilegios de
- * servicio.
+ * Ya NO lo usa el alta de tenant (P2b): con la policy `tenants_insert` de la
+ * migración 0019, un Vrotta Admin crea el tenant con su propia sesión — no
+ * hace falta romper ninguna circularidad de RLS.
  *
- * No se usa para nada más. Todo el resto del panel escribe con la sesión del
- * usuario y su RLS.
+ * Se sigue usando para lo que la RLS del usuario no puede resolver:
+ *  - `storage.ts`, para guardar material subido por el cliente vía link
+ *    público (sin sesión, no hay RLS de usuario que aplicar).
+ *  - `supabase-repo.ts`, en `/admin/team`, para resolver el email de un
+ *    `user_id` de `platform_members` (leer `auth.users` sólo se puede con
+ *    la Admin API) y para sumar a alguien que YA tiene cuenta buscándolo
+ *    por email. Ninguno de los dos manda invitaciones ni crea cuentas: eso
+ *    es el sistema de invitaciones (P2c), que va a sumar su propio uso acá.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 

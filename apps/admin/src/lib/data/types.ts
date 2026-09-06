@@ -25,6 +25,19 @@ export interface SessionUser {
 }
 
 /**
+ * Una fila de `platform_members`, con el email ya resuelto para mostrar en
+ * `/admin/team`. La tabla sólo guarda `user_id`: el email sale de la Admin
+ * API de Supabase (no hay otra forma de leer `auth.users`), una lectura, sin
+ * mandar nada — invitar gente nueva es P2c.
+ */
+export interface PlatformMemberRow {
+  userId: string;
+  email: string;
+  role: PlatformRole;
+  createdAt: string;
+}
+
+/**
  * Quién está operando y desde dónde. Es lo único que se le pasa a las
  * funciones de `roles.ts`: nunca un `Role` suelto, porque un rol de cliente y
  * uno de plataforma no se comparan entre sí.

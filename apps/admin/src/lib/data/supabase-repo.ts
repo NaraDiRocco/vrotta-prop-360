@@ -1,4 +1,4 @@
-import type { UnitStatus } from '@r360/core';
+import type { ProjectKind, UnitStatus } from '@r360/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from '../supabase/server.ts';
 import { countByStatus } from '../units/query.ts';
@@ -8,6 +8,7 @@ import type { RpcFilter } from '../units/selection.ts';
 import { computeDiff, computeWarnings, unitToSnapshot, type PublishSnapshot, type UnitSnapshot } from '../publish/diff.ts';
 import { filterLeads, type LeadFilters } from '../leads/filters.ts';
 import { createServiceClient } from '../onboarding/service-client.ts';
+import { latestPublishedAt, pendingMaterialCount } from '../admin/summary.ts';
 import type {
   MaterialFileRow,
   MaterialPatch,
@@ -19,6 +20,7 @@ import type {
 import { generateShareToken } from '../material/share.ts';
 import {
   completenessOf,
+  type AdminClientSummary,
   type CreateUnitsOptions,
   type CreateUnitsResult,
   type LeadListFilters,
@@ -41,6 +43,7 @@ import type {
   LeadPatch,
   LeadRow,
   Membership,
+  PlatformMemberRow,
   PlatformRole,
   PreviewTokenRow,
   ProjectCard,
@@ -471,16 +474,19 @@ export class SupabaseRepo implements Repo {
   async createTenant(input: NewTenantInput): Promise<{ id: string; slug: string; name: string }> {
     const supabase = await createSupabaseServerClient();
     const { data: auth } = await supabase.auth.getUser();
-    const user = auth.user;
-    if (!user) throw new Error('Sin sesión: no puedo saber de quién sería el tenant.');
+    if (!auth.user) throw new Error('Sin sesión: no puedo saber quién da de alta el cliente.');
 
-    // Ver la nota de service-client.ts: el primer alta es circular para RLS.
-    const service = createServiceClient();
-
-    const { data: existing } = await service.from('tenants').select('id').eq('slug', input.slug).maybeSingle();
+    // Con la sesión del usuario, no con la service key: la policy
+    // `tenants_insert` (0019) sólo deja pasar a `auth_is_platform_admin()`,
+    // así que quien no lo sea recibe acá abajo el error de Postgres. Ya no
+    // hace falta romper ninguna circularidad de RLS ni crear membership:
+    // Vrotta no es "owner" de sus clientes, los ve por `auth_is_platform()`
+    // (cascada de lectura de 0019) — por eso el SELECT de abajo también
+    // funciona con esta misma sesión.
+    const { data: existing } = await supabase.from('tenants').select('id').eq('slug', input.slug).maybeSingle();
     if (existing) throw new Error(`Ya existe un cliente con el slug «${input.slug}».`);
 
-    const { data, error } = await service
+    const { data, error } = await supabase
       .from('tenants')
       .insert({ slug: input.slug, name: input.name })
       .select('id, slug, name')
@@ -488,18 +494,117 @@ export class SupabaseRepo implements Repo {
     if (error) throw new Error(`No pude crear el cliente: ${error.message}`);
 
     const tenant = asRecord(data);
-    const tenantId = String(tenant['id']);
+    return { id: String(tenant['id']), slug: String(tenant['slug']), name: String(tenant['name']) };
+  }
 
-    const { error: membershipError } = await service
-      .from('memberships')
-      .insert({ tenant_id: tenantId, user_id: user.id, role: 'owner' });
-    if (membershipError) {
-      // Sin membership el tenant sería invisible incluso para quien lo creó.
-      await service.from('tenants').delete().eq('id', tenantId);
-      throw new Error(`No pude asignarte como dueño: ${membershipError.message}`);
+  /* ── Plataforma (Vrotta) ──────────────────────────────────────────────── */
+
+  async getAdminClientsSummary(): Promise<AdminClientSummary[]> {
+    const tenants = await this.listTenants();
+    const supabase = await createSupabaseServerClient();
+
+    const summaries: AdminClientSummary[] = [];
+    for (const tenant of tenants) {
+      const { data: projectRows } = await supabase.from('projects').select('id, kind').eq('tenant_id', tenant.id);
+      const projects = (projectRows ?? []).map((raw) => {
+        const r = asRecord(raw);
+        return { id: String(r['id']), kind: (r['kind'] as ProjectKind) ?? 'mixto' };
+      });
+
+      let pendingMaterial = 0;
+      const publishedDates: (string | null)[] = [];
+      for (const project of projects) {
+        const [states, publications] = await Promise.all([
+          this.listMaterial(project.id),
+          this.listPublications(project.id),
+        ]);
+        pendingMaterial += pendingMaterialCount(project.kind, states);
+        publishedDates.push(publications[0]?.publishedAt ?? null);
+      }
+
+      summaries.push({
+        tenant,
+        projectsCount: projects.length,
+        pendingMaterialCount: pendingMaterial,
+        lastPublishedAt: latestPublishedAt(publishedDates),
+      });
+    }
+    return summaries;
+  }
+
+  async listPlatformMembers(): Promise<PlatformMemberRow[]> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from('platform_members')
+      .select('user_id, role, created_at')
+      .order('created_at');
+    if (error) throw new Error(error.message);
+
+    // `platform_members` no guarda el email, sólo `user_id`: la única forma
+    // de leer `auth.users` es la Admin API (service key). Es una lectura para
+    // mostrar la lista, no crea cuentas ni manda nada — eso es P2c.
+    const service = createServiceClient();
+    return Promise.all(
+      (data ?? []).map(async (raw) => {
+        const r = asRecord(raw);
+        const userId = String(r['user_id']);
+        const { data: userRes } = await service.auth.admin.getUserById(userId);
+        return {
+          userId,
+          email: userRes.user?.email ?? '(sin email)',
+          role: ((r['role'] as PlatformRole) ?? 'operator'),
+          createdAt: String(r['created_at'] ?? ''),
+        };
+      }),
+    );
+  }
+
+  async addPlatformMember(email: string, role: PlatformRole): Promise<PlatformMemberRow> {
+    const supabase = await createSupabaseServerClient();
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error('Sin sesión.');
+
+    // Sólo suma a alguien que YA tiene cuenta: mandar una invitación a quien
+    // no la tiene es el sistema de invitaciones (P2c), que todavía no existe.
+    // Buscar por email necesita la Admin API: la sesión normal no puede leer
+    // `auth.users` de otro usuario.
+    const service = createServiceClient();
+    const normalized = email.trim().toLowerCase();
+    let userId: string | null = null;
+    for (let page = 1; !userId; page++) {
+      const { data: list, error } = await service.auth.admin.listUsers({ page, perPage: 200 });
+      if (error) throw new Error(error.message);
+      const found = list.users.find((u) => (u.email ?? '').toLowerCase() === normalized);
+      if (found) userId = found.id;
+      if (list.users.length < 200) break;
+    }
+    if (!userId) {
+      throw new Error(
+        `«${email}» todavía no tiene cuenta en Recorrido 360. Sumar gente sin cuenta es parte del sistema de ` +
+          'invitaciones, que todavía no está: por ahora sólo se puede agregar a quien ya se registró.',
+      );
     }
 
-    return { id: tenantId, slug: String(tenant['slug']), name: String(tenant['name']) };
+    const { data, error } = await supabase
+      .from('platform_members')
+      .insert({ user_id: userId, role, created_by: auth.user.id })
+      .select('user_id, role, created_at')
+      .single();
+    if (error) throw new Error(error.message);
+    const r = asRecord(data);
+    return { userId: String(r['user_id']), email: normalized, role, createdAt: String(r['created_at'] ?? '') };
+  }
+
+  async updatePlatformMemberRole(userId: string, role: PlatformRole): Promise<void> {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from('platform_members').update({ role }).eq('user_id', userId);
+    if (error) throw new Error(error.message);
+  }
+
+  async removePlatformMember(userId: string): Promise<void> {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from('platform_members').delete().eq('user_id', userId);
+    if (error) throw new Error(error.message);
   }
 
   async createProject(tenantSlug: string, input: NewProjectInput): Promise<ProjectRow> {

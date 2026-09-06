@@ -13,7 +13,8 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { getRepo } from '@/lib/data/index.ts';
-import { requireAdmin } from '@/lib/auth.ts';
+import { resolveTenantActor } from '@/lib/auth.ts';
+import { canCreateProject, canDeleteProject } from '@/lib/roles.ts';
 import type { NewGroupInput, NewProjectInput, NewUnitTypeInput } from '@/lib/data/repo.ts';
 import type { ProjectRow } from '@/lib/data/types.ts';
 import { PROJECT_KINDS } from '@/lib/onboarding/templates.ts';
@@ -46,8 +47,15 @@ export async function POST(request: NextRequest) {
 
   const tenantSlug = String(body.tenantSlug ?? '');
   if (tenantSlug.length === 0) return NextResponse.json({ error: 'Falta el cliente.' }, { status: 400 });
-  const { membership } = await requireAdmin(tenantSlug);
-  if (membership.role !== 'owner' && membership.role !== 'editor') {
+
+  // Sin `requireAdmin`: redirige/hace notFound(), pensado para páginas, no
+  // para una API (bug cerrado en P2b). Crear proyecto es tarea de Vrotta
+  // (`canCreateProject`, ver la tabla de permisos de roles.ts) — la
+  // inmobiliaria ya no da de alta proyectos por su cuenta.
+  const resolved = await resolveTenantActor(tenantSlug);
+  if (resolved === null) return NextResponse.json({ error: 'Sin sesión.' }, { status: 401 });
+  if (!resolved.actor) return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
+  if (!canCreateProject(resolved.actor)) {
     return NextResponse.json({ error: 'Tu rol no puede crear proyectos.' }, { status: 403 });
   }
 
@@ -101,16 +109,18 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(payload, { status: 201 });
 }
 
-/** Descartar un alta recién hecha. Sólo el dueño; el cascade limpia el resto. */
+/** Borra un proyecto y todo lo que cuelga de él. Destructivo y en cascada: sólo Vrotta Admin. */
 export async function DELETE(request: NextRequest) {
   const tenantSlug = request.nextUrl.searchParams.get('tenant') ?? '';
   const projectId = request.nextUrl.searchParams.get('project') ?? '';
   if (tenantSlug.length === 0 || projectId.length === 0) {
     return NextResponse.json({ error: 'Faltan `tenant` y `project`.' }, { status: 400 });
   }
-  const { membership } = await requireAdmin(tenantSlug);
-  if (membership.role !== 'owner') {
-    return NextResponse.json({ error: 'Sólo el dueño del cliente puede borrar un proyecto.' }, { status: 403 });
+  const resolved = await resolveTenantActor(tenantSlug);
+  if (resolved === null) return NextResponse.json({ error: 'Sin sesión.' }, { status: 401 });
+  if (!resolved.actor) return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
+  if (!canDeleteProject(resolved.actor)) {
+    return NextResponse.json({ error: 'Sólo Vrotta Admin puede borrar un proyecto.' }, { status: 403 });
   }
   try {
     await getRepo().deleteProject(projectId);

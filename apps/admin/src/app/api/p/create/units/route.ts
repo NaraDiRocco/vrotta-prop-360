@@ -11,7 +11,8 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { isUnitStatus, type UnitStatus } from '@r360/core';
-import { requireAdmin } from '@/lib/auth.ts';
+import { resolveTenantActor } from '@/lib/auth.ts';
+import { canEditStructure } from '@/lib/roles.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import type { CreateUnitsResult, NewUnitInput } from '@/lib/data/repo.ts';
 import { buildImportPlan, type CsvMapping, type RowIssue } from '@/lib/onboarding/csv.ts';
@@ -71,8 +72,14 @@ export async function POST(request: NextRequest) {
   if (tenantSlug.length === 0 || projectId.length === 0) {
     return NextResponse.json({ error: 'Faltan `tenantSlug` y `projectId`.' }, { status: 400 });
   }
-  const { membership } = await requireAdmin(tenantSlug);
-  if (membership.role === 'sales') {
+
+  // Alta/baja de unidades es "editar estructura" (`canEditStructure`), tarea
+  // de Vrotta — sin `requireAdmin`, que redirige/hace notFound() en vez de
+  // devolver un JSON limpio (bug cerrado en P2b).
+  const resolved = await resolveTenantActor(tenantSlug);
+  if (resolved === null) return NextResponse.json({ error: 'Sin sesión.' }, { status: 401 });
+  if (!resolved.actor) return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
+  if (!canEditStructure(resolved.actor)) {
     return NextResponse.json({ error: 'Tu rol no puede crear unidades.' }, { status: 403 });
   }
 

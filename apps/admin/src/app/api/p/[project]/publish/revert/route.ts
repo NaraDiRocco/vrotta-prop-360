@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession, requireAdmin } from '@/lib/auth.ts';
+import { resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
+import { canPublish } from '@/lib/roles.ts';
 
 /**
  * Revierte el puntero de versión activa. IMPORTANTE (ver worker/routes/rollback.ts):
@@ -10,26 +11,17 @@ import { getRepo } from '@/lib/data/index.ts';
  * esta ruta.
  */
 export async function POST(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
-
-  // Mismo bug que en publish/route.ts: el rol se valida contra el tenant
-  // DUEÑO de ESTE proyecto, no contra cualquier membership del usuario.
   const { project } = await ctx.params;
-  const projectRow = await getRepo().getProjectById(project);
-  if (!projectRow) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
 
-  const ownerMembership = session.memberships.find((m) => m.tenantId === projectRow.tenantId);
-  if (!ownerMembership) {
-    return NextResponse.json({ error: 'Sólo el dueño del tenant puede revertir' }, { status: 403 });
-  }
-  const { membership } = await requireAdmin(ownerMembership.tenantSlug);
-  // P2b: esto pasa a `canPublish(actor)` sobre el tenant dueño del proyecto,
-  // resuelto sin buscar memberships (hoy, alguien de Vrotta no tiene ninguna
-  // y se lleva un 403). Por ahora se conserva la regla de siempre: publica
-  // el Administrador de la inmobiliaria.
-  if (membership.role !== 'owner') {
-    return NextResponse.json({ error: 'Sólo el dueño del tenant puede revertir' }, { status: 403 });
+  // Mismo criterio que publish/route.ts: el chequeo va contra el tenant
+  // DUEÑO de ESTE proyecto (no cualquier membership del usuario), resuelto
+  // sin `requireAdmin`/`requireTenant` para no devolverle HTML de una
+  // redirección a un fetch() (bug cerrado en P2b).
+  const resolved = await resolveProjectActor(project);
+  if (resolved === null) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (resolved === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!resolved.actor || !canPublish(resolved.actor)) {
+    return NextResponse.json({ error: 'No tenés permiso para revertir este proyecto' }, { status: 403 });
   }
 
   let raw: unknown;

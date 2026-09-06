@@ -25,8 +25,10 @@ import {
   mockSetState,
 } from '../material/mock-store.ts';
 import { isShareLinkUsable } from '../material/share.ts';
+import { latestPublishedAt, pendingMaterialCount } from '../admin/summary.ts';
 import {
   completenessOf,
+  type AdminClientSummary,
   type CreateUnitsOptions,
   type CreateUnitsResult,
   type LeadListFilters,
@@ -48,6 +50,8 @@ import type {
   JobRow,
   LeadPatch,
   LeadRow,
+  PlatformMemberRow,
+  PlatformRole,
   PreviewTokenRow,
   ProjectCard,
   ProjectRow,
@@ -291,6 +295,11 @@ export class MockRepo implements Repo {
       throw new Error(`Ya existe un cliente con el slug «${input.slug}».`);
     }
     const tenantId = crypto.randomUUID();
+    // El mock no tiene una lista de tenants separada de las memberships
+    // (`listTenants` arriba lee de acá): esta fila es la simplificación que
+    // lo mantiene funcionando, no un modelo real de "quién es dueño". El rol
+    // guardado no importa — `getSession` lo pisa según `MOCK_ACTOR` para un
+    // actor de tenant, y un actor de plataforma nunca lo mira.
     db.user.memberships.push({
       tenantId,
       tenantSlug: input.slug,
@@ -298,6 +307,68 @@ export class MockRepo implements Repo {
       role: 'owner',
     });
     return { id: tenantId, slug: input.slug, name: input.name };
+  }
+
+  /* ── Plataforma (Vrotta) ──────────────────────────────────────────────── */
+
+  async getAdminClientsSummary(): Promise<AdminClientSummary[]> {
+    const tenants = await this.listTenants();
+    const db = mockDb();
+    const summaries: AdminClientSummary[] = [];
+    for (const tenant of tenants) {
+      const projects = db.projects.filter((p) => p.tenantId === tenant.id);
+      let pendingMaterial = 0;
+      const publishedDates: (string | null)[] = [];
+      for (const project of projects) {
+        const states = await this.listMaterial(project.id);
+        pendingMaterial += pendingMaterialCount(project.kind, states);
+        const pubs = db.publications[project.id] ?? [];
+        publishedDates.push(pubs.length > 0 ? (pubs[pubs.length - 1]?.publishedAt ?? null) : null);
+      }
+      summaries.push({
+        tenant,
+        projectsCount: projects.length,
+        pendingMaterialCount: pendingMaterial,
+        lastPublishedAt: latestPublishedAt(publishedDates),
+      });
+    }
+    return summaries;
+  }
+
+  async listPlatformMembers(): Promise<PlatformMemberRow[]> {
+    return [...mockDb().platformMembers];
+  }
+
+  async addPlatformMember(email: string, role: PlatformRole): Promise<PlatformMemberRow> {
+    const db = mockDb();
+    const normalized = email.trim().toLowerCase();
+    if (db.platformMembers.some((m) => m.email === normalized)) {
+      throw new Error(`«${email}» ya es parte del equipo de Vrotta.`);
+    }
+    // En mock no hay `auth.users`: la única cuenta que "ya existe" es la
+    // demo. Cualquier otro email se rechaza con el mismo mensaje que en
+    // Supabase — invitar a alguien sin cuenta es P2c, acá tampoco se simula.
+    if (normalized !== db.user.email.toLowerCase()) {
+      throw new Error(`«${email}» todavía no tiene cuenta (modo mock: sólo existe la cuenta demo).`);
+    }
+    const member: PlatformMemberRow = {
+      userId: db.user.id,
+      email: normalized,
+      role,
+      createdAt: new Date().toISOString(),
+    };
+    db.platformMembers.push(member);
+    return member;
+  }
+
+  async updatePlatformMemberRole(userId: string, role: PlatformRole): Promise<void> {
+    const member = mockDb().platformMembers.find((m) => m.userId === userId);
+    if (member) member.role = role;
+  }
+
+  async removePlatformMember(userId: string): Promise<void> {
+    const db = mockDb();
+    db.platformMembers = db.platformMembers.filter((m) => m.userId !== userId);
   }
 
   async createProject(tenantSlug: string, input: NewProjectInput): Promise<ProjectRow> {

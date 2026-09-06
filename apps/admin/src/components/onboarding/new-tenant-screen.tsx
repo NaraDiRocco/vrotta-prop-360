@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import type { CreateTenantResponse } from '@/app/api/t/[tenant]/route.ts';
+import type { CreateClientResponse } from '@/app/api/admin/clients/route.ts';
 import { RESERVED_TENANT_SLUGS, slugError, slugify, uniqueSlug } from '@/lib/onboarding/slug.ts';
 import { FIELD_HINT, FIELD_LABEL, PANEL } from './shared.tsx';
 
@@ -12,7 +12,10 @@ import { FIELD_HINT, FIELD_LABEL, PANEL } from './shared.tsx';
  * una desarrolladora. Dos campos, porque un cliente nuevo no tiene todavía
  * nada que configurar: sus proyectos vienen después.
  *
- * Quien lo crea queda como `owner`.
+ * NO pide el email del primer Administrador: invitarlo es el sistema de
+ * invitaciones (P2c, todavía no existe) y un campo que no manda nada sería
+ * un formulario que miente. Hasta que eso exista, Vrotta carga el proyecto
+ * desde acá mismo y el cliente entra cuando lo inviten.
  */
 export function NewTenantScreen({ existingSlugs }: { existingSlugs: string[] }) {
   const router = useRouter();
@@ -27,7 +30,7 @@ export function NewTenantScreen({ existingSlugs }: { existingSlugs: string[] }) 
     name.length === 0 && effectiveSlug.length === 0
       ? null
       : (slugError(effectiveSlug, { reserved: RESERVED_TENANT_SLUGS }) ??
-        (existingSlugs.includes(effectiveSlug) ? 'Ya sos miembro de un cliente con ese slug.' : null));
+        (existingSlugs.includes(effectiveSlug) ? 'Ya existe un cliente con ese slug.' : null));
   const canSubmit = name.trim().length > 0 && problem === null && !busy;
 
   async function submit(event: React.FormEvent) {
@@ -36,14 +39,14 @@ export function NewTenantScreen({ existingSlugs }: { existingSlugs: string[] }) 
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`/api/t/${encodeURIComponent(effectiveSlug)}`, {
+      const response = await fetch('/api/admin/clients', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({ slug: effectiveSlug, name: name.trim() }),
       });
-      const payload = (await response.json()) as CreateTenantResponse & { error?: string };
+      const payload = (await response.json()) as CreateClientResponse & { error?: string };
       if (!response.ok) throw new Error(payload.error ?? 'No pude crear el cliente.');
-      router.push(`/t/${payload.tenant.slug}/p/new`);
+      router.push(`/t/${payload.tenant.slug}/p`);
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No pude crear el cliente.');
@@ -91,10 +94,10 @@ export function NewTenantScreen({ existingSlugs }: { existingSlugs: string[] }) 
         <button type="submit" className="r-btn" data-variant="primary" disabled={!canSubmit}>
           {busy ? 'Creando…' : 'Crear cliente'}
         </button>
-        <Link href="/" className="r-btn" data-variant="ghost">
+        <Link href="/admin" className="r-btn" data-variant="ghost">
           Cancelar
         </Link>
-        <span style={FIELD_HINT}>Quedás como dueño.</span>
+        <span style={FIELD_HINT}>El cliente entra cuando lo inviten; por ahora, Vrotta carga el proyecto.</span>
       </div>
     </form>
   );

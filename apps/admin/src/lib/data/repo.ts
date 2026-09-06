@@ -22,6 +22,8 @@ import type {
   JobRow,
   LeadPatch,
   LeadRow,
+  PlatformMemberRow,
+  PlatformRole,
   PreviewTokenRow,
   ProjectCard,
   ProjectRow,
@@ -40,6 +42,16 @@ import type {
 export interface Structure {
   groups: GroupRow[];
   types: UnitTypeRow[];
+}
+
+/** Una fila de la pantalla "Clientes" (`/admin`): actividad de una inmobiliaria. */
+export interface AdminClientSummary {
+  tenant: TenantRef;
+  projectsCount: number;
+  /** Ítems del catálogo de material que ningún proyecto tiene `aprobado` ni `no_aplica`, sumados. */
+  pendingMaterialCount: number;
+  /** `publishedAt` de la publicación más reciente entre todos sus proyectos, o null si ninguno publicó nunca. */
+  lastPublishedAt: string | null;
 }
 
 export interface NewSceneInput {
@@ -177,7 +189,12 @@ export interface Repo {
   saveUnitType(projectId: string, type: UnitTypeRow): Promise<void>;
 
   /* ── Alta ──────────────────────────────────────────────────────────── */
-  /** Crea el tenant y la membership `owner` del usuario de la sesión. */
+  /**
+   * Crea el tenant con la sesión de quien lo pide (sólo Vrotta Admin, por
+   * `canCreateTenant`; la policy `tenants_insert` de 0019 lo respalda en la
+   * base). Ya NO hace membership `owner` al creador: Vrotta no es dueña de
+   * sus clientes, los ve por `auth_is_platform()`.
+   */
   createTenant(input: NewTenantInput): Promise<{ id: string; slug: string; name: string }>;
   createProject(tenantSlug: string, input: NewProjectInput): Promise<ProjectRow>;
   /** Borra el proyecto y todo lo que cuelga de él (cascade). Sólo owner. */
@@ -258,6 +275,26 @@ export interface Repo {
   readMaterialByToken(token: string): Promise<{ states: MaterialStateRow[]; files: MaterialFileRow[] } | null>;
   /** Alta de archivo por el link público. null si el token dejó de servir. */
   registerMaterialFileByToken(token: string, input: Omit<NewMaterialFileInput, 'uploadedVia'>): Promise<MaterialFileRow | null>;
+
+  /* ── Plataforma (Vrotta) ──────────────────────────────────────────────
+   * Sólo lo que alimenta `/admin` y `/admin/team`. Precios y el resto del
+   * gating de capacidades viven en otras partes del repo que este contrato
+   * ya declaraba antes de esta sección. */
+
+  /** Todas las inmobiliarias con su actividad: alimenta la pantalla "Clientes". */
+  getAdminClientsSummary(): Promise<AdminClientSummary[]>;
+
+  /** Equipo de Vrotta (`platform_members`), con el email ya resuelto. */
+  listPlatformMembers(): Promise<PlatformMemberRow[]>;
+  /**
+   * Suma a la plataforma a alguien que YA tiene cuenta en Recorrido 360
+   * (busca por email). Invitar a alguien SIN cuenta es el sistema de
+   * invitaciones (P2c, todavía no existe): rechaza con un mensaje explícito
+   * en vez de fallar en silencio o simular un alta que no pasó nada.
+   */
+  addPlatformMember(email: string, role: PlatformRole): Promise<PlatformMemberRow>;
+  updatePlatformMemberRole(userId: string, role: PlatformRole): Promise<void>;
+  removePlatformMember(userId: string): Promise<void>;
 }
 
 export function isMockMode(): boolean {

@@ -16,6 +16,7 @@ import type {
   GroupRow,
   JobRow,
   LeadRow,
+  PlatformMemberRow,
   PreviewTokenRow,
   ProjectRow,
   SceneRow,
@@ -59,6 +60,12 @@ export interface MockDb {
   publications: Record<string, MockPublication[]>;
   leads: Record<string, LeadRow[]>;
   previewTokens: Record<string, PreviewTokenRow[]>;
+  /**
+   * Equipo de Vrotta (`platform_members`). Sembrado con el usuario demo como
+   * `admin`, igual que en producción, donde la dueña ya está cargada: así
+   * `/admin/team` no arranca vacío en modo mock.
+   */
+  platformMembers: PlatformMemberRow[];
 }
 
 const NOW = '2026-08-01T12:00:00.000Z';
@@ -637,6 +644,14 @@ function build(): MockDb {
       ],
       [P_LOMAS]: [],
     },
+    platformMembers: [
+      {
+        userId: '00000000-0000-0000-0000-0000000000ff',
+        email: 'demo@recorrido360.local',
+        role: 'admin',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ],
   };
 }
 
