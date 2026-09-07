@@ -4,6 +4,8 @@ import localFont from 'next/font/local';
 import { StatusStyles } from '@/components/status.tsx';
 import { QueryProvider } from '@/components/query-provider.tsx';
 import { THEME_STORAGE_KEY } from '@/lib/theme.ts';
+import { DENSITY_STORAGE_KEY, defaultDensityForSession } from '@/lib/density.ts';
+import { getSession } from '@/lib/auth.ts';
 import './globals.css';
 
 /**
@@ -44,11 +46,32 @@ export const viewport: Viewport = {
  */
 const THEME_BOOTSTRAP = `try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(t==="dark")document.documentElement.setAttribute("data-theme","dark")}catch(e){}`;
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+/**
+ * Igual que el tema, pero con una vuelta más: acá el default NO es fijo,
+ * sale del rol (`defaultDensityForSession`, ver lib/density.ts). Por eso el
+ * server ya manda el atributo correcto en el HTML (evita el flash para quien
+ * todavía no eligió nada) y el script sólo lo pisa si hay una preferencia
+ * guardada explícita que difiera de ese default — la persona que cambió de
+ * densidad una vez no vuelve a ver la de su rol.
+ */
+function densityBootstrap(defaultDensity: string): string {
+  return `try{var d=localStorage.getItem(${JSON.stringify(DENSITY_STORAGE_KEY)});if((d==="compact"||d==="comfortable")&&d!==${JSON.stringify(defaultDensity)})document.documentElement.setAttribute("data-density",d)}catch(e){}`;
+}
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const session = await getSession();
+  const defaultDensity = defaultDensityForSession(session);
+
   return (
-    <html lang="es" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="es"
+      className={inter.variable}
+      data-density={defaultDensity}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        <script dangerouslySetInnerHTML={{ __html: densityBootstrap(defaultDensity) }} />
       </head>
       <body>
         <StatusStyles />

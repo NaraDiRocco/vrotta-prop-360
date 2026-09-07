@@ -3,10 +3,37 @@
 /*
  * Sistema de diseño del panel.
  *
- * Densidad propia, a propósito distinta de los defaults de Tailwind: lo opera
- * una persona experta sobre tablas de cientos/miles de unidades. Base 13px,
- * fila de tabla 32px, control 28px. En una tabla de 1.000 lotes eso significa
- * ver ~28 filas en vez de ~20.
+ * Densidad: DOS presets, no uno. El argumento original de este archivo era
+ * "base 13px, fila de tabla 32px, control 28px, para que en una tabla de
+ * 1.000 lotes se vean ~28 filas en vez de ~20" — y sigue siendo correcto,
+ * pero es un argumento sobre UNA persona y UNA tarea: alguien experto, que
+ * abre el panel ocho horas por día, sobre tablas de miles de filas. Cuando
+ * quien abre la misma pantalla es el Administrador de una inmobiliaria dos
+ * veces por semana, para tocar tres estados o leer un lead, ninguna de esas
+ * premisas se cumple, y la misma densidad que ahorra filas para Vrotta es
+ * hostil para un uso ocasional (9–11px de texto, blancos de click chicos).
+ *
+ * La solución no es bajar la densidad para todos (Vrotta pierde las filas
+ * que motivaron el diseño) ni bifurcar en dos pantallas (duplica QA para
+ * siempre). Es un solo sistema con el preset elegido por `[data-density]`
+ * en `<html>`:
+ *
+ *   - `compact`     — EXACTAMENTE lo de hoy: base 13px, fila 32px, control
+ *                      28px. Default de `platform_admin`/`platform_operator`
+ *                      (Vrotta): la tarea sigue siendo la de siempre.
+ *   - `comfortable` — base 14px, fila 40px, control 32px, un paso de
+ *                      tipografía y de espaciado del árbol/sheet arriba.
+ *                      Default de `owner`/`editor` (la inmobiliaria): sus
+ *                      tablas son de 20 a 640 filas, no de miles, y sobra
+ *                      margen para 21+ filas visibles igual.
+ *
+ * El default sale del rol (ver `src/lib/density.ts`) y la persona lo puede
+ * cambiar desde el menú de usuario; se persiste en `localStorage` con el
+ * mismo mecanismo (y el mismo bootstrap sin flash) que ya usa `data-theme`
+ * más abajo. Nada de esto es un tamaño fijo en el TSX: todo componente que
+ * quiera densidad correcta lee `var(--row-h)`/`var(--control-h)`/
+ * `var(--text-*)`, nunca un número — así un solo cambio acá alcanza para
+ * las dos densidades en toda la app.
  *
  * NOTA IMPORTANTE: los colores de estado NO están acá. Se inyectan en runtime
  * desde STATUS_TOKENS de @r360/core (ver src/components/status-styles.tsx).
@@ -82,20 +109,65 @@
   --radius-card: 8px;
   --shadow-overlay: 0 4px 16px rgb(20 24 29 / 0.14);  /* SÓLO popover/sheet/toast */
 
-  /* densidad (sin cambios) */
+  /* Fondo de overlay (drawer del sidebar angosto, diálogos, sheets): un solo
+     token para no repetir el mismo rgba en cada componente y para que salga
+     bien en los dos temas sin condicional (mezcla con --fg, no un negro fijo). */
+  --overlay-backdrop: color-mix(in srgb, var(--fg) 35%, transparent);
+
+  /* Ancho del sidebar único (Ola 1.B): expandido y colapsado a icono. Viven
+     acá y no en cada componente para que el cálculo del cromo (el botón de
+     colapsar del header, el padding del contenido) tenga una sola fuente de
+     verdad. */
+  --spacing-sidebar: 240px;
+  --spacing-sidebar-collapsed: 64px;
+
+  /* ── densidad: valores por defecto = preset "compact" ──────────────────
+     Se pisan enteros en el bloque [data-density] de abajo; ver el comentario
+     de cabecera del archivo para el porqué de los dos presets. */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
   --row-h: 32px;
   --control-h: 28px;
 }
 
+/*
+ * Presets de densidad. `compact` repite a propósito los valores de :root de
+ * arriba (documenta el default sin dejarlo implícito); `comfortable` es el
+ * único bloque que cambia números. `--text-md` sólo se redefine en cómoda
+ * porque en compacta ya vale 14px por default (@theme) y no hace falta
+ * tocarlo. El árbol de grupos y la sheet de unidad (`--spacing-tree/-sheet`)
+ * también crecen: con más aire por fila hace falta un poco más de ancho para
+ * que no se sientan apretados al lado de filas de 40px.
+ */
+:root[data-density="compact"] {
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --row-h: 32px;
+  --control-h: 28px;
+}
+
+:root[data-density="comfortable"] {
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-base: 14px;
+  --row-h: 40px;
+  --control-h: 32px;
+  --spacing-tree: 220px;
+  --spacing-sheet: 440px;
+}
+
 html {
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 body {
   background: var(--bg-canvas);
   color: var(--fg);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.35;
   -webkit-font-smoothing: antialiased;
 }
@@ -238,6 +310,85 @@ td.num,
 }
 
 .r-stack { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--bg-sunken); }
+
+/* ── contrato de la Ola 1.A ────────────────────────────────────────────────
+ * Estas ocho clases son el lugar reservado para las primitivas que faltan
+ * (sección d del plan de diseño). Cada una nace acá con lo mínimo para que
+ * ya se puedan usar en TSX sin romper nada — el diseño en detalle (estados,
+ * variantes, tonos) es trabajo de la Ola 1.A, dueña de este archivo en esa
+ * ola. Todas leen `var(--row-h|--control-h|--text-*)`, nunca un número
+ * propio, para que las dos densidades les queden bien gratis. */
+
+/* Field: label + control + hint + error (unit-sheet, lead-detail, onboarding,
+   login/forgot/reset/invite hoy tienen cada uno el suyo). */
+.r-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Select: <select> nativo con la altura y el chevron del sistema (no se
+   reemplaza por un listbox custom, ver h.7 del plan). */
+.r-select {
+  height: var(--control-h);
+  font-size: var(--text-sm);
+}
+
+/* Pill/Badge: chip de estado no interactivo (lead status, requisito,
+   "v1 público", MOCK). `data-tone` = neutral/accent/ok/warn/danger. */
+.r-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+}
+
+/* Banner/Callout: aviso con tono (atención, avisos de publicar, "Vrotta está
+   trabajando", errores de login). `data-tone` = info/warn/danger/ok. */
+.r-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: var(--radius-card);
+}
+
+/* EmptyState: lista/página vacía — título + explicación + acción opcional
+   gated por rol. Reemplaza las siete variantes ad hoc de hoy. */
+.r-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--fg-muted);
+}
+
+/* Skeleton: placeholder de carga sin shimmer (§7.2 del plan: nada que llame
+   la atención de más). `rows` (tabla) o `card` (grilla) como variantes. */
+.r-skeleton {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-control);
+}
+
+/* Tabs: reemplaza los r-btn primario/ghost usados hoy como pestañas (sheet
+   de unidad). `role="tablist"` en el contenedor, subrayado en la activa. */
+.r-tabs {
+  display: flex;
+  gap: 4px;
+  height: var(--control-h);
+}
+
+/* Dialog: <dialog> nativo (showModal da foco atrapado, Esc y aria-modal
+   gratis) para los 8 window.confirm y los 4 role="dialog" sueltos de hoy. */
+.r-dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+}
+.r-dialog::backdrop {
+  background: var(--overlay-backdrop);
+}
 
 *:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 /* Dentro de una fila con overflow oculto un offset positivo se recorta y el

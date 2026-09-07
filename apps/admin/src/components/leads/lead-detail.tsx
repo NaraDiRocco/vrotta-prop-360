@@ -15,10 +15,22 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
   ganado: 'Ganado',
 };
 
+// `timeZone` fijo y `hour12: false` por lo mismo que en material/format.ts:
+// sin esos dos, el server (Node, otra zona horaria) y el navegador arman un
+// string distinto para la misma fecha y React tira error de hidratación
+// apenas este panel se abra en el primer render.
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('es-UY', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('es-UY', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'America/Montevideo',
+  });
 }
 
 export function LeadDetail({
