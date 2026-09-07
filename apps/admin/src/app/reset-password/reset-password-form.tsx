@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client.ts';
 import { translateAuthError } from '@/lib/auth/errors.ts';
 import { checkNewPassword } from '@/lib/auth/password.ts';
+import { AuthBanner } from '@/components/auth/auth-banner.tsx';
+import { PasswordField } from '@/components/auth/password-field.tsx';
 
 /**
  * Se llega acá desde `/auth/callback` con una sesión de recuperación ya
@@ -34,12 +36,10 @@ export function ResetPasswordForm({ mock }: { mock: boolean }) {
 
   if (mock) {
     return (
-      <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
-        <p>
-          Modo mock activo (<code>NEXT_PUBLIC_R360_MOCK=1</code>). No hay contraseñas que cambiar: entrá
-          directo desde <Link href="/login">/login</Link>.
-        </p>
-      </div>
+      <AuthBanner tone="info">
+        Modo mock activo (<code>NEXT_PUBLIC_R360_MOCK=1</code>). No hay contraseñas que cambiar: entrá directo desde{' '}
+        <Link href="/login">/login</Link>.
+      </AuthBanner>
     );
   }
 
@@ -47,10 +47,12 @@ export function ResetPasswordForm({ mock }: { mock: boolean }) {
 
   if (!hasSession) {
     return (
-      <p>
-        Este enlace venció o ya se usó. Pedí uno nuevo desde{' '}
-        <Link href="/forgot-password">recuperar contraseña</Link>.
-      </p>
+      <div className="auth-actions">
+        <AuthBanner tone="danger">Este enlace venció o ya se usó.</AuthBanner>
+        <Link href="/forgot-password" className="r-btn" data-variant="primary">
+          Pedir un enlace nuevo
+        </Link>
+      </div>
     );
   }
 
@@ -75,8 +77,8 @@ export function ResetPasswordForm({ mock }: { mock: boolean }) {
 
   if (state === 'done') {
     return (
-      <div style={{ display: 'grid', gap: 8 }}>
-        <p>Listo, contraseña cambiada.</p>
+      <div className="auth-actions">
+        <AuthBanner tone="ok">Listo, tu contraseña cambió.</AuthBanner>
         <button type="button" className="r-btn" data-variant="primary" onClick={() => router.push('/')}>
           Entrar al panel
         </button>
@@ -85,28 +87,20 @@ export function ResetPasswordForm({ mock }: { mock: boolean }) {
   }
 
   return (
-    <form onSubmit={submit} style={{ display: 'grid', gap: 8 }}>
-      <label htmlFor="password" style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-        Contraseña nueva
-      </label>
-      <input
+    <form onSubmit={submit} className="auth-form">
+      {error && <AuthBanner tone="danger">{error}</AuthBanner>}
+      <PasswordField
         id="password"
-        className="r-input"
-        type="password"
-        required
-        autoFocus
+        label="Contraseña nueva"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="Mínimo 8 caracteres, con letras y números"
+        placeholder="••••••••"
+        hint="Mínimo 8 caracteres, con letras y números."
+        autoFocus
       />
-      <label htmlFor="confirmation" style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-        Repetirla
-      </label>
-      <input
+      <PasswordField
         id="confirmation"
-        className="r-input"
-        type="password"
-        required
+        label="Repetirla"
         value={confirmation}
         onChange={(e) => setConfirmation(e.target.value)}
         placeholder="••••••••"
@@ -114,7 +108,6 @@ export function ResetPasswordForm({ mock }: { mock: boolean }) {
       <button type="submit" className="r-btn" data-variant="primary" disabled={state === 'sending'}>
         {state === 'sending' ? 'Guardando…' : 'Guardar contraseña'}
       </button>
-      {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
     </form>
   );
 }

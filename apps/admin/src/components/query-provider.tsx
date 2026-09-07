@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
+import { ToastProvider } from '@/components/ui/toast.tsx';
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -19,5 +20,12 @@ export function QueryProvider({ children }: { children: ReactNode }) {
         },
       }),
   );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      {/* Único montaje del toast global (Ola 1.A): antes sólo existía dentro
+          de units-screen. Vive acá, en la raíz de providers, para que
+          cualquier pantalla pueda pedir useToast() sin volver a montarlo. */}
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  );
 }

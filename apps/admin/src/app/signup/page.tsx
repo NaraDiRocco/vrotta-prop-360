@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { buildContactLinks } from '@/lib/onboarding/contact.ts';
+import { AuthLayout } from '@/components/auth/auth-layout.tsx';
 
 /**
  * Vrotta Prop 360 se vende uno a uno: la dueña da de alta cada inmobiliaria a
@@ -11,6 +12,9 @@ import { buildContactLinks } from '@/lib/onboarding/contact.ts';
  * Los links salen de `R360_CONTACT_EMAIL` / `R360_CONTACT_WHATSAPP` (env de
  * servidor, se leen acá porque este es un server component). Si ninguna de
  * las dos está configurada, no se ofrece ningún link roto: sólo el texto.
+ *
+ * `contactFooter={false}` en el layout: el pie estándar diría lo mismo que
+ * ya dice el cuerpo de esta pantalla en grande, dos veces.
  */
 export default async function SignupPage() {
   const links = buildContactLinks({
@@ -19,34 +23,29 @@ export default async function SignupPage() {
   });
 
   return (
-    <main style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh', padding: 24 }}>
-      <div style={{ width: 320, display: 'grid', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Vrotta Prop 360</h1>
-          <p style={{ color: 'var(--fg-muted)' }}>Acceso por invitación</p>
+    <AuthLayout title="Acceso por invitación" contactFooter={false}>
+      <p className="auth-status-line">
+        Vrotta Prop 360 no tiene alta abierta: cada inmobiliaria se suma al panel cuando nosotros la invitamos.
+      </p>
+      <p className="auth-status-line">
+        {links.length > 0
+          ? 'Escribinos y te damos de alta.'
+          : 'Por ahora no hay un canal de contacto configurado — probá de nuevo más tarde.'}
+      </p>
+
+      {links.length > 0 && (
+        <div className="auth-actions">
+          {links.map((link, index) => (
+            <a key={link.href} className="r-btn" data-variant={index === 0 ? 'primary' : 'secondary'} href={link.href}>
+              {link.label}
+            </a>
+          ))}
         </div>
+      )}
 
-        <p style={{ fontSize: 13 }}>
-          No hay alta abierta: cada inmobiliaria se suma al panel por invitación directa.
-          {links.length > 0
-            ? ' Escribinos y te damos de alta.'
-            : ' Por ahora no hay un canal de contacto configurado — probá de nuevo más tarde.'}
-        </p>
-
-        {links.length > 0 && (
-          <div style={{ display: 'grid', gap: 8 }}>
-            {links.map((link) => (
-              <a key={link.href} className="r-btn" data-variant="primary" href={link.href}>
-                {link.label}
-              </a>
-            ))}
-          </div>
-        )}
-
-        <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-          ¿Ya tenés cuenta? <Link href="/login">Iniciá sesión</Link>
-        </span>
-      </div>
-    </main>
+      <span className="auth-field-link">
+        ¿Ya tenés cuenta? <Link href="/login">Iniciá sesión</Link>
+      </span>
+    </AuthLayout>
   );
 }

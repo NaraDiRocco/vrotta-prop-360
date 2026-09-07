@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { requirePlatform } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { canCreateTenant, PLATFORM_ROLE_LABEL } from '@/lib/roles.ts';
-import { ThemeToggle } from '@/components/theme-toggle.tsx';
+import { AppShell } from '@/components/app-shell.tsx';
 
 /**
  * "Clientes": la puerta de entrada del equipo de Vrotta. Cada fila es una
@@ -10,9 +10,12 @@ import { ThemeToggle } from '@/components/theme-toggle.tsx';
  * siempre, con todos los botones de plataforma prendidos (`requireAdmin`
  * ya sabe resolver el tenant por slug para un actor de plataforma).
  *
- * Fuera del `AppShell` a propósito, igual que `/admin/clients/new`: acá
- * todavía no hay un tenant en cuyo contexto pararse, es la pantalla desde la
- * que se elige uno.
+ * Usa el mismo `AppShell` que el resto del panel, en modo plataforma (sin
+ * tenant): antes quedaba afuera del shell "porque todavía no hay cliente" y
+ * el resultado era que la pantalla de aterrizaje del equipo de Vrotta parecía
+ * otra aplicación — sin navegación, con un toggle de tema suelto y sin forma
+ * de cerrar sesión. Que no haya cliente elegido es justamente lo que el
+ * sidebar en modo plataforma sabe decir.
  */
 export default async function AdminClientsPage() {
   const { role, actor } = await requirePlatform();
@@ -21,27 +24,27 @@ export default async function AdminClientsPage() {
   const canCreate = canCreateTenant(actor);
 
   return (
-    <main style={{ padding: '20px 24px', display: 'grid', gap: 16, maxWidth: 1100, margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ flex: 1, display: 'grid', gap: 2 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 600 }}>Clientes</h1>
-          <p style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-            Todas las inmobiliarias de Vrotta Prop 360 — {PLATFORM_ROLE_LABEL[role]}
-          </p>
-        </div>
-        <Link href="/admin/team" className="r-btn" data-variant="ghost">
-          Equipo de Vrotta
-        </Link>
-        {canCreate && (
+    <AppShell
+      actor={actor}
+      crumbs={[{ label: 'Clientes' }]}
+      actions={
+        canCreate ? (
           <Link href="/admin/clients/new" className="r-btn" data-variant="primary">
             Nuevo cliente
           </Link>
-        )}
-        <ThemeToggle />
-      </header>
+        ) : undefined
+      }
+    >
+      <div style={{ padding: '20px 24px', display: 'grid', gap: 16, maxWidth: 1100, margin: '0 auto' }}>
+        <header style={{ display: 'grid', gap: 2 }}>
+          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Clientes</h1>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--fg-muted)' }}>
+            Todas las inmobiliarias de Vrotta Prop 360 — {PLATFORM_ROLE_LABEL[role]}
+          </p>
+        </header>
 
       {sorted.length === 0 ? (
-        <div className="r-surface" style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>
+        <div className="r-surface" style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 'var(--text-base)' }}>
           Todavía no hay ningún cliente cargado.
           {canCreate && (
             <>
@@ -74,7 +77,7 @@ export default async function AdminClientsPage() {
                     <Link href={`/t/${client.tenant.slug}/p`} style={{ fontWeight: 600 }}>
                       {client.tenant.name}
                     </Link>
-                    <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--fg-faint)', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ marginLeft: 6, fontSize: 'var(--text-xs)', color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>
                       /{client.tenant.slug}
                     </span>
                   </td>
@@ -85,7 +88,7 @@ export default async function AdminClientsPage() {
                     {client.pendingMaterialCount > 0 ? (
                       <span style={{ color: 'var(--ui-warn)' }}>{client.pendingMaterialCount}</span>
                     ) : (
-                      <span style={{ color: 'var(--fg-faint)' }}>0</span>
+                      <span style={{ color: 'var(--fg-muted)' }}>0</span>
                     )}
                   </td>
                   <td className="r-td" suppressHydrationWarning>
@@ -97,6 +100,7 @@ export default async function AdminClientsPage() {
           </table>
         </div>
       )}
-    </main>
+      </div>
+    </AppShell>
   );
 }

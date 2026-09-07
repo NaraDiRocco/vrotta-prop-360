@@ -60,6 +60,7 @@ import type {
   PlatformRole,
   PreviewTokenRow,
   ProjectCard,
+  ProjectRef,
   ProjectRow,
   PublicationRow,
   PublishState,
@@ -161,6 +162,10 @@ export class MockRepo implements Repo {
       });
     }
     return cards;
+  }
+
+  async listProjectRefs(tenantSlug: string): Promise<ProjectRef[]> {
+    return this.projectsOf(tenantSlug).map((p) => ({ slug: p.slug, name: p.name, kind: p.kind }));
   }
 
   async getProject(tenantSlug: string, projectSlug: string): Promise<ProjectRow | null> {

@@ -1,14 +1,10 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { actorLabel, canCreateTenant, isPlatform } from '@/lib/roles.ts';
-import { getSession } from '@/lib/auth.ts';
-import { getRepo } from '@/lib/data/index.ts';
-import type { Actor, Membership, TenantRef } from '@/lib/data/types.ts';
+import type { Actor, ProjectRef, TenantRef } from '@/lib/data/types.ts';
 import { isMockMode } from '@/lib/data/repo.ts';
-import { ProjectNav } from './project-nav.tsx';
-import { RailNav } from './rail-nav.tsx';
-import { TenantSwitcher } from './tenant-switcher.tsx';
-import { ThemeToggle } from './theme-toggle.tsx';
+import { Sidebar } from './shell/sidebar.tsx';
+import { ShellStyles } from './shell/shell-styles.tsx';
+import { ShellProvider, SidebarBackdrop, SidebarMenuButton, SidebarToggle } from './shell/shell-state.tsx';
 
 export interface Crumb {
   label: string;
@@ -16,19 +12,23 @@ export interface Crumb {
 }
 
 /**
- * Shell del panel: rail de 64px + header con breadcrumb navegable + barra de
- * proyecto de 220px colapsable. Nada de wizards ni de paneles que aparecen y
- * desaparecen: lo opera una persona que va a estar acá ocho horas por día y
- * necesita que las cosas estén siempre en el mismo lugar.
+ * Shell del panel: UN sidebar de 240px (colapsable a 64) + header con
+ * breadcrumb navegable. Nada de wizards ni de paneles que aparecen y
+ * desaparecen: lo opera gente que necesita que las cosas estén siempre en el
+ * mismo lugar.
  *
- * El rail lleva icono + etiqueta y marca la sección activa. Los 8px extra
- * respecto de los 56 anteriores son exactamente eso: el lugar de la etiqueta.
- * No se convierte en sidebar ancho — el ancho de la pantalla es de la tabla.
+ * Antes había cuatro señales simultáneas de "dónde estoy": una banda azul de
+ * 22px ("Operando como Vrotta en X"), el avatar del cliente, el breadcrumb y
+ * el rol en 9px al pie del rail — 484px de cromo horizontal en Unidades, y
+ * aun así ningún lugar para verse a uno mismo ni cerrar sesión. Ahora hay una
+ * sola columna con los cuatro niveles (cliente / secciones / proyecto /
+ * persona), la banda no existe (el "operando como Vrotta" es un distintivo en
+ * el avatar y una línea del popover) y el menú de usuario existe.
  *
  * Recibe `actor` (quién opera) y `tenant` (en cuyo contexto): todo lo que
  * decide qué mostrar pasa por `roles.ts`, nunca por comparar `membership.role`
- * a mano. Cuando el actor es de plataforma se agrega la banda "Operando como
- * Vrotta en <cliente>" — nadie tiene que adivinar desde dónde está mirando.
+ * a mano. Sin `tenant` el shell entra en modo plataforma (`/admin`), que antes
+ * quedaba afuera del shell y parecía otra aplicación.
  */
 export async function AppShell({
   actor,
@@ -40,145 +40,76 @@ export async function AppShell({
   children,
 }: {
   actor: Actor;
-  /** La inmobiliaria en cuyo contexto se está parado (siempre hay una, aun para Vrotta). */
-  tenant: TenantRef;
+  /** La inmobiliaria en cuyo contexto se está parado. Ausente = `/admin`. */
+  tenant?: TenantRef;
   crumbs: Crumb[];
-  project?: { slug: string; name: string; kind: string };
+  project?: ProjectRef;
   actions?: ReactNode;
   /** La pantalla maneja su propio scroll (tablas virtualizadas). */
   fill?: boolean;
   children: ReactNode;
 }) {
-  const platform = isPlatform(actor);
-
-  // La lista de clientes del operador ya viaja en la sesión; el conmutador de
-  // un usuario de inmobiliaria no necesita datos nuevos. Para un actor de
-  // plataforma, en cambio, hace falta TODA la lista de clientes (la RLS de
-  // 0019 se la cascadea) — sin esto el conmutador le seguiría mostrando uno solo.
-  const session = await getSession();
-  const memberships = session?.memberships.filter((m) => m.role !== 'sales') ?? [];
-  const allTenants = platform ? await getRepo().listTenants() : undefined;
-
-  // Membership sintética SÓLO para pintar el tenant actual en el chrome
-  // (nombre, avatar). Nunca se usa para decidir permisos: eso es `actor`.
-  const currentMembership: Membership = {
-    tenantId: tenant.id,
-    tenantSlug: tenant.slug,
-    tenantName: tenant.name,
-    role: actor.kind === 'tenant' ? actor.role : 'owner',
-  };
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-      {platform && (
-        <div
-          style={{
-            flex: 'none',
-            height: 22,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            fontSize: 11,
-            fontWeight: 600,
-            color: 'var(--accent-fg)',
-            background: 'var(--accent)',
-          }}
-        >
-          Operando como Vrotta en {tenant.name}
-        </div>
-      )}
+    <ShellProvider>
+      <ShellStyles />
+      <div className="shell-root">
+        <div className="shell-body">
+          <SidebarBackdrop />
+          <Sidebar actor={actor} {...(tenant ? { tenant } : {})} {...(project ? { project } : {})} />
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-        <nav
-          aria-label="Secciones"
-          style={{
-            width: 64,
-            flex: 'none',
-            borderRight: '1px solid var(--border)',
-            background: 'var(--bg-subtle)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            paddingTop: 6,
-            gap: 6,
-          }}
-        >
-          <TenantSwitcher
-            current={currentMembership}
-            memberships={memberships.length > 0 ? memberships : [currentMembership]}
-            allTenants={allTenants}
-            canCreateTenant={platform ? canCreateTenant(actor) : undefined}
-          />
-          <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
-          <RailNav tenant={tenant.slug} actor={actor} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <header className="shell-header">
+              <SidebarToggle />
+              <SidebarMenuButton />
 
-          <div style={{ flex: 1 }} />
+              {/* El breadcrumb decía "Baleia / Baleia / Unidades" cuando el
+                  cliente y su proyecto se llaman igual. El prefijo de tipo
+                  ("cliente", "complejo") distingue los dos niveles sin sumar
+                  una línea; se deriva acá para que ninguna página tenga que
+                  cambiar cómo arma sus crumbs. */}
+              <ol className="shell-crumbs">
+                {crumbs.map((crumb, i) => {
+                  const type =
+                    tenant && crumb.label === tenant.name && i === 0
+                      ? 'cliente'
+                      : project && crumb.label === project.name
+                        ? project.kind
+                        : null;
+                  return (
+                    <li key={`${crumb.label}-${i}`} className="shell-crumb">
+                      {i > 0 && <span style={{ color: 'var(--fg-faint)' }}>/</span>}
+                      {crumb.href ? (
+                        <Link href={crumb.href} style={{ color: 'var(--fg-muted)' }}>
+                          {crumb.label}
+                        </Link>
+                      ) : (
+                        <span style={{ fontWeight: 600 }}>{crumb.label}</span>
+                      )}
+                      {type && <span className="shell-crumb-type">· {type}</span>}
+                    </li>
+                  );
+                })}
+              </ol>
 
-          <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-              paddingBottom: 6,
-            }}
-          >
-            <ThemeToggle />
-            <span title={`${tenant.name} · ${actorLabel(actor)}`} style={{ fontSize: 9, color: 'var(--fg-faint)' }}>
-              {actorLabel(actor)}
-            </span>
-          </div>
-        </nav>
+              {isMockMode() && (
+                <span
+                  title="NEXT_PUBLIC_R360_MOCK=1 — datos del seed en memoria, sin Supabase"
+                  style={{
+                    flex: 'none',
+                    fontSize: 'var(--text-xs)',
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    border: '1px solid var(--ui-warn-border)',
+                    background: 'var(--ui-warn-bg)',
+                    color: 'var(--ui-warn)',
+                  }}
+                >
+                  MOCK
+                </span>
+              )}
+              {actions}
+            </header>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <header
-            style={{
-              height: 40,
-              flex: 'none',
-              background: 'var(--bg)',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '0 10px',
-            }}
-          >
-            <ol style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-              {crumbs.map((crumb, i) => (
-                <li key={`${crumb.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                  {i > 0 && <span style={{ color: 'var(--fg-faint)' }}>/</span>}
-                  {crumb.href ? (
-                    <Link href={crumb.href} style={{ color: 'var(--fg-muted)' }}>
-                      {crumb.label}
-                    </Link>
-                  ) : (
-                    <span style={{ fontWeight: 600 }}>{crumb.label}</span>
-                  )}
-                </li>
-              ))}
-            </ol>
-            {isMockMode() && (
-              <span
-                title="NEXT_PUBLIC_R360_MOCK=1 — datos del seed en memoria, sin Supabase"
-                style={{
-                  fontSize: 10,
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  border: '1px solid var(--ui-warn-border)',
-                  background: 'var(--ui-warn-bg)',
-                  color: 'var(--ui-warn)',
-                }}
-              >
-                MOCK
-              </span>
-            )}
-            {actions}
-          </header>
-
-          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-            {project && <ProjectNav tenant={tenant.slug} project={project} actor={actor} />}
             <main
               style={{
                 flex: 1,
@@ -195,6 +126,6 @@ export async function AppShell({
           </div>
         </div>
       </div>
-    </div>
+    </ShellProvider>
   );
 }

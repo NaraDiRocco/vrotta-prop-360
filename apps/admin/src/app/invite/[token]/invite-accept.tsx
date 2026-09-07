@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { InvitationScope, Role } from '@/lib/data/types.ts';
 import type { AcceptInvitationResponse } from '@/app/api/invitations/[token]/accept/route.ts';
+import { AuthBanner } from '@/components/auth/auth-banner.tsx';
 
 /**
  * Botón de aceptar + los tres estados que importa distinguir ANTES de
@@ -31,9 +32,17 @@ export function InviteAccept({
 
   if (!sessionEmail) {
     return (
-      <a className="r-btn" data-variant="primary" href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}>
-        Iniciar sesión para aceptar
-      </a>
+      <div className="auth-actions">
+        <a className="r-btn" data-variant="primary" href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}>
+          Iniciar sesión para aceptar
+        </a>
+        {/* Con magic link, "todavía no tengo cuenta" y "ya tengo cuenta" son el
+            mismo botón: Supabase crea la cuenta en el primer inicio de sesión. */}
+        <p className="auth-field-hint">
+          ¿Todavía no tenés cuenta? Es el mismo botón: iniciá sesión con {invitationEmail} y te la creamos en el
+          momento.
+        </p>
+      </div>
     );
   }
 
@@ -62,13 +71,12 @@ export function InviteAccept({
 
   if (wrongEmail) {
     return (
-      <div style={{ display: 'grid', gap: 8 }}>
-        <p style={{ fontSize: 12, color: 'var(--danger)', lineHeight: 1.5 }}>
+      <div className="auth-actions">
+        <AuthBanner tone="warn">
           Esta invitación es para <strong>{invitationEmail}</strong>, y tu sesión actual es{' '}
-          <strong>{sessionEmail}</strong>. No es transferible: cerrá sesión e iniciá sesión con esa cuenta para
-          aceptarla.
-        </p>
-        <a className="r-btn" data-variant="ghost" href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}>
+          <strong>{sessionEmail}</strong>. No es transferible.
+        </AuthBanner>
+        <a className="r-btn" data-variant="primary" href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}>
           Iniciar sesión con otra cuenta
         </a>
       </div>
@@ -76,11 +84,11 @@ export function InviteAccept({
   }
 
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div className="auth-actions">
+      {error && <AuthBanner tone="danger">{error}</AuthBanner>}
       <button type="button" className="r-btn" data-variant="primary" disabled={busy} onClick={() => void accept()}>
         {busy ? 'Aceptando…' : 'Aceptar invitación'}
       </button>
-      {error && <p style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</p>}
     </div>
   );
 }

@@ -54,6 +54,7 @@ import type {
   PlatformRole,
   PreviewTokenRow,
   ProjectCard,
+  ProjectRef,
   ProjectRow,
   PublicationRow,
   PublishState,
@@ -261,6 +262,20 @@ export class SupabaseRepo implements Repo {
       });
     }
     return cards;
+  }
+
+  async listProjectRefs(tenantSlug: string): Promise<ProjectRef[]> {
+    const { supabase, tenantId } = await this.projectQuery(tenantSlug);
+    if (!tenantId) return [];
+    const { data } = await supabase
+      .from('projects')
+      .select('slug,name,kind')
+      .eq('tenant_id', tenantId)
+      .order('name');
+    return (data ?? []).map((raw) => {
+      const r = asRecord(raw);
+      return { slug: String(r['slug']), name: String(r['name']), kind: (r['kind'] as ProjectRef['kind']) ?? 'mixto' };
+    });
   }
 
   async getProject(tenantSlug: string, projectSlug: string): Promise<ProjectRow | null> {

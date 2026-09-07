@@ -118,6 +118,19 @@ export interface ProjectRow {
   updatedAt: string;
 }
 
+/**
+ * Lo mínimo para nombrar un proyecto en el chrome (conmutador del sidebar,
+ * breadcrumb). Existe aparte de `ProjectCard` porque el sidebar se dibuja en
+ * TODAS las pantallas del proyecto y `listProjects` carga las unidades y la
+ * salud de cada uno: pagar eso en cada navegación para llenar un popover
+ * sería el peor negocio del panel.
+ */
+export interface ProjectRef {
+  slug: string;
+  name: string;
+  kind: ProjectKind;
+}
+
 export interface GroupRow {
   id: string;
   parentId: string | null;

@@ -2,17 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Building2, LayoutGrid, MessageSquare } from 'lucide-react';
+import type { ComponentType } from 'react';
 
 /** Tres destinos. Ni uno más: se opera con el pulgar, parado en la obra. */
 export function BottomNav({ tenant, project }: { tenant: string; project: string }) {
   const pathname = usePathname();
   const base = `/s/t/${tenant}/${project}`;
-  const items = [
-    { href: `${base}/units`, label: 'Unidades', glyph: '▤', exact: false },
-    { href: `${base}/leads`, label: 'Consultas', glyph: '✉', exact: false },
+  const items: { href: string; label: string; icon: ComponentType<{ size?: number; strokeWidth?: number }>; exact: boolean }[] = [
+    { href: `${base}/units`, label: 'Unidades', icon: LayoutGrid, exact: false },
+    { href: `${base}/leads`, label: 'Consultas', icon: MessageSquare, exact: false },
     // Exacto: si no, "Proyectos" queda activo en todas las pantallas, porque
     // toda la ruta del shell empieza con /s/t/<tenant>.
-    { href: `/s/t/${tenant}`, label: 'Proyectos', glyph: '◎', exact: true },
+    { href: `/s/t/${tenant}`, label: 'Proyectos', icon: Building2, exact: true },
   ];
 
   return (
@@ -28,10 +30,12 @@ export function BottomNav({ tenant, project }: { tenant: string; project: string
     >
       {items.map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+        const Icon = item.icon;
         return (
           <Link
             key={item.href}
             href={item.href}
+            aria-current={active ? 'page' : undefined}
             style={{
               flex: 1,
               minHeight: 52,
@@ -39,11 +43,11 @@ export function BottomNav({ tenant, project }: { tenant: string; project: string
               placeItems: 'center',
               gap: 1,
               color: active ? 'var(--accent)' : 'var(--fg-muted)',
-              fontSize: 11,
+              fontSize: '0.6875rem',
               fontWeight: active ? 600 : 400,
             }}
           >
-            <span style={{ fontSize: 17 }}>{item.glyph}</span>
+            <Icon size={20} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
             {item.label}
           </Link>
         );

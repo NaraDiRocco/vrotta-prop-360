@@ -28,6 +28,7 @@ import type {
   PlatformRole,
   PreviewTokenRow,
   ProjectCard,
+  ProjectRef,
   ProjectRow,
   PublicationRow,
   PublishState,
@@ -206,6 +207,8 @@ export interface Repo {
    */
   listTenants(): Promise<TenantRef[]>;
   listProjects(tenantSlug: string): Promise<ProjectCard[]>;
+  /** Sólo slug/nombre/tipo: alimenta el conmutador de proyectos del sidebar. */
+  listProjectRefs(tenantSlug: string): Promise<ProjectRef[]>;
   getProject(tenantSlug: string, projectSlug: string): Promise<ProjectRow | null>;
   /** Por id, para los route handlers que sólo tienen el project_id de la URL. */
   getProjectById(projectId: string): Promise<ProjectRow | null>;

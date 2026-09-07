@@ -2,39 +2,52 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Plus } from 'lucide-react';
+import { Building2, Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { ROLE_LABEL } from '@/lib/roles.ts';
 import type { Membership, TenantRef } from '@/lib/data/types.ts';
 
 /**
- * Conmutador de cliente, arriba de todo en el rail.
+ * Conmutador de cliente: la cabecera del sidebar y el nivel 0 de la
+ * navegación ("¿en qué inmobiliaria estoy?").
  *
- * El caso real es una persona saltando entre varios clientes: dos iniciales no
- * alcanzan para saber dónde está parada. Acá el avatar dice en cuál está y el
- * popover lista todos los que tiene, con "Nuevo cliente" al pie — que es una
- * acción de setup y no tenía por qué competir con la navegación diaria del rail.
- *
- * Con un solo cliente no hay popover: el avatar es el link al listado, como antes.
+ * Antes vivía en un rail de 64px y sólo cabían dos iniciales. Con 240px el
+ * avatar convive con el nombre completo, así que ya no hace falta abrir el
+ * popover para saber dónde estás. Cuando el sidebar se colapsa, el CSS
+ * (`.shell-hide-collapsed`) esconde el nombre y queda el avatar: el markup no
+ * cambia, así que tampoco cambia lo que lee un lector de pantalla.
  *
  * `allTenants` es el caso de plataforma: Vrotta ve TODOS los clientes, no sólo
  * los que tiene en `memberships` (que para un actor de plataforma están
- * vacíos). Con más de ~8 aparece un buscador — a partir de un puñado de
- * clientes desplazarse con el ojo deja de alcanzar. Quien llama (`AppShell`)
- * decide si pasa `allTenants`: sin él, el conmutador se comporta exactamente
- * como antes.
+ * vacíos). Con más de ~8 aparece un buscador. Además, para plataforma el
+ * popover abre con la línea "Operando en <cliente> como <rol>": esa línea y el
+ * distintivo del avatar reemplazan a la banda azul de 22px que antes repetía
+ * lo mismo en todas las pantallas, ocupando alto de tabla.
+ *
+ * En `scope="platform"` (las pantallas `/admin`, donde todavía no hay ningún
+ * cliente elegido) la cabecera dice "Vrotta" y el popover sirve para entrar a
+ * un cliente.
  */
 export function TenantSwitcher({
   current,
   memberships,
   allTenants,
   canCreateTenant,
+  platform = false,
+  actorLabel,
+  scope = 'tenant',
 }: {
-  current: Membership;
+  /** El cliente que se está operando. En `scope="platform"` no hay ninguno. */
+  current?: Membership;
   memberships: Membership[];
-  /** Todos los clientes visibles para un actor de plataforma. Ausente = comportamiento de siempre (sólo `memberships`). */
+  /** Todos los clientes visibles para un actor de plataforma. */
   allTenants?: TenantRef[];
   /** "Nuevo cliente" sólo tiene sentido para quien puede crear tenants (Vrotta Admin). */
   canCreateTenant?: boolean;
+  /** Quien opera es de Vrotta: avatar con distintivo y línea de contexto. */
+  platform?: boolean;
+  /** `actorLabel(actor)` — para la línea "Operando en … como …". */
+  actorLabel?: string;
+  scope?: 'tenant' | 'platform';
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -46,7 +59,10 @@ export function TenantSwitcher({
       if (!hostRef.current?.contains(event.target as Node)) setOpen(false);
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setOpen(false);
+      }
     }
     document.addEventListener('mousedown', onDocDown);
     document.addEventListener('keydown', onKey);
@@ -56,7 +72,7 @@ export function TenantSwitcher({
     };
   }, [open]);
 
-  const platform = allTenants !== undefined;
+  const useAllTenants = allTenants !== undefined;
   const filteredTenants = useMemo(() => {
     if (!allTenants) return [];
     const q = query.trim().toLowerCase();
@@ -64,100 +80,74 @@ export function TenantSwitcher({
     return allTenants.filter((t) => t.name.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q));
   }, [allTenants, query]);
 
-  const initials = current.tenantName.slice(0, 2).toUpperCase();
+  const title = scope === 'platform' ? 'Vrotta' : (current?.tenantName ?? 'Vrotta');
+  const initials = scope === 'platform' ? 'V' : title.slice(0, 2).toUpperCase();
+  const subtitle = scope === 'platform' ? (actorLabel ?? 'Plataforma') : 'Cliente';
 
   return (
-    <div ref={hostRef} style={{ position: 'relative', width: '100%', display: 'grid', placeItems: 'center' }}>
+    <div ref={hostRef} className="shell-pop-host">
       <button
         type="button"
+        className="shell-row-btn"
         onClick={() => setOpen((v) => !v)}
-        title={`${current.tenantName} — cambiar de cliente`}
-        aria-label={`Cliente actual: ${current.tenantName}. Cambiar de cliente`}
+        aria-label={
+          scope === 'platform'
+            ? 'Vrotta — elegir un cliente'
+            : `Cliente actual: ${title}. Cambiar de cliente`
+        }
         aria-haspopup="menu"
         aria-expanded={open}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          padding: '3px 4px 3px 3px',
-          border: '1px solid transparent',
-          borderRadius: 8,
-          background: open ? 'var(--bg-hover)' : 'transparent',
-          cursor: 'pointer',
-        }}
+        style={{ background: open ? 'var(--bg-hover)' : undefined }}
       >
-        <span
-          style={{
-            width: 30,
-            height: 30,
-            display: 'grid',
-            placeItems: 'center',
-            borderRadius: 7,
-            background: 'var(--accent)',
-            color: 'var(--accent-fg)',
-            fontWeight: 700,
-            fontSize: 12,
-          }}
-        >
+        <span className="shell-avatar">
           {initials}
+          {platform && scope === 'tenant' && (
+            <span className="shell-avatar-badge" title="Operado por Vrotta">
+              <Building2 size={9} strokeWidth={2.5} aria-hidden />
+            </span>
+          )}
         </span>
-        <ChevronDown size={12} strokeWidth={2} color="var(--fg-faint)" aria-hidden />
+        <span className="shell-row-main shell-hide-collapsed">
+          <span className="shell-row-title">{title}</span>
+          <span className="shell-row-sub">{subtitle}</span>
+        </span>
+        <ChevronsUpDown size={13} strokeWidth={2} className="shell-hide-collapsed" style={{ flex: 'none', color: 'var(--fg-muted)' }} aria-hidden />
       </button>
 
       {open && (
-        <div
-          role="menu"
-          aria-label="Clientes"
-          style={{
-            position: 'absolute',
-            top: 4,
-            left: 'calc(100% + 6px)',
-            zIndex: 30,
-            minWidth: 240,
-            maxHeight: 'min(70vh, 480px)',
-            overflowY: 'auto',
-            padding: 4,
-            background: 'var(--bg)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-card)',
-            boxShadow: 'var(--shadow-overlay)',
-          }}
-        >
-          <div style={{ fontSize: 10, color: 'var(--fg-muted)', padding: '4px 8px 6px' }}>Clientes</div>
+        <div role="menu" aria-label="Clientes" className="shell-pop" style={{ top: 'calc(100% + 4px)', left: 0 }}>
+          {platform && scope === 'tenant' && current && (
+            <div className="shell-pop-head">
+              Operando en <strong style={{ color: 'var(--fg)' }}>{current.tenantName}</strong>
+              {actorLabel ? ` como ${actorLabel}` : ''}
+            </div>
+          )}
+          {!(platform && scope === 'tenant') && <div className="shell-pop-head">Clientes</div>}
 
-          {platform && (allTenants?.length ?? 0) > 8 && (
+          {useAllTenants && (allTenants?.length ?? 0) > 8 && (
             <input
               autoFocus
               className="r-input"
               placeholder="Buscar cliente…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              style={{ margin: '0 4px 6px', width: 'calc(100% - 8px)', height: 26, fontSize: 12 }}
+              style={{ margin: '0 4px 6px', width: 'calc(100% - 8px)' }}
             />
           )}
 
-          {platform
+          {useAllTenants
             ? filteredTenants.map((t) => {
-                const active = t.slug === current.tenantSlug;
+                const active = t.slug === current?.tenantSlug;
                 return (
                   <Link
                     key={t.slug}
                     href={`/t/${t.slug}/p`}
                     role="menuitem"
+                    className="shell-menuitem"
+                    data-active={active || undefined}
                     onClick={() => setOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      height: 30,
-                      padding: '0 8px',
-                      borderRadius: 'var(--radius-control)',
-                      color: active ? 'var(--accent)' : 'var(--fg)',
-                      background: active ? 'var(--bg-sel)' : 'transparent',
-                      fontWeight: active ? 600 : 400,
-                    }}
                   >
-                    <span style={{ width: 14, display: 'grid', placeItems: 'center' }}>
+                    <span style={{ width: 14, display: 'grid', placeItems: 'center', flex: 'none' }}>
                       {active ? <Check size={13} strokeWidth={2.25} aria-hidden /> : null}
                     </span>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -167,78 +157,34 @@ export function TenantSwitcher({
                 );
               })
             : memberships.map((m) => {
-                const active = m.tenantSlug === current.tenantSlug;
+                const active = m.tenantSlug === current?.tenantSlug;
                 return (
                   <Link
                     key={m.tenantSlug}
                     href={`/t/${m.tenantSlug}/p`}
                     role="menuitem"
+                    className="shell-menuitem"
+                    data-active={active || undefined}
                     onClick={() => setOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      height: 30,
-                      padding: '0 8px',
-                      borderRadius: 'var(--radius-control)',
-                      color: active ? 'var(--accent)' : 'var(--fg)',
-                      background: active ? 'var(--bg-sel)' : 'transparent',
-                      fontWeight: active ? 600 : 400,
-                    }}
                   >
-                    <span style={{ width: 14, display: 'grid', placeItems: 'center' }}>
+                    <span style={{ width: 14, display: 'grid', placeItems: 'center', flex: 'none' }}>
                       {active ? <Check size={13} strokeWidth={2.25} aria-hidden /> : null}
                     </span>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {m.tenantName}
                     </span>
-                    <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>{ROLE_LABEL[m.role]}</span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-muted)' }}>{ROLE_LABEL[m.role]}</span>
                   </Link>
                 );
               })}
 
-          {platform && (
-            <Link
-              href="/admin"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                height: 30,
-                padding: '0 8px',
-                borderRadius: 'var(--radius-control)',
-                color: 'var(--fg-muted)',
-                fontSize: 11,
-              }}
-            >
-              Ver como lista — Clientes
-            </Link>
-          )}
-
           {/* "Nuevo cliente" ya no es para cualquiera: crear un tenant es cosa
-              de Vrotta Admin (`canCreateTenant`, /admin/clients/new). Antes
-              de la migración de roles esto se mostraba a cualquier owner y
-              apuntaba a `/t/new`, que ya no existe. */}
+              de Vrotta Admin (`canCreateTenant`, /admin/clients/new). */}
           {canCreateTenant && (
             <>
-              <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
-              <Link
-                href="/admin/clients/new"
-                role="menuitem"
-                onClick={() => setOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  height: 30,
-                  padding: '0 8px',
-                  borderRadius: 'var(--radius-control)',
-                  color: 'var(--fg-muted)',
-                }}
-              >
-                <span style={{ width: 14, display: 'grid', placeItems: 'center' }}>
+              <div className="shell-menu-sep" />
+              <Link href="/admin/clients/new" role="menuitem" className="shell-menuitem" onClick={() => setOpen(false)}>
+                <span style={{ width: 14, display: 'grid', placeItems: 'center', flex: 'none' }}>
                   <Plus size={13} strokeWidth={2} aria-hidden />
                 </span>
                 Nuevo cliente

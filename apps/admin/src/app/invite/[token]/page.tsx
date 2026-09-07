@@ -1,6 +1,9 @@
+import Link from 'next/link';
 import { getSession } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { PLATFORM_ROLE_LABEL, ROLE_LABEL } from '@/lib/roles.ts';
+import { buildContactLinks } from '@/lib/onboarding/contact.ts';
+import { AuthLayout } from '@/components/auth/auth-layout.tsx';
 import { InviteAccept } from './invite-accept.tsx';
 
 /**
@@ -13,22 +16,40 @@ import { InviteAccept } from './invite-accept.tsx';
  * Un token que no existe, venció, fue revocado o ya fue aceptado se
  * muestra TODOS con el mismo mensaje genérico — a propósito, ver la nota de
  * la migración 0020: no hay forma de usar la respuesta para enumerar tokens.
+ * Antes esa pantalla no ofrecía ninguna acción; ahora siempre ofrece dos:
+ * pedir una invitación nueva y, para quien ya tiene cuenta, entrar directo.
  */
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const [session, preview] = await Promise.all([getSession(), getRepo().resolveInvitationByToken(token)]);
 
   if (!preview) {
+    const links = buildContactLinks({
+      email: process.env['R360_CONTACT_EMAIL'],
+      whatsapp: process.env['R360_CONTACT_WHATSAPP'],
+    });
     return (
-      <main style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh', padding: 24 }}>
-        <div style={{ width: 360, display: 'grid', gap: 8 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 600 }}>Invitación no disponible</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-            Este link ya no sirve: puede haber vencido, haber sido revocado, o ya haberse usado. Pedile a quien te
-            invitó que te mande uno nuevo.
-          </p>
+      <AuthLayout title="Esta invitación ya no sirve" contactFooter={false}>
+        <p className="auth-status-line">
+          Puede haber vencido, haber sido revocada, o ya haberse usado. No hay forma de reactivarla, pero tenés dos
+          caminos:
+        </p>
+        <div className="auth-actions">
+          {links.map((link, index) => (
+            <a key={link.href} className="r-btn" data-variant={index === 0 ? 'primary' : 'secondary'} href={link.href}>
+              Pedir una invitación nueva · {link.label}
+            </a>
+          ))}
+          {links.length === 0 && (
+            <p className="auth-field-hint">
+              Pedile a quien te invitó (tu inmobiliaria, o Vrotta) que te mande una invitación nueva.
+            </p>
+          )}
+          <Link href="/login" className="r-btn" data-variant="ghost">
+            Ya tengo cuenta → Entrar
+          </Link>
         </div>
-      </main>
+      </AuthLayout>
     );
   }
 
@@ -37,25 +58,26 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     preview.scope === 'platform'
       ? (preview.platformRole ? PLATFORM_ROLE_LABEL[preview.platformRole] : '')
       : (preview.role ? ROLE_LABEL[preview.role] : '');
+  const initial = orgLabel.trim().charAt(0).toUpperCase() || '?';
 
   return (
-    <main style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh', padding: 24 }}>
-      <div style={{ width: 360, display: 'grid', gap: 16 }}>
-        <div style={{ display: 'grid', gap: 4 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 600 }}>Vrotta Prop 360</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-            Te invitaron a <strong style={{ color: 'var(--fg)' }}>{orgLabel}</strong> como{' '}
-            <strong style={{ color: 'var(--fg)' }}>{roleLabel}</strong>, para <code>{preview.email}</code>.
-          </p>
-        </div>
-        <InviteAccept
-          token={token}
-          invitationEmail={preview.email}
-          sessionEmail={session?.email ?? null}
-          scope={preview.scope}
-          role={preview.role}
-        />
+    <AuthLayout title="Aceptá tu invitación">
+      <div className="auth-invite-summary">
+        <span className="auth-invite-avatar" aria-hidden="true">
+          {initial}
+        </span>
+        <p className="auth-invite-copy">
+          <strong>{orgLabel}</strong> te invita como <strong>{roleLabel}</strong>, para{' '}
+          <span className="auth-invite-email">{preview.email}</span>.
+        </p>
       </div>
-    </main>
+      <InviteAccept
+        token={token}
+        invitationEmail={preview.email}
+        sessionEmail={session?.email ?? null}
+        scope={preview.scope}
+        role={preview.role}
+      />
+    </AuthLayout>
   );
 }

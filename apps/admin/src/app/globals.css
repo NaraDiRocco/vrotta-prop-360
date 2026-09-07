@@ -311,13 +311,38 @@ td.num,
 
 .r-stack { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--bg-sunken); }
 
-/* ── contrato de la Ola 1.A ────────────────────────────────────────────────
- * Estas ocho clases son el lugar reservado para las primitivas que faltan
- * (sección d del plan de diseño). Cada una nace acá con lo mínimo para que
- * ya se puedan usar en TSX sin romper nada — el diseño en detalle (estados,
- * variantes, tonos) es trabajo de la Ola 1.A, dueña de este archivo en esa
- * ola. Todas leen `var(--row-h|--control-h|--text-*)`, nunca un número
- * propio, para que las dos densidades les queden bien gratis. */
+/* ── primitivas de la Ola 1.A (src/components/ui/*) ─────────────────────────
+ * Ocho clases base + las que hicieron falta para sus variantes (pill/banner
+ * necesitan `data-tone`, botón necesita `data-variant/-size`, etc.). Todas
+ * leen `var(--row-h|--control-h|--text-*)`, nunca un número propio, para que
+ * las dos densidades les queden bien gratis. El detalle de cada componente
+ * React vive en `src/components/ui/`; acá sólo el CSS que consumen. */
+
+/* Button ya existía como .r-btn arriba (con data-variant primary/ghost).
+   Se agregan danger y los dos tamaños; la ALTURA es siempre --control-h
+   (ver comentario largo en ui/button.tsx: es lo que garantiza el blanco de
+   click mínimo del plan incluso en iconOnly). */
+.r-btn[data-variant="danger"] {
+  background: var(--ui-danger-bg);
+  border-color: var(--ui-danger-border);
+  color: var(--ui-danger);
+}
+.r-btn[data-variant="danger"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ui-danger-bg) 60%, var(--ui-danger-border));
+}
+.r-btn[data-size="sm"] {
+  padding: 0 7px;
+  font-size: var(--text-xs);
+  gap: 4px;
+}
+/* iconOnly fuerza forma cuadrada de --control-h de lado, sin importar
+   `size`: es la regla que hace que un botón sólo-ícono nunca sea más chico
+   que el blanco de click mínimo (24×24 compacta / 32×32 cómoda). */
+.r-btn[data-icon-only="true"] {
+  width: var(--control-h);
+  padding: 0;
+  justify-content: center;
+}
 
 /* Field: label + control + hint + error (unit-sheet, lead-detail, onboarding,
    login/forgot/reset/invite hoy tienen cada uno el suyo). */
@@ -326,22 +351,101 @@ td.num,
   flex-direction: column;
   gap: 4px;
 }
+.r-field__label {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+.r-field__required {
+  color: var(--ui-danger);
+}
+/* Informativo, no decorativo: NO usa --fg-faint (criterio 0.5 del plan). */
+.r-field__hint {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.r-field__error {
+  font-size: var(--text-xs);
+  color: var(--ui-danger);
+}
 
 /* Select: <select> nativo con la altura y el chevron del sistema (no se
    reemplaza por un listbox custom, ver h.7 del plan). */
+.r-select-wrap {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
 .r-select {
   height: var(--control-h);
+  width: 100%;
+  padding: 0 26px 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: var(--fg);
   font-size: var(--text-sm);
+  /* El chevron lo dibuja `ChevronDown` de Lucide encima, no el nativo del
+     navegador (que varía de forma entre sistemas). */
+  appearance: none;
+}
+.r-select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -1px;
+}
+.r-select__chevron {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--fg-muted);
 }
 
 /* Pill/Badge: chip de estado no interactivo (lead status, requisito,
-   "v1 público", MOCK). `data-tone` = neutral/accent/ok/warn/danger. */
+   "v1 público", MOCK, chip de estado de unidad). `data-tone` =
+   neutral/accent/ok/warn/danger/faint. */
 .r-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
   font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.r-pill[data-tone="neutral"] {
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+}
+.r-pill[data-tone="accent"] {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.r-pill[data-tone="ok"] {
+  background: var(--ui-ok-bg);
+  color: var(--ui-ok);
+}
+.r-pill[data-tone="warn"] {
+  background: var(--ui-warn-bg);
+  color: var(--ui-warn);
+}
+.r-pill[data-tone="danger"] {
+  background: var(--ui-danger-bg);
+  color: var(--ui-danger);
+}
+/* "faint" es un estado deprimido a propósito (lead descartado), pero el
+   texto sigue en --fg-muted, NUNCA --fg-faint: el criterio 0.5 del plan
+   reserva --fg-faint para placeholder/decoración, y un pill de estado es
+   información, no decoración. El borde punteado es lo que carga la seña
+   visual de "cerrado/inactivo" sin bajar el contraste del texto. */
+.r-pill[data-tone="faint"] {
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px dashed var(--border-strong);
 }
 
 /* Banner/Callout: aviso con tono (atención, avisos de publicar, "Vrotta está
@@ -350,7 +454,40 @@ td.num,
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.r-banner[data-tone="warn"] {
+  background: var(--ui-warn-bg);
+  border-color: var(--ui-warn-border);
+  color: var(--ui-warn);
+}
+.r-banner[data-tone="danger"] {
+  background: var(--ui-danger-bg);
+  border-color: var(--ui-danger-border);
+  color: var(--ui-danger);
+}
+.r-banner[data-tone="ok"] {
+  background: var(--ui-ok-bg);
+  border-color: var(--ui-ok-border);
+  color: var(--ui-ok);
+}
+.r-banner__icon {
+  flex: none;
+  margin-top: 1px;
+  /* El ícono hereda el color del tono (currentColor de Lucide): un solo
+     lugar decide el color de todo el aviso. */
+}
+.r-banner__body {
+  flex: 1;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+.r-banner__action {
+  flex: none;
 }
 
 /* EmptyState: lista/página vacía — título + explicación + acción opcional
@@ -360,12 +497,31 @@ td.num,
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  padding: 32px 16px;
   text-align: center;
   color: var(--fg-muted);
 }
+.r-empty__icon {
+  color: var(--fg-faint);
+  margin-bottom: 4px;
+}
+.r-empty__title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg);
+}
+.r-empty__desc {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  max-width: 40ch;
+}
+.r-empty__action {
+  margin-top: 6px;
+}
 
 /* Skeleton: placeholder de carga sin shimmer (§7.2 del plan: nada que llame
-   la atención de más). `rows` (tabla) o `card` (grilla) como variantes. */
+   la atención de más). `SkeletonRows`/`SkeletonCard` en ui/skeleton.tsx son
+   las variantes "rows" (tabla) y "card" (grilla) sobre esta misma clase. */
 .r-skeleton {
   background: var(--bg-sunken);
   border-radius: var(--radius-control);
@@ -377,6 +533,28 @@ td.num,
   display: flex;
   gap: 4px;
   height: var(--control-h);
+  border-bottom: 1px solid var(--border);
+}
+.r-tabs__tab {
+  height: 100%;
+  padding: 0 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  /* Se superpone al borde del contenedor: la pestaña activa "corta" la
+     línea inferior en vez de dibujar una segunda encima. */
+  margin-bottom: -1px;
+}
+.r-tabs__tab:hover {
+  color: var(--fg);
+}
+.r-tabs__tab[data-active="true"] {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
 }
 
 /* Dialog: <dialog> nativo (showModal da foco atrapado, Esc y aria-modal
@@ -385,9 +563,103 @@ td.num,
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-overlay);
+  padding: 20px;
+  width: min(420px, calc(100vw - 32px));
+  background: var(--bg);
+  color: var(--fg);
 }
 .r-dialog::backdrop {
   background: var(--overlay-backdrop);
+}
+.r-dialog__title {
+  margin: 0 0 6px;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+.r-dialog__desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.r-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Toast: provider global (ui/toast.tsx), montado una vez en QueryProvider.
+   `data-tone` = ok/error usan el par --ui-*-bg/-* (nunca #fff — el bug que
+   tenía esto en units-screen/sales-units); "undo" invierte fg/bg del propio
+   tema, que ya funciona igual en claro y oscuro por ser tokens. */
+.r-toast {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--control-h);
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-overlay);
+  font-size: var(--text-sm);
+  max-width: 70vw;
+}
+.r-toast[data-tone="ok"] {
+  background: var(--ui-ok-bg);
+  border-color: var(--ui-ok-border);
+  color: var(--ui-ok);
+}
+.r-toast[data-tone="error"] {
+  background: var(--ui-danger-bg);
+  border-color: var(--ui-danger-border);
+  color: var(--ui-danger);
+}
+.r-toast[data-tone="undo"] {
+  background: var(--fg);
+  color: var(--bg);
+}
+.r-toast__undo {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* PageHeader: título + descripción + acciones a la derecha. */
+.r-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.r-page-header__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+.r-page-header__desc {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.r-page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
 }
 
 *:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
