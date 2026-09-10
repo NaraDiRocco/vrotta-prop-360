@@ -1,0 +1,230 @@
+/* Sistema de diseño de Baleia.
+   Los valores no son de autor: salen del brochure (`Copia de Baleia prueba
+   brochure (1).pdf`), leídos del PDF con PyMuPDF. Ver
+   docs/09-MODELO-3D/../05-DISENO. Tipografía: Montserrat Regular + Bold,
+   las dos únicas del documento. Color de acento #abc1cb, el de las fichas de
+   unidad y la contratapa. Base blanco y negro puros. */
+
+:root {
+  --tinta:        #000000;
+  --papel:        #ffffff;
+  --papel-suave:  #fdfdfd;
+  --acento:       #abc1cb;   /* azul grisáceo del brochure */
+  --acento-oscuro:#8aa6b3;   /* derivado, para hover — no está en el PDF */
+  --gris-linea:   #d9dee1;
+  --gris-texto:   #5b6b73;
+
+  /* Escala tipográfica: el brochure usa 28.1 / 15 / 11.6 / 10 / 9 pt.
+     Llevada a rem sobre 16px, redondeada y con fluidez para pantalla. */
+  --t-display: clamp(2.6rem, 6vw, 5rem);
+  --t-titulo:  clamp(1.75rem, 3.2vw, 2.6rem);
+  --t-sub:     clamp(1.05rem, 1.4vw, 1.25rem);
+  --t-cuerpo:  1rem;
+  --t-dato:    0.8125rem;
+  --t-micro:   0.6875rem;
+
+  --tracking-micro: 0.18em;
+  --medida: 34rem;          /* ancho máximo de un párrafo */
+  --aire: clamp(4rem, 10vh, 9rem);   /* respiración entre secciones */
+  --margen: clamp(1.25rem, 5vw, 6rem);
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: Montserrat, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: var(--t-cuerpo);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; display: block; }
+
+/* ---------- primitivas ---------- */
+
+.seccion {
+  padding: var(--aire) var(--margen);
+}
+
+.seccion--ancha { padding-left: 0; padding-right: 0; }
+
+.medida { max-width: var(--medida); }
+
+.rotulo {
+  font-size: var(--t-micro);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin: 0 0 1.5rem;
+}
+
+h1, h2, h3 { font-weight: 700; line-height: 1.12; margin: 0 0 1rem; letter-spacing: -0.01em; }
+h2 { font-size: var(--t-titulo); }
+h3 { font-size: var(--t-sub); }
+
+p { margin: 0 0 1.15rem; }
+p:last-child { margin-bottom: 0; }
+
+.destacado { font-weight: 700; }
+
+/* ---------- portada ---------- */
+
+.portada {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  align-items: end;
+  color: var(--papel);
+  overflow: hidden;
+}
+
+.portada__foto {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+/* El texto del brochure va sobre foto sin caja: se sostiene con un degradado
+   sutil, no con una cortina opaca. */
+.portada::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.55) 0%, rgb(0 0 0 / 0.15) 45%, transparent 75%);
+}
+
+.portada__contenido {
+  position: relative;
+  z-index: 1;
+  padding: var(--margen);
+  padding-bottom: clamp(3rem, 12vh, 8rem);
+  width: 100%;
+}
+
+.portada__logo { width: clamp(11rem, 26vw, 22rem); }
+
+.portada__lema {
+  font-size: var(--t-sub);
+  margin-top: 1rem;
+  font-weight: 400;
+}
+
+.portada__lugar {
+  font-size: var(--t-micro);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  margin-top: 2.5rem;
+  opacity: 0.85;
+}
+
+/* ---------- foto a sangre con texto encima ---------- */
+
+.lamina {
+  position: relative;
+  min-height: 80svh;
+  display: grid;
+  align-items: center;
+  color: var(--papel);
+  overflow: hidden;
+}
+
+.lamina__foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lamina::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(to right, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.05) 60%);
+}
+.lamina--derecha::after { background: linear-gradient(to left, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.05) 60%); }
+.lamina__contenido { position: relative; z-index: 1; padding: var(--margen); max-width: var(--medida); }
+.lamina--derecha .lamina__contenido { margin-left: auto; }
+
+/* ---------- dos columnas ---------- */
+
+.duo {
+  display: grid;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 60rem) {
+  .duo { grid-template-columns: 1fr 1fr; }
+  .duo--texto-derecha > :first-child { order: 2; }
+}
+
+/* ---------- grilla de fotos ---------- */
+
+.mosaico {
+  display: grid;
+  gap: clamp(0.5rem, 1.2vw, 1rem);
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+}
+.mosaico img { width: 100%; height: 100%; object-fit: cover; aspect-ratio: 4 / 3; }
+
+/* ---------- datos ---------- */
+
+.datos { border-top: 1px solid var(--gris-linea); }
+.datos__fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--gris-linea);
+  font-size: var(--t-dato);
+}
+.datos__fila dt { margin: 0; }
+.datos__fila dd { margin: 0; font-weight: 700; text-align: right; }
+
+/* La barra del total: el gesto más reconocible de las fichas del brochure. */
+.total {
+  background: var(--acento);
+  color: var(--tinta);
+  text-align: center;
+  font-weight: 700;
+  padding: 0.9rem 1rem;
+  margin-top: 1.5rem;
+  font-size: var(--t-dato);
+}
+
+/* ---------- recorrido embebido ---------- */
+
+.recorrido {
+  background: var(--tinta);
+  color: var(--papel);
+  padding: var(--aire) var(--margen);
+}
+.recorrido__marco {
+  margin-top: 2.5rem;
+  aspect-ratio: 16 / 10;
+  width: 100%;
+  border: 0;
+  background: #111;
+}
+@media (max-width: 48rem) { .recorrido__marco { aspect-ratio: 3 / 4; } }
+
+/* ---------- cierre ---------- */
+
+.cierre {
+  background: var(--acento);
+  color: var(--papel);
+  text-align: center;
+  padding: var(--aire) var(--margen);
+}
+.cierre__logo { width: clamp(12rem, 30vw, 24rem); margin: 0 auto 3rem; }
+.cierre a { color: var(--papel); }
+
+/* ---------- utilidades ---------- */
+
+.centro { text-align: center; margin-inline: auto; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}

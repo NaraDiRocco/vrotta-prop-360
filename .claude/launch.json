@@ -4,14 +4,42 @@
     {
       "name": "admin-editor",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@r360/admin", "exec", "next", "dev", "-p", "3005"],
+      "runtimeArgs": [
+        "--filter",
+        "@r360/admin",
+        "exec",
+        "next",
+        "dev",
+        "-p",
+        "3005"
+      ],
       "port": 3005
     },
     {
       "name": "viewer",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@r360/viewer", "exec", "vite", "--port", "5183"],
+      "runtimeArgs": [
+        "--filter",
+        "@r360/viewer",
+        "exec",
+        "vite",
+        "--port",
+        "5183"
+      ],
       "port": 5183
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@r360/site",
+        "exec",
+        "vite",
+        "--port",
+        "5190"
+      ],
+      "port": 5190
     }
   ]
 }

@@ -112,6 +112,15 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  apps/site:
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.4.0
+        version: 5.4.21(@types/node@22.20.1)(lightningcss@1.32.0)
+
   apps/viewer:
     dependencies:
       '@photo-sphere-viewer/core':

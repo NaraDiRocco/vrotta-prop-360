@@ -21,3 +21,6 @@ apps/viewer/public/baleia/
 # Originales del cliente: pesan >1GB y viven fuera del repo por diseño.
 # Lo que se usa son las versiones optimizadas en tools/baleia/material*/.
 elementos baleia/
+
+# Material sincronizado desde tools/baleia por apps/site/scripts/sync-assets.mjs
+apps/site/public/media/
