@@ -10,14 +10,23 @@ Este script no puede hacer eso: los .insp de esta entrega no traen metadata de
 pose (ni trailer de Insta360, ni GPano, ni EXIF de orientacion util), asi que
 el horizonte queda como estaba la camara. Ver `docs/09-MODELO-3D/`.
 
-Lo que si resuelve, y no es obvio:
+Los dos detalles del mapeo que hay que tener bien, y que se validan mirando:
 
-  La lente trasera de la X5 esta montada **rotada 180 grados sobre su eje
-  optico**. Hay que negar el eje vertical ademas del horizontal. Con solo
-  negar X, el paisaje sale cabeza abajo en los bordes de la panoramica — se
-  nota en las tomas con exterior a la vista y pasa desapercibido en interiores
-  cerrados, que es la trampa. Determinado comparando las cuatro variantes de
-  mapeo posibles contra una toma de galeria con cielo visible.
+  1. El eje `y` del mundo apunta hacia ARRIBA, pero el eje vertical de una
+     imagen crece hacia ABAJO. Hay que negarlo en las **dos** lentes. Sin eso
+     la panoramica sale volteada de arriba a abajo: el cielorraso de hormigon
+     aparece como piso y el piso de madera como cielorraso.
+  2. La lente trasera mira a -z, asi que ademas se niega `x`.
+
+El punto 1 es el que engana. En ambientes chicos y simetricos —banos,
+vestidor, pasillos— una panoramica dada vuelta se ve casi normal, asi que
+revisar dos o tres tomas al azar no alcanza para detectarlo.
+
+**Como verificarlo:** proyectar una vista rectilinea al frente de la
+panoramica y compararla contra la mitad izquierda del .insp original, que es
+la lente frontal cruda y esta derecha. Tienen que coincidir ambiente por
+ambiente: mismo material en el techo, mismo material en el piso, y los
+muebles del mismo lado.
 
 Uso:
     python scripts/stitch_insp.py <carpeta-entrada> <carpeta-salida> [ancho]
@@ -65,11 +74,15 @@ def stitch(path: str, ancho: int = 8192) -> np.ndarray:
         peso = np.zeros((y1 - y0, ancho, 1), np.float32)
 
         for atras in (False, True):
-            # Rotacion de 180 grados sobre el eje optico para la lente trasera
-            # (ver el docstring: negar X **y** Y, no solo X).
+            # `y` apunta hacia ARRIBA en el mundo, pero el eje vertical de una
+            # imagen crece hacia ABAJO: hay que negarlo en las **dos** lentes.
+            # Sin esto la panoramica sale volteada de arriba a abajo — el techo
+            # de hormigon aparece como piso y el piso de madera como techo. En
+            # ambientes chicos y simetricos (banos, vestidor) casi no se nota.
+            # La lente trasera ademas mira a -z, asi que tambien se niega x.
             zl = -z if atras else z
             xl = -x if atras else x
-            yl = -y if atras else y
+            yl = -y
 
             theta = np.arctan2(np.sqrt(xl ** 2 + yl ** 2), zl)
             phi = np.arctan2(yl, xl)
