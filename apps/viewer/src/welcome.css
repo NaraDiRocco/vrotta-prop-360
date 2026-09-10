@@ -189,9 +189,12 @@
   width: auto;
   opacity: 1;
 }
-/* El de Caetano tiene el isotipo adentro del wordmark: a la misma altura que
-   el de Dacal, que es sólo texto, se leía más chico de lo que es. */
-.r360-welcome__socios img[data-marca="caetano"] { height: 21px; }
+/* El de Caetano lleva isotipo arriba y una bajada chica debajo del wordmark:
+   a la misma altura que el de Dacal, que es sólo texto, pesa bastante menos.
+   El archivo es el original de caetano.com.uy (2026x592, con transparencia
+   propia), no el del brochure: aquél venía a 406 px y el isotipo se
+   empastaba. */
+.r360-welcome__socios img[data-marca="caetano"] { height: 25px; }
 
 
 @media (min-width: 720px) {
