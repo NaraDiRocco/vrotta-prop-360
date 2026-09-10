@@ -88,7 +88,10 @@
   gap: 6px;
   text-align: center;
 }
-.r360-welcome__marca img { display: block; height: 18px; width: auto; }
+/* A 18 px de alto los trazos del wordmark quedaban en ~1,5 px y el
+   antialiasing los promediaba con el fondo: el blanco puro del SVG se veía
+   gris. No era opacidad ni un velo — era falta de cuerpo. */
+.r360-welcome__marca img { display: block; height: 26px; width: auto; }
 .r360-welcome__marca b { font-size: 15px; font-weight: 400; letter-spacing: .05em; }
 /* Sin sombra: la legibilidad la da el velo de `.r360-welcome__marca::before`,
    que es una sola capa suave detrás de la marca. Una sombra por letra sobre
@@ -109,12 +112,15 @@
   margin-block: auto;
   text-align: center;
 }
+/* Titular de portada, no de sección: ocupa el ancho que tiene y se lee desde
+   lejos. Escala con la pantalla en vez de saltar en un solo punto de corte. */
 .r360-welcome__info h1 {
   margin: 0;
-  font-size: 26px;
-  line-height: 1.15;
-  letter-spacing: -.015em;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, .75);
+  font-size: clamp(30px, 8.6vw, 52px);
+  line-height: 1.06;
+  letter-spacing: -.025em;
+  text-wrap: balance;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, .6);
 }
 
 .r360-welcome__acciones { position: relative; display: grid; gap: 6px; }
@@ -199,7 +205,7 @@
 
 @media (min-width: 720px) {
   .r360-welcome { padding-left: max(20px, calc(50% - 310px)); padding-right: max(20px, calc(50% - 310px)); }
-  .r360-welcome__info h1 { font-size: 34px; max-width: 14em; }
+  .r360-welcome__info h1 { max-width: 13em; margin-inline: auto; }
 }
 
 .r360-welcome [hidden] { display: none !important; }
