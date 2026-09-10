@@ -64,6 +64,9 @@
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  /* El pie flota encima: sin este colchón, la última línea de cada tramo
+     queda debajo de los puntos. */
+  scroll-padding-bottom: 60px;
   /* Una pieza por pantalla, y el gesto se detiene en cada una: es la
      diferencia entre pasar fotos y recorrer un lugar. */
   scroll-snap-type: y mandatory;
@@ -87,7 +90,12 @@
   padding: 68px 0 20px;
   box-sizing: border-box;
 }
+/* `margin: 0` incluye el de abajo a propósito: la tarjeta trae 20 px de
+   separación que sirven cuando varias se apilan en una pantalla de texto,
+   pero en una pantalla de imagen dejaban una franja de fondo entre la foto y
+   la barra de pestañas. La foto llega hasta el menú. */
 .r360-rail__pantalla--media > * { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; }
+.r360-rail__pantalla--media > .r360-rail__card { margin-bottom: 0; }
 
 /* El título del tramo flota SOBRE la primera foto, con su propio degradado:
    no le come alto a la imagen. */
@@ -211,7 +219,9 @@
   bottom: 0;
   z-index: 3;
   margin: 0;
-  padding: 48px 16px 16px;
+  /* Deja libre la franja del pie, que ahora flota encima de la foto: sin este
+     colchón, el texto de la foto y el chip del paso se pisaban. */
+  padding: 48px 16px 64px;
   font-size: 14px;
   color: #eef4fa;
   text-shadow: 0 1px 10px rgba(0, 0, 0, .8);
@@ -636,19 +646,27 @@
 }
 
 /* --------------------------------------------------------------- el riel/pie */
-/* El pie y las pestañas son la MISMA franja: seis puntos y "Siguiente". */
 
+/* El pie FLOTA sobre la foto, no la corta. Antes era una franja opaca con
+   borde que le comía 48 px a la imagen y partía la pantalla en dos pisos:
+   ahora la foto llega hasta la barra de pestañas y el pie se apoya encima,
+   sostenido por un degradado. Sus piezas —el chip del paso y la flecha— traen
+   su propio fondo, así que se leen sobre cualquier imagen. */
 .r360-rail__foot {
-  flex: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 48px;
-  padding: 0 10px;
-  background: rgba(13, 17, 23, .96);
-  border-top: 1px solid var(--r360-border);
-  backdrop-filter: blur(10px);
+  padding: 22px 10px 10px;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(6, 10, 15, .78), rgba(6, 10, 15, .34) 55%, rgba(6, 10, 15, 0));
 }
+.r360-rail__foot > * { pointer-events: auto; }
 .r360-rail__dots {
   flex: 1;
   display: flex;
