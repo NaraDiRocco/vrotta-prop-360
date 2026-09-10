@@ -3,7 +3,16 @@
   --r360-fg: #e6edf3;
   --r360-panel: rgba(13, 17, 23, .9);
   --r360-border: rgba(255, 255, 255, .14);
-  --r360-accent: #1f6feb;
+  /* El acento es el de Baleia, leído del brochure: el azul grisáceo de las
+     fichas de unidad y la contratapa. Antes era #1f6feb, el azul por defecto
+     del sistema, que sobre las fotos de mar y monte era lo único saturado de
+     la pantalla. Al ser claro, lo que va ENCIMA se escribe con `accent-ink`,
+     no en blanco. */
+  --r360-accent: #abc1cb;
+  --r360-accent-ink: #0d1117;
+  --r360-accent-soft: rgba(171, 193, 203, .18);
+  /* El verde de WhatsApp queda sólo para el ícono y el borde: como relleno de
+     un botón entero competía con todo lo demás. */
   --r360-wa: #25D366;
   --r360-nav-h: 60px;
   --r360-safe-b: env(safe-area-inset-bottom, 0px);
@@ -111,7 +120,7 @@ body.r360-no-legend #legend { display: none; }
   backdrop-filter: blur(6px);
 }
 .r360-btn:hover { border-color: rgba(255, 255, 255, .35); }
-.r360-btn.is-on { background: var(--r360-accent); border-color: var(--r360-accent); }
+.r360-btn.is-on { color: var(--r360-accent-ink); background: var(--r360-accent); border-color: var(--r360-accent); }
 .r360-icon-btn {
   min-width: var(--r360-tap); min-height: var(--r360-tap);
   display: grid; place-items: center; padding: 0; font-size: 16px;
@@ -206,7 +215,7 @@ body.r360-no-legend #legend { display: none; }
   display: flex; align-items: center; justify-content: center; gap: 8px;
   min-height: var(--r360-tap); margin: 0 0 4px; padding: 0 16px;
   border-radius: 10px; font-weight: 700; font-size: 14px; text-decoration: none;
-  color: #06210f; background: var(--r360-wa);
+  color: var(--r360-accent-ink); background: var(--r360-accent);
   position: sticky; bottom: 0; cursor: pointer;
 }
 
@@ -349,13 +358,15 @@ body.r360-rail-open .r360-hint,
 body.r360-rail-open .r360-bar__counter { display: none !important; }
 
 /*
- * El pie del riel y la barra de pestañas eran DOS barras apiladas: 119 + 60 px
- * de navegación sobre 812, el 22 % de la pantalla (auditoría §2.16 y §4, Idea
- * 1). Mientras el recorrido está a la vista queda una sola franja de 60 px —la
- * del riel, con los seis puntos y "Siguiente"—, y el plano y las unidades
- * siguen a un toque desde adentro de cada tramo.
+ * La barra de pestañas se escondía mientras el riel estaba abierto, para no
+ * apilar dos franjas (119 + 60 px sobre 812). El ahorro salía caro: adentro de
+ * un tramo no quedaba NINGUNA salida a la vista, y la barra aparecía y
+ * desaparecía según la pantalla, lo que hacía sentir dos aplicaciones pegadas.
+ *
+ * Ahora la barra está siempre. Lo que se achicó es el pie del riel, que pasó a
+ * 48 px: 48 + 60 = 108 px, contra los 179 del diseño original y sin perder de
+ * vista la salida en ninguna pantalla.
  */
-body.r360-rail-open .r360-nav { display: none !important; }
 /*
  * Y la barra superior dejaba de decir la verdad: mostraba "Masterplan", el
  * nombre de la escena que quedó abajo. Con el riel abierto el nombre se

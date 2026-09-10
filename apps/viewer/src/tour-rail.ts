@@ -445,6 +445,16 @@ export class TourRail {
       `<p class="r360-rail__step">Tramo ${i + 1} de ${TRAMOS.length}</p>` +
       `<h2>${escapeHtml(def.title)}</h2>`;
 
+    // Qué tramo se está viendo, para que la hoja de estilos pueda vestirlo
+    // sin que este archivo sepa de colores ni de fondos.
+    this.el.dataset.tramo = def.id;
+    // El tramo de unidades es una grilla de fichas sobre negro plano: se le
+    // pone detrás una foto real del bloque, muy velada, y las fichas flotan
+    // encima en vidrio. La foto sale del material del propio tramo, no está
+    // nombrada acá.
+    const fondo = this.content.bloque.fachadas[0] ?? this.content.bloque.paseo[0];
+    if (fondo) this.el.style.setProperty('--r360-rail-fondo', `url("${this.resolve(fondo.url)}")`);
+
     if (def.id === 'llegada') this.renderLlegada();
     else if (def.id === 'bloque-2') this.renderBloque();
     else if (def.id === 'amenities') this.renderAmenities();

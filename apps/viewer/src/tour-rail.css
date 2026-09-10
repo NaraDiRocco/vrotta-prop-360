@@ -27,12 +27,35 @@
   top: calc(52px + env(safe-area-inset-top));
   left: 0;
   right: 0;
-  bottom: 0;
+  /* Termina ARRIBA de la barra de pestañas, que ahora queda siempre visible. */
+  bottom: calc(var(--r360-nav-h) + var(--r360-safe-b));
   z-index: 65; /* sobre la leyenda y los overlays del plano (60-62), bajo las hojas (70+) */
   display: flex;
   flex-direction: column;
   background: var(--r360-bg);
 }
+
+/* El tramo de unidades era una grilla de fichas sobre negro plano. Lleva
+   detrás una foto real del bloque, muy velada, para que las fichas de vidrio
+   tengan de qué despegarse: sin nada atrás, "vidrio" es sólo un gris. */
+.r360-rail[data-tramo="unidades"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--r360-rail-fondo);
+  background-size: cover;
+  background-position: center;
+  opacity: .4;
+  pointer-events: none;
+}
+.r360-rail[data-tramo="unidades"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(13, 17, 23, .55), rgba(13, 17, 23, .88));
+  pointer-events: none;
+}
+.r360-rail[data-tramo="unidades"] > * { position: relative; z-index: 1; }
 
 .r360-rail__scroll {
   flex: 1;
@@ -98,6 +121,16 @@
 }
 
 .r360-rail__card { margin: 0 0 20px; }
+/* El grupo de cada bloque, dentro del tramo de unidades, también flota. */
+.r360-rail[data-tramo="unidades"] .r360-rail__card {
+  margin: 0 12px 16px;
+  padding: 14px 4px 16px;
+  background: rgba(255, 255, 255, .04);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 14px;
+}
 .r360-rail__card h3 { margin: 0 16px 6px; font-size: 15px; line-height: 1.3; }
 .r360-rail__card > p { margin: 0 16px 8px; font-size: 13.5px; line-height: 1.5; }
 .r360-rail__pantalla--texto > *:last-child { margin-bottom: 0; }
@@ -448,13 +481,13 @@
   transition: transform .1s ease, background-color .1s ease;
 }
 .r360-rail__btn:active { transform: scale(.98); }
-.r360-rail__btn.is-primary { color: #fff; background: var(--r360-accent); border: 1px solid var(--r360-accent); }
+.r360-rail__btn.is-primary { color: var(--r360-accent-ink); background: var(--r360-accent); border: 1px solid var(--r360-accent); }
 .r360-rail__btn.is-ghost {
   color: var(--r360-fg);
   background: rgba(255, 255, 255, .06);
   border: 1px solid var(--r360-border);
 }
-.r360-rail__btn.is-wa { color: #06281a; background: var(--r360-wa); border: 1px solid var(--r360-wa); }
+.r360-rail__btn.is-wa { color: var(--r360-wa); background: rgba(37, 211, 102, .1); border: 1px solid rgba(37, 211, 102, .55); }
 
 /* ------------------------------------------------------------ piezas varias */
 
@@ -514,7 +547,7 @@
   border: 0;
   cursor: pointer;
 }
-.r360-rail__toggle button.is-on { color: #fff; background: var(--r360-accent); }
+.r360-rail__toggle button.is-on { color: var(--r360-accent-ink); background: var(--r360-accent); }
 /* El conmutador y la chapa comparten la franja de arriba: la chapa baja para
    que "Proyecto/Hoy" se lea entero. */
 .r360-rail__switch .r360-rail__chapa.is-foto,
@@ -547,11 +580,20 @@
   text-align: left;
   font: inherit;
   color: inherit;
-  background: rgba(255, 255, 255, .05);
-  border: 1px solid var(--r360-border);
+  /* Vidrio esmerilado, el mismo material que el botón de la portada. */
+  background: rgba(255, 255, 255, .07);
+  backdrop-filter: blur(12px) saturate(115%);
+  -webkit-backdrop-filter: blur(12px) saturate(115%);
+  border: 1px solid rgba(255, 255, 255, .16);
   border-left: 3px solid #64748b;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, transform .2s ease;
+}
+.r360-rail__unidad:hover {
+  background: rgba(255, 255, 255, .13);
+  border-color: rgba(255, 255, 255, .3);
+  transform: translateY(-1px);
 }
 .r360-rail__unidad[data-estado="disponible"] { border-left-color: #16A34A; }
 .r360-rail__unidad[data-estado="vendido"] { border-left-color: #DC2626; }
@@ -602,9 +644,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: var(--r360-nav-h);
+  min-height: 48px;
   padding: 0 10px;
-  padding-bottom: var(--r360-safe-b);
   background: rgba(13, 17, 23, .96);
   border-top: 1px solid var(--r360-border);
   backdrop-filter: blur(10px);
@@ -624,7 +665,7 @@
   justify-items: center;
   align-content: center;
   gap: 4px;
-  min-width: 34px;
+  min-width: 18px;
   min-height: var(--r360-tap);
   padding: 4px 2px;
   font: inherit;
@@ -635,10 +676,33 @@
   border: 0;
   cursor: pointer;
 }
-/* En 375 px, seis rótulos y un botón no entran en 60 px de alto y 375 de
-   ancho: quedan los puntos (con su `aria-label` intacto) y el rótulo vuelve
-   apenas hay lugar. */
+/* Seis rótulos no entran en 375 px de ancho, pero UNO sí: el del paso en el
+   que estás. Los otros cinco quedan como puntos. Una fila de puntos mudos no
+   dice dónde estás parado, que es justo lo que tiene que decir. */
 .r360-rail__dot span { display: none; }
+.r360-rail__dot.is-active {
+  /* Fila, no grilla: el `display:grid` con `justify-items:center` que usan los
+     puntos apilaba el punto sobre el rótulo en vez de ponerlo al lado. */
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--r360-accent-soft);
+}
+.r360-rail__dot.is-active i { flex: none; }
+.r360-rail__dot.is-active span {
+  display: block;
+  max-width: 46vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: .02em;
+}
 .r360-rail__dot i {
   width: 8px;
   height: 8px;
@@ -661,7 +725,7 @@
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
-  color: #fff;
+  color: var(--r360-accent-ink);
   background: var(--r360-accent);
   border: 0;
   cursor: pointer;
