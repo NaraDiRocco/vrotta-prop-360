@@ -75,6 +75,11 @@
   height: 120px;
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(6, 10, 15, .38), transparent);
+  /* Detrás del logo, no encima. Un pseudo-elemento con `position:absolute` se
+     pinta DESPUÉS de los hijos sin posicionar, así que este velo le quedaba
+     como una película gris al wordmark: el SVG es blanco puro y se veía
+     apagado. */
+  z-index: 0;
 }
 
 .r360-welcome__marca {
@@ -88,15 +93,22 @@
   gap: 6px;
   text-align: center;
 }
-/* A 18 px de alto los trazos del wordmark quedaban en ~1,5 px y el
-   antialiasing los promediaba con el fondo: el blanco puro del SVG se veía
-   gris. No era opacidad ni un velo — era falta de cuerpo. */
-.r360-welcome__marca img { display: block; height: 26px; width: auto; }
+/* Encima del velo. Y con cuerpo: a 18 px los trazos quedaban en ~1,5 px y el
+   antialiasing también los apagaba. */
+.r360-welcome__marca img {
+  display: block;
+  position: relative;
+  z-index: 1;
+  height: 26px;
+  width: auto;
+}
 .r360-welcome__marca b { font-size: 15px; font-weight: 400; letter-spacing: .05em; }
 /* Sin sombra: la legibilidad la da el velo de `.r360-welcome__marca::before`,
    que es una sola capa suave detrás de la marca. Una sombra por letra sobre
    cielo claro se ve sucia. */
 .r360-welcome__marca span {
+  position: relative;
+  z-index: 1;
   font-size: 8.5px;
   font-weight: 400;
   letter-spacing: .16em;
