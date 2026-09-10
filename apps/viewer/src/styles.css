@@ -127,15 +127,19 @@ body.r360-no-legend #legend { display: none; }
 }
 /* Compartir y volver comparten la franja de arriba con la marca. Como disco
    opaco pesaban mucho más que el logo, que es un wordmark suelto: van en
-   vidrio, apoyados en el degradado de la barra. */
+   vidrio.
+   El vidrio es OSCURO y no claro: la franja ya no tiene fondo propio y estos
+   botones quedan sobre la foto del tramo. Con vidrio blanco desaparecían
+   contra un cielo claro, que es justo lo que hay arriba en casi todas las
+   tomas. Oscuro se sostiene sobre cualquiera. */
 .r360-bar .r360-icon-btn {
   color: #fff;
-  background: rgba(255, 255, 255, .1);
-  border-color: rgba(255, 255, 255, .22);
+  background: rgba(6, 10, 15, .38);
+  border-color: rgba(255, 255, 255, .3);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-.r360-bar .r360-icon-btn:hover { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .4); }
+.r360-bar .r360-icon-btn:hover { background: rgba(6, 10, 15, .55); border-color: rgba(255, 255, 255, .5); }
 
 /* ------------------------------------------------------- navegación inferior */
 .r360-nav {
@@ -385,6 +389,26 @@ body.r360-rail-open .r360-bar__counter { display: none !important; }
  * riel (`.r360-rail__marca`) porque es quien sabe dónde vive el logo.
  */
 body.r360-rail-open .r360-scene-name { visibility: hidden; }
+/* Y la franja pierde el fondo: con la foto del tramo a sangre, un degradado
+   opaco arriba se leía como un encabezado pegado sobre la imagen. Los
+   controles que quedan (compartir) van en vidrio y se sostienen solos. */
+/*
+ * `.r360-ui` vive en z-index 50 y el riel en 65, los dos hijos de `.r360-root`:
+ * subirle el z-index a `.r360-bar` no alcanzaba, porque un z-index sólo compite
+ * dentro del contexto de apilamiento de su padre. La barra entera quedaba
+ * debajo del riel y el botón de compartir era inalcanzable — estaba pintado,
+ * con su ícono, pero tapado por la foto.
+ *
+ * Se eleva el contenedor. El resto de lo que vive en `.r360-ui` ya está
+ * ocultado más arriba mientras el recorrido está a la vista, así que lo único
+ * que sube es la franja de arriba y la barra de pestañas.
+ */
+body.r360-rail-open .r360-ui { z-index: 66; }
+body.r360-rail-open .r360-bar {
+  background: none;
+  pointer-events: none;
+}
+body.r360-rail-open .r360-bar > * { pointer-events: auto; }
 
 /*
  * `⎄` (U+2384, "símbolo de composición") no es un ícono de compartir: no lo

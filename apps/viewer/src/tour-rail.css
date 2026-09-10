@@ -19,12 +19,10 @@
 
 .r360-rail {
   position: absolute;
-  /* Empieza DEBAJO de la barra superior (que sigue dando marca y compartir) y
-     llega HASTA ABAJO: el pie del riel ocupa la franja donde antes estaban las
-     pestañas, que se esconden mientras el recorrido está a la vista
-     (`styles.css`, `body.r360-rail-open`). Dos barras apiladas eran 179 px de
-     navegación duplicada sobre 812. */
-  top: calc(52px + env(safe-area-inset-top));
+  /* Arranca en el borde de arriba: la foto de cada tramo va a sangre y la
+     marca flota encima, como en la portada. Antes empezaba debajo de una
+     franja opaca que le comía 52 px a la imagen y partía la pantalla en dos. */
+  top: 0;
   left: 0;
   right: 0;
   /* Termina ARRIBA de la barra de pestañas, que ahora queda siempre visible. */
@@ -99,9 +97,10 @@
   left: 0;
   right: 0;
   z-index: 4;
-  padding: 8px 16px 26px;
+  /* Arranca debajo de la marca, que flota centrada en la franja de arriba. */
+  padding: calc(max(10px, env(safe-area-inset-top)) + 46px) 16px 26px;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(6, 10, 15, .72), rgba(6, 10, 15, 0));
+  background: linear-gradient(to bottom, rgba(6, 10, 15, .72), rgba(6, 10, 15, .3) 55%, rgba(6, 10, 15, 0));
 }
 .r360-rail__step {
   margin: 0 0 2px;
@@ -244,7 +243,7 @@
   cursor: help;
   backdrop-filter: blur(4px);
 }
-.r360-rail__chapa.is-foto { left: 12px; top: 68px; bottom: auto; }
+.r360-rail__chapa.is-foto { left: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 114px); bottom: auto; }
 .r360-rail__chapa.is-render {
   top: 12px;
   left: 12px;
@@ -551,7 +550,7 @@
 /* El conmutador y la chapa comparten la franja de arriba: la chapa baja para
    que "Proyecto/Hoy" se lea entero. */
 .r360-rail__switch .r360-rail__chapa.is-foto,
-.r360-rail__switch .r360-rail__chapa.is-render { top: 122px; left: 16px; }
+.r360-rail__switch .r360-rail__chapa.is-render { top: calc(max(10px, env(safe-area-inset-top)) + 168px); left: 16px; }
 .r360-rail__switch-stage { position: relative; flex: 1; min-height: 0; }
 .r360-rail__switch-stage > .r360-rail__card {
   position: absolute;
@@ -885,12 +884,18 @@
 .r360-rail__marca {
   position: absolute;
   top: max(10px, env(safe-area-inset-top));
-  left: 12px;
+  left: 0;
+  right: 0;
   z-index: 66;
   display: flex;
   align-items: center;
+  justify-content: center;
   height: var(--r360-tap);
+  /* Centrada, pero sin tapar el resto de la franja: sólo el logo recibe el
+     toque, así el dedo puede pasar a los lados sin que la marca se lo coma. */
+  pointer-events: none;
 }
+.r360-rail__marca > * { pointer-events: auto; }
 .r360-rail__marca[hidden] { display: none !important; }
 /* Es un boton, pero no debe parecer uno: la marca se ve igual que antes. */
 .r360-rail__marca { appearance: none; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: inherit; }
