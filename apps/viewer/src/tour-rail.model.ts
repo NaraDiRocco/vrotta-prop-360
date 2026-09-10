@@ -789,9 +789,17 @@ export const WELCOME_LUGAR = 'Punta Ballena · Uruguay';
 /** Clave de la marca local "ya vi la bienvenida". Una sola, compartida. */
 export const WELCOME_SEEN_KEY = 'r360:bienvenida-vista';
 
-export function shouldShowWelcome(opts: { hash: string; seen: boolean }): boolean {
-  if (opts.seen) return false;
+export function shouldShowWelcome(opts: { hash: string; start?: string }): boolean {
+  // Un deep link a una unidad: lo mandó un vendedor con algo puntual para
+  // mostrar. No se le pone una portada delante.
   if (/^#\/scene\/[^/]+\/unit\//.test(opts.hash)) return false;
-  if (parseTramoHash(opts.hash)) return false;
+
+  // Cualquier otra escena nombrada en el hash —un tramo, una panorámica— es
+  // un destino elegido y también se respeta. La excepción es la escena de
+  // arranque: el visor la escribe sola en la URL, así que verla ahí no
+  // significa que nadie la haya pedido.
+  const escena = /^#\/scene\/([^/?#]+)/.exec(opts.hash)?.[1];
+  if (escena && escena !== (opts.start ?? 'masterplan')) return false;
+
   return true;
 }

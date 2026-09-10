@@ -28,7 +28,7 @@ import { SceneController, buildHash, parseHash, type UnitClickPayload } from './
 import { shouldRotate } from './plan-orientation.ts';
 import { showOrientationChip } from './orientation-hint.ts';
 import { legendStatuses } from './legend.ts';
-import { TRAMO_SLUGS, parseTramoHash, shouldShowWelcome, welcomePhotos, WELCOME_SEEN_KEY } from './tour-rail.model.ts';
+import { TRAMO_SLUGS, parseTramoHash, shouldShowWelcome, welcomePhotos } from './tour-rail.model.ts';
 import { leadPayloadFromCta, leadsUrl, projectRefFromLocation, registerLead, type CtaEventDetail } from './contact.ts';
 
 export interface ViewerOptions {
@@ -119,7 +119,7 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
   // `controller.goTo()` y la montan ahí.
   const abreEnElRecorrido =
     !!parseTramoHash(location.hash) ||
-    (!!welcomePhotos(tour).hero && shouldShowWelcome({ hash: location.hash, seen: welcomeVista() }));
+    (!!welcomePhotos(tour).hero && shouldShowWelcome({ hash: location.hash, start: tour.start }));
 
   if (!abreEnElRecorrido) {
     controller.start();
@@ -332,11 +332,6 @@ async function landOnDeepLink(
 
 const isPlanScene = (s: Scene) => s.kind === 'floorplan' || s.kind === 'map';
 
-/** ¿Ya vio la bienvenida? En modo privado `localStorage` tira: es "no". */
-function welcomeVista(): boolean {
-  try { return localStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch { return false; }
-}
-
 // Auto-arranque cuando la página trae #app (build standalone del visor).
 const root = document.getElementById('app');
 if (root) {
@@ -365,11 +360,10 @@ if (root) {
     // El chip explica el plano: sólo se muestra cuando lo primero que se ve
     // ES el plano. Si abre la bienvenida o un tramo del recorrido, el chip
     // sería un cartel detrás de otra pantalla.
-    const vista = welcomeVista();
     const aterrizaEnElPlano =
       !parseTramoHash(location.hash) &&
       !parseHash(location.hash).unitCode &&
-      (!welcomePhotos(handle.tour).hero || !shouldShowWelcome({ hash: location.hash, seen: vista }));
+      (!welcomePhotos(handle.tour).hero || !shouldShowWelcome({ hash: location.hash, start: handle.tour.start }));
     if (aterrizaEnElPlano) showOrientationChip(root, handle.tour, handle.poller.value);
     root.addEventListener('r360:unit-click', (e) => {
       const d = (e as CustomEvent<UnitClickPayload>).detail;

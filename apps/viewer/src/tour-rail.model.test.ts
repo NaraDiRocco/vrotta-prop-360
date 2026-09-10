@@ -480,15 +480,20 @@ test('un estado desconocido en availability no se cuela en la leyenda', () => {
 
 // -------------------------------------------------------------- bienvenida
 
-test('la bienvenida se saltea en los tres casos previstos, y sólo en esos', () => {
-  assert.equal(shouldShowWelcome({ hash: '', seen: false }), true);
-  assert.equal(shouldShowWelcome({ hash: '#/scene/masterplan', seen: false }), true);
+test('la bienvenida se saltea sólo cuando el link nombra un destino', () => {
+  assert.equal(shouldShowWelcome({ hash: '' }), true);
+  // La escena de arranque la escribe el propio visor en la URL: verla ahí no
+  // significa que nadie la haya pedido.
+  assert.equal(shouldShowWelcome({ hash: '#/scene/masterplan' }), true);
   // deep link a una unidad
-  assert.equal(shouldShowWelcome({ hash: '#/scene/masterplan/unit/B2-A', seen: false }), false);
+  assert.equal(shouldShowWelcome({ hash: '#/scene/masterplan/unit/B2-A' }), false);
   // deep link a un tramo
-  assert.equal(shouldShowWelcome({ hash: '#/scene/amenities', seen: false }), false);
-  // ya la vio
-  assert.equal(shouldShowWelcome({ hash: '', seen: true }), false);
+  assert.equal(shouldShowWelcome({ hash: '#/scene/amenities' }), false);
+  // deep link a una panorámica
+  assert.equal(shouldShowWelcome({ hash: '#/scene/p-b2a-living' }), false);
+  // Volver a entrar NO saltea la portada: es el inicio, no un cartel de una
+  // sola vez.
+  assert.equal(shouldShowWelcome({ hash: '' }), true);
 });
 
 test('la bienvenida son dos fotos reales, nunca un render ni el video de IA', () => {

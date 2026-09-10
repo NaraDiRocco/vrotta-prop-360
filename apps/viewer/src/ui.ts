@@ -297,11 +297,9 @@ export class ViewerUi {
    */
   private openingSequence(): void {
     const tramo = parseTramoHash(location.hash);
-    const { hero, segunda } = welcomePhotos(this.opts.tour);
-    let seen = false;
-    try { seen = localStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch { /* modo privado */ }
+    const { hero } = welcomePhotos(this.opts.tour);
 
-    if (!hero || !shouldShowWelcome({ hash: location.hash, seen })) {
+    if (!hero || !shouldShowWelcome({ hash: location.hash, start: this.opts.tour.start })) {
       if (tramo) this.rail.show(tramo);
       else this.nav.setActive('plan');
       return;
@@ -314,10 +312,13 @@ export class ViewerUi {
    * Monta la portada. Se usa al llegar y también cada vez que el visitante
    * vuelve al inicio (el logo, o la pestaña Inicio).
    *
-   * `WELCOME_SEEN_KEY` sigue existiendo, pero ahora sólo decide si la portada
-   * aparece **sola** al llegar: no impide volver a ella. Antes era un camino
-   * de una sola mano — una vez que tocabas "Empezar el recorrido", la portada
-   * no se veía nunca más y no había forma de regresar.
+   * Abrir el link SIEMPRE aterriza acá. Antes, quien ya había entrado una vez
+   * caía directo en el masterplan: el navegador se acordaba y el visor le
+   * salteaba la portada para siempre. La portada es el inicio del recorrido,
+   * no un cartel de una sola vez.
+   *
+   * Lo único que la saltea es un hash que nombre un destino —una unidad, un
+   * tramo, una panorámica—, porque eso lo eligió alguien.
    */
   mostrarInicio(): void {
     if (this.welcome) return;   // ya está en pantalla
