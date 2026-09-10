@@ -343,16 +343,22 @@ def publish(tour: dict) -> dict:
         shutil.rmtree(PUBLISH_DIR)
     shutil.copytree(TOUR_DIR, PUBLISH_DIR)
 
-    pub = json.loads(json.dumps(tour))
-    pub["availabilityUrl"] = pub["availabilityUrl"].replace("./", "./baleia/", 1)
-    for sc in pub["scenes"]:
-        if "url" in sc["source"]:
-            sc["source"]["url"] = sc["source"]["url"].replace("./", "./baleia/", 1)
-        else:
-            sc["source"]["base"] = sc["source"]["base"].replace("./", "./baleia/", 1)
-    for u in pub["units"].values():
-        if u.get("media"):
-            u["media"] = [m.replace("./", "./baleia/", 1) for m in u["media"]]
+    # Se reescribe TODA ruta relativa, recursivamente, en vez de una lista de
+    # campos conocidos. La version por campos dejaba afuera `photoTour`,
+    # `mobileUrl`, `poster.url` y los `plano3d`/`planoPdf` de cada unidad: esas
+    # imagenes quedaban pidiendose a `/media/...`, donde no hay nada. En dev el
+    # sintoma es traicionero — Vite responde el index.html con **200**, asi que
+    # no hay 404 en la consola; la imagen simplemente no se ve.
+    def reescribir(nodo):
+        if isinstance(nodo, dict):
+            return {k: reescribir(v) for k, v in nodo.items()}
+        if isinstance(nodo, list):
+            return [reescribir(v) for v in nodo]
+        if isinstance(nodo, str) and nodo.startswith("./") and not nodo.startswith("./baleia/"):
+            return nodo.replace("./", "./baleia/", 1)
+        return nodo
+
+    pub = reescribir(json.loads(json.dumps(tour)))
     with open(PUBLISH_ROOT_TOUR, "w", encoding="utf-8") as f:
         json.dump(pub, f, indent=2, ensure_ascii=False)
     return {"dir": PUBLISH_DIR, "root_tour": PUBLISH_ROOT_TOUR}

@@ -426,9 +426,9 @@
         "capturedAt": "2026-09-02"
       },
       "sort": 900,
-      "mobileUrl": "./media/video/baleia-recorrido-real.720.mp4",
+      "mobileUrl": "./baleia/media/video/baleia-recorrido-real.720.mp4",
       "poster": {
-        "url": "./media/video/baleia-recorrido-real.poster.jpg",
+        "url": "./baleia/media/video/baleia-recorrido-real.poster.jpg",
         "width": 1280,
         "height": 720
       }
@@ -1823,8 +1823,8 @@
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 109.68,
         "numeroComercial": "201",
-        "plano3d": "./media/planos-3d/unidad-A-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-A.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-A-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-A.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-a-vf.webp",
@@ -1839,8 +1839,8 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76,
-        "plano3d": "./media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-B.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-B.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-b-vf.webp",
@@ -1855,8 +1855,8 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76,
-        "plano3d": "./media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-C.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-C.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-c-vf.webp",
@@ -1871,8 +1871,8 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76,
-        "plano3d": "./media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-D.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-D.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-d-vf.webp",
@@ -1887,8 +1887,8 @@
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76,
-        "plano3d": "./media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-E.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-E.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidad-e-vf.webp",
@@ -1904,8 +1904,8 @@
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 54.15,
         "numeroComercial": "206",
-        "plano3d": "./media/planos-3d/unidad-F-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-F_B2-G.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-F-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-F_B2-G.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidades-fyg-vf.webp",
@@ -1921,8 +1921,8 @@
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 60.05,
         "numeroComercial": "207",
-        "plano3d": "./media/planos-3d/unidad-G-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-F_B2-G.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-G-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-F_B2-G.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidades-fyg-vf.webp",
@@ -1937,8 +1937,8 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 52.62,
-        "plano3d": "./media/planos-3d/unidad-H-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-H_B2-I.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-H-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-H_B2-I.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidades-hei-vf.webp",
@@ -1953,8 +1953,8 @@
       "attrs": {
         "tipologia": "1 dormitorio",
         "superficieCubiertaM2": 52.62,
-        "plano3d": "./media/planos-3d/unidad-I-plano-3D-minimalista.webp",
-        "planoPdf": "./media/planos-pdf/B2-H_B2-I.pdf"
+        "plano3d": "./baleia/media/planos-3d/unidad-I-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-H_B2-I.pdf"
       },
       "media": [
         "./baleia/media/plantas/unidades-hei-vf.webp",
@@ -2156,7 +2156,7 @@
       }
     }
   },
-  "brandLogo": "./marca/baleia-logo-blanco.svg",
+  "brandLogo": "./baleia/marca/baleia-logo-blanco.svg",
   "contact": {
     "whatsapp": "+59895559230",
     "name": "Caetano Negocios Inmobiliarios"
@@ -2165,8 +2165,8 @@
     "items": [
       {
         "id": "01_aerea_contexto_costa_lejos",
-        "url": "./media/fotos/01_aerea_contexto_costa_lejos.webp",
-        "thumbUrl": "./media/fotos/01_aerea_contexto_costa_lejos.thumb.webp",
+        "url": "./baleia/media/fotos/01_aerea_contexto_costa_lejos.webp",
+        "thumbUrl": "./baleia/media/fotos/01_aerea_contexto_costa_lejos.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2177,8 +2177,8 @@
       },
       {
         "id": "04_aerea_skyline_punta_del_este",
-        "url": "./media/fotos/04_aerea_skyline_punta_del_este.webp",
-        "thumbUrl": "./media/fotos/04_aerea_skyline_punta_del_este.thumb.webp",
+        "url": "./baleia/media/fotos/04_aerea_skyline_punta_del_este.webp",
+        "thumbUrl": "./baleia/media/fotos/04_aerea_skyline_punta_del_este.thumb.webp",
         "width": 2000,
         "height": 1499,
         "procedencia": {
@@ -2188,8 +2188,8 @@
       },
       {
         "id": "02_aerea_bloque2_oblicua_cercana",
-        "url": "./media/fotos/02_aerea_bloque2_oblicua_cercana.webp",
-        "thumbUrl": "./media/fotos/02_aerea_bloque2_oblicua_cercana.thumb.webp",
+        "url": "./baleia/media/fotos/02_aerea_bloque2_oblicua_cercana.webp",
+        "thumbUrl": "./baleia/media/fotos/02_aerea_bloque2_oblicua_cercana.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2200,8 +2200,8 @@
       },
       {
         "id": "07_fachada_bloque2_dia_completa",
-        "url": "./media/fotos/07_fachada_bloque2_dia_completa.webp",
-        "thumbUrl": "./media/fotos/07_fachada_bloque2_dia_completa.thumb.webp",
+        "url": "./baleia/media/fotos/07_fachada_bloque2_dia_completa.webp",
+        "thumbUrl": "./baleia/media/fotos/07_fachada_bloque2_dia_completa.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2211,8 +2211,8 @@
       },
       {
         "id": "08_fachada_bloque2_angulo",
-        "url": "./media/fotos/08_fachada_bloque2_angulo.webp",
-        "thumbUrl": "./media/fotos/08_fachada_bloque2_angulo.thumb.webp",
+        "url": "./baleia/media/fotos/08_fachada_bloque2_angulo.webp",
+        "thumbUrl": "./baleia/media/fotos/08_fachada_bloque2_angulo.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2222,8 +2222,8 @@
       },
       {
         "id": "09_fachada_bloque2_vertical",
-        "url": "./media/fotos/09_fachada_bloque2_vertical.webp",
-        "thumbUrl": "./media/fotos/09_fachada_bloque2_vertical.thumb.webp",
+        "url": "./baleia/media/fotos/09_fachada_bloque2_vertical.webp",
+        "thumbUrl": "./baleia/media/fotos/09_fachada_bloque2_vertical.thumb.webp",
         "width": 2000,
         "height": 3000,
         "procedencia": {
@@ -2233,8 +2233,8 @@
       },
       {
         "id": "24_fachada_bloque2_atardecer_angulo",
-        "url": "./media/fotos/24_fachada_bloque2_atardecer_angulo.webp",
-        "thumbUrl": "./media/fotos/24_fachada_bloque2_atardecer_angulo.thumb.webp",
+        "url": "./baleia/media/fotos/24_fachada_bloque2_atardecer_angulo.webp",
+        "thumbUrl": "./baleia/media/fotos/24_fachada_bloque2_atardecer_angulo.thumb.webp",
         "width": 2000,
         "height": 2994,
         "procedencia": {
@@ -2244,8 +2244,8 @@
       },
       {
         "id": "16_living_comedor_amplio",
-        "url": "./media/fotos/16_living_comedor_amplio.webp",
-        "thumbUrl": "./media/fotos/16_living_comedor_amplio.thumb.webp",
+        "url": "./baleia/media/fotos/16_living_comedor_amplio.webp",
+        "thumbUrl": "./baleia/media/fotos/16_living_comedor_amplio.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2257,8 +2257,8 @@
       },
       {
         "id": "14_living_ventanales_vista_verde",
-        "url": "./media/fotos/14_living_ventanales_vista_verde.webp",
-        "thumbUrl": "./media/fotos/14_living_ventanales_vista_verde.thumb.webp",
+        "url": "./baleia/media/fotos/14_living_ventanales_vista_verde.webp",
+        "thumbUrl": "./baleia/media/fotos/14_living_ventanales_vista_verde.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2270,8 +2270,8 @@
       },
       {
         "id": "17_cocina_equipada_completa",
-        "url": "./media/fotos/17_cocina_equipada_completa.webp",
-        "thumbUrl": "./media/fotos/17_cocina_equipada_completa.thumb.webp",
+        "url": "./baleia/media/fotos/17_cocina_equipada_completa.webp",
+        "thumbUrl": "./baleia/media/fotos/17_cocina_equipada_completa.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2283,8 +2283,8 @@
       },
       {
         "id": "18_cocina_vista_horizonte_mar",
-        "url": "./media/fotos/18_cocina_vista_horizonte_mar.webp",
-        "thumbUrl": "./media/fotos/18_cocina_vista_horizonte_mar.thumb.webp",
+        "url": "./baleia/media/fotos/18_cocina_vista_horizonte_mar.webp",
+        "thumbUrl": "./baleia/media/fotos/18_cocina_vista_horizonte_mar.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2296,8 +2296,8 @@
       },
       {
         "id": "21_escalera_interna_duplex",
-        "url": "./media/fotos/21_escalera_interna_duplex.webp",
-        "thumbUrl": "./media/fotos/21_escalera_interna_duplex.thumb.webp",
+        "url": "./baleia/media/fotos/21_escalera_interna_duplex.webp",
+        "thumbUrl": "./baleia/media/fotos/21_escalera_interna_duplex.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2309,8 +2309,8 @@
       },
       {
         "id": "20_dormitorio_placard_vacio",
-        "url": "./media/fotos/20_dormitorio_placard_vacio.webp",
-        "thumbUrl": "./media/fotos/20_dormitorio_placard_vacio.thumb.webp",
+        "url": "./baleia/media/fotos/20_dormitorio_placard_vacio.webp",
+        "thumbUrl": "./baleia/media/fotos/20_dormitorio_placard_vacio.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2322,8 +2322,8 @@
       },
       {
         "id": "19_bano_completo_ducha",
-        "url": "./media/fotos/19_bano_completo_ducha.webp",
-        "thumbUrl": "./media/fotos/19_bano_completo_ducha.thumb.webp",
+        "url": "./baleia/media/fotos/19_bano_completo_ducha.webp",
+        "thumbUrl": "./baleia/media/fotos/19_bano_completo_ducha.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2335,8 +2335,8 @@
       },
       {
         "id": "12_terraza_pergolotecho_parrillero",
-        "url": "./media/fotos/12_terraza_pergolotecho_parrillero.webp",
-        "thumbUrl": "./media/fotos/12_terraza_pergolotecho_parrillero.thumb.webp",
+        "url": "./baleia/media/fotos/12_terraza_pergolotecho_parrillero.webp",
+        "thumbUrl": "./baleia/media/fotos/12_terraza_pergolotecho_parrillero.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2348,8 +2348,8 @@
       },
       {
         "id": "22_parrillero_empotrado_detalle",
-        "url": "./media/fotos/22_parrillero_empotrado_detalle.webp",
-        "thumbUrl": "./media/fotos/22_parrillero_empotrado_detalle.thumb.webp",
+        "url": "./baleia/media/fotos/22_parrillero_empotrado_detalle.webp",
+        "thumbUrl": "./baleia/media/fotos/22_parrillero_empotrado_detalle.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2361,8 +2361,8 @@
       },
       {
         "id": "13_terraza_sillon_vista_verde",
-        "url": "./media/fotos/13_terraza_sillon_vista_verde.webp",
-        "thumbUrl": "./media/fotos/13_terraza_sillon_vista_verde.thumb.webp",
+        "url": "./baleia/media/fotos/13_terraza_sillon_vista_verde.webp",
+        "thumbUrl": "./baleia/media/fotos/13_terraza_sillon_vista_verde.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2374,8 +2374,8 @@
       },
       {
         "id": "11_vista_terraza_peninsula_skyline",
-        "url": "./media/fotos/11_vista_terraza_peninsula_skyline.webp",
-        "thumbUrl": "./media/fotos/11_vista_terraza_peninsula_skyline.thumb.webp",
+        "url": "./baleia/media/fotos/11_vista_terraza_peninsula_skyline.webp",
+        "thumbUrl": "./baleia/media/fotos/11_vista_terraza_peninsula_skyline.thumb.webp",
         "width": 2000,
         "height": 1333,
         "procedencia": {
@@ -2387,8 +2387,8 @@
       },
       {
         "id": "06_aerea_balcones_detalle",
-        "url": "./media/fotos/06_aerea_balcones_detalle.webp",
-        "thumbUrl": "./media/fotos/06_aerea_balcones_detalle.thumb.webp",
+        "url": "./baleia/media/fotos/06_aerea_balcones_detalle.webp",
+        "thumbUrl": "./baleia/media/fotos/06_aerea_balcones_detalle.thumb.webp",
         "width": 2000,
         "height": 1499,
         "procedencia": {
@@ -2403,8 +2403,8 @@
         "label": "Con el paisajismo terminado",
         "before": {
           "id": "24_fachada_bloque2_atardecer_angulo",
-          "url": "./media/fotos/24_fachada_bloque2_atardecer_angulo.webp",
-          "thumbUrl": "./media/fotos/24_fachada_bloque2_atardecer_angulo.thumb.webp",
+          "url": "./baleia/media/fotos/24_fachada_bloque2_atardecer_angulo.webp",
+          "thumbUrl": "./baleia/media/fotos/24_fachada_bloque2_atardecer_angulo.thumb.webp",
           "width": 2000,
           "height": 2994,
           "procedencia": {
@@ -2414,8 +2414,8 @@
         },
         "after": {
           "id": "DSC05104-paisajismo-baleia",
-          "url": "./media/ia/DSC05104-paisajismo-baleia.webp",
-          "thumbUrl": "./media/ia/DSC05104-paisajismo-baleia.thumb.webp",
+          "url": "./baleia/media/ia/DSC05104-paisajismo-baleia.webp",
+          "thumbUrl": "./baleia/media/ia/DSC05104-paisajismo-baleia.thumb.webp",
           "width": 1025,
           "height": 1534,
           "procedencia": {
@@ -2430,8 +2430,8 @@
         "label": "Con las terrazas amuebladas",
         "before": {
           "id": "06_aerea_balcones_detalle",
-          "url": "./media/fotos/06_aerea_balcones_detalle.webp",
-          "thumbUrl": "./media/fotos/06_aerea_balcones_detalle.thumb.webp",
+          "url": "./baleia/media/fotos/06_aerea_balcones_detalle.webp",
+          "thumbUrl": "./baleia/media/fotos/06_aerea_balcones_detalle.thumb.webp",
           "width": 2000,
           "height": 1499,
           "procedencia": {
@@ -2441,8 +2441,8 @@
         },
         "after": {
           "id": "DJI_20260902160101_0060_D_LEO-terrazas-equipadas",
-          "url": "./media/ia/DJI_20260902160101_0060_D_LEO-terrazas-equipadas.webp",
-          "thumbUrl": "./media/ia/DJI_20260902160101_0060_D_LEO-terrazas-equipadas.thumb.webp",
+          "url": "./baleia/media/ia/DJI_20260902160101_0060_D_LEO-terrazas-equipadas.webp",
+          "thumbUrl": "./baleia/media/ia/DJI_20260902160101_0060_D_LEO-terrazas-equipadas.thumb.webp",
           "width": 1448,
           "height": 1086,
           "procedencia": {
