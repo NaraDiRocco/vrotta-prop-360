@@ -389,8 +389,12 @@ export class TourRail {
     const next = railNextLabel(this.state.tramo);
     this.nextBtn.hidden = !next;
     if (next) {
-      this.nextBtn.textContent = `${next.label} →`;
+      // Sólo la flecha: el rótulo del paso ya lo dice el chip de la izquierda,
+      // y el texto completo empujaba el pie a lo ancho. El `aria-label` sigue
+      // diciendo a dónde lleva, que es lo que lee un lector de pantalla.
+      this.nextBtn.textContent = '→';
       this.nextBtn.setAttribute('aria-label', next.aria);
+      this.nextBtn.title = next.label;
     }
   }
 
