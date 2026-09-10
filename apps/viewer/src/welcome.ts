@@ -61,9 +61,9 @@ const CROSSFADE_MS = 5000;
  * campo para socios comerciales. Cuando el visor sirva a más de un proyecto,
  * esto tiene que venir de ahí y no de una constante.
  */
-const PARTNERS: ReadonlyArray<{ src: string; alt: string }> = [
-  { src: '/marca/dacal-blanco.png', alt: 'Dacal Bienes Raíces' },
-  { src: '/marca/caetano-blanco.png', alt: 'Caetano Negocios Inmobiliarios' },
+const PARTNERS: ReadonlyArray<{ id: string; src: string; alt: string }> = [
+  { id: 'dacal', src: '/marca/dacal-blanco.png', alt: 'Dacal Bienes Raíces' },
+  { id: 'caetano', src: '/marca/caetano-blanco.png', alt: 'Caetano Negocios Inmobiliarios' },
 ];
 
 export interface WelcomeHandle {
@@ -152,9 +152,9 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
   socios.className = 'r360-welcome__socios';
   socios.innerHTML =
     `<p>Comercializa y desarrolla</p>` +
-    `<div>` +
-    PARTNERS.map((p) => `<img src="${p.src}" alt="${escapeHtml(p.alt)}" loading="lazy" decoding="async">`).join('') +
-    `</div>`;
+    PARTNERS.map(
+      (p) => `<img src="${p.src}" alt="${escapeHtml(p.alt)}" data-marca="${p.id}" loading="lazy" decoding="async">`,
+    ).join('');
 
   el.append(stage, marca, info, acciones, socios);
   opts.container.appendChild(el);

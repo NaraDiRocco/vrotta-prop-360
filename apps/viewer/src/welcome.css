@@ -161,36 +161,37 @@
 }
 .r360-welcome__link:hover { color: #fff; }
 
-/* Al pie: quién comercializa y desarrolla. Los logos van en blanco y con poca
-   opacidad — acreditan, no compiten con la marca del proyecto que está
-   arriba. La altura la fija el alto, no el ancho, para que los dos pesen
-   parecido aunque uno sea más largo que el otro. */
+/* Al pie: quién comercializa y desarrolla, todo en UNA línea — el rótulo y
+   los dos logos. Los logos van limpios, sin velo de opacidad ni sombra: el
+   blanco puro sobre la foto ya se lee, y bajarles la opacidad los ensuciaba
+   contra el cielo. La altura la fija el alto y no el ancho, para que uno
+   largo y uno corto pesen parecido. */
 .r360-welcome__socios {
   position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
   padding-top: 4px;
 }
 .r360-welcome__socios p {
   margin: 0;
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 400;
-  letter-spacing: .16em;
+  letter-spacing: .14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, .55);
-}
-.r360-welcome__socios div {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 26px;
+  color: rgba(255, 255, 255, .6);
+  white-space: nowrap;
 }
 .r360-welcome__socios img {
-  height: 17px;
+  height: 15px;
   width: auto;
-  opacity: .78;
+  opacity: 1;
 }
+/* El de Caetano tiene el isotipo adentro del wordmark: a la misma altura que
+   el de Dacal, que es sólo texto, se leía más chico de lo que es. */
+.r360-welcome__socios img[data-marca="caetano"] { height: 21px; }
 
 
 @media (min-width: 720px) {
