@@ -61,24 +61,45 @@
 
 /* Marca y lugar, arriba: quien llega desde un anuncio tiene que saber de qué
    proyecto y de qué lugar le están hablando (auditoría §1). */
+/* Logo centrado con el lugar debajo, en columna. El logo es la marca y va
+   solo; el lugar lo acompaña en chico, sin competirle. */
+
+/* El degradado del stage se desvanece arriba (.1), asi que la marca queda
+   sobre cielo claro. Este velo corto le devuelve contraste sin oscurecer la
+   foto ni obligar a poner sombra en cada letra. */
+.r360-welcome__marca::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  right: -20px;
+  top: calc(-1 * max(14px, env(safe-area-inset-top)) - 10px);
+  height: 120px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(6, 10, 15, .38), transparent);
+}
+
 .r360-welcome__marca {
   position: absolute;
   top: max(14px, env(safe-area-inset-top));
   left: 20px;
   right: 20px;
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
 }
-.r360-welcome__marca img { display: block; height: 20px; width: auto; }
-.r360-welcome__marca b { font-size: 18px; font-weight: 700; letter-spacing: .05em; }
+.r360-welcome__marca img { display: block; height: 18px; width: auto; }
+.r360-welcome__marca b { font-size: 15px; font-weight: 400; letter-spacing: .05em; }
+/* Sin sombra: la legibilidad la da el velo de `.r360-welcome__marca::before`,
+   que es una sola capa suave detrás de la marca. Una sombra por letra sobre
+   cielo claro se ve sucia. */
 .r360-welcome__marca span {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .02em;
-  color: #cfdcea;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, .85);
+  font-size: 8.5px;
+  font-weight: 400;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .82);
 }
 
 .r360-welcome__info { position: relative; }
