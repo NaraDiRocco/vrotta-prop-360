@@ -19,7 +19,6 @@ import './welcome.css';
 import {
   TRAMOS,
   WELCOME_LUGAR,
-  WELCOME_SEGUNDA_CAPTION,
   chapaFor,
   esVistaDePunta,
   puntaAnclaje,
@@ -117,7 +116,6 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
   const chapa = chapaFor(opts.hero.procedencia);
   info.innerHTML =
     `<h1>${escapeHtml(opts.headline)}</h1>` +
-    `<p class="r360-welcome__cap" hidden></p>` +
     (chapa ? `<p class="r360-welcome__chapa">${escapeHtml(chapa.text)}</p>` : '');
 
   const acciones = document.createElement('div');
@@ -150,19 +148,14 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
 
   let timer: ReturnType<typeof setInterval> | null = null;
   let visible = 0;
-  const cap = info.querySelector<HTMLElement>('.r360-welcome__cap')!;
   if (capas.length > 1 && !reducedMotion()) {
     timer = setInterval(() => {
       capas[visible]!.fig.classList.remove('is-on');
       visible = (visible + 1) % capas.length;
       capas[visible]!.fig.classList.add('is-on');
-      // El TITULAR NO CAMBIA. Antes lo reemplazaba la caption entera del
-      // manifiesto —tres líneas de 26 px que empujaban los botones y dejaban
-      // "Sin retoque." de portada (auditoría §2.11)—; ahora el argumento
-      // comercial se queda arriba y la vista se anuncia en una línea corta.
-      const texto = visible > 0 ? WELCOME_SEGUNDA_CAPTION : '';
-      cap.textContent = texto;
-      cap.hidden = !texto;
+      // Sólo cruza las fotos. El titular no cambia y ya no hay linea al pie
+      // que describa la vista: la portada queda con el logo, el titular y el
+      // sello, nada mas.
     }, CROSSFADE_MS);
   }
 

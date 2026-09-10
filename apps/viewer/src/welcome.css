@@ -102,13 +102,13 @@
   color: rgba(255, 255, 255, .82);
 }
 
-.r360-welcome__info { position: relative; }
-.r360-welcome__cap {
-  margin: 0 0 6px;
-  font-size: 15px;
-  line-height: 1.35;
-  color: #eef4fa;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, .8);
+/* El titular va centrado en la pantalla, no apoyado sobre los botones:
+   `margin-block: auto` lo centra en el espacio que queda entre la marca y las
+   acciones, que siguen abajo. */
+.r360-welcome__info {
+  position: relative;
+  margin-block: auto;
+  text-align: center;
 }
 .r360-welcome__info h1 {
   margin: 0 0 6px;
