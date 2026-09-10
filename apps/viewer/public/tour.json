@@ -127,15 +127,53 @@
       "sort": 16
     },
     {
+      "id": "sc-p-b2a-llegada",
+      "slug": "p-b2a-llegada",
+      "kind": "panorama",
+      "name": "La llegada",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-llegada/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 95
+      },
+      "sort": 130
+    },
+    {
+      "id": "sc-p-b2a-galeria",
+      "slug": "p-b2a-galeria",
+      "kind": "panorama",
+      "name": "La galería",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-galeria/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 90
+      },
+      "sort": 131
+    },
+    {
       "id": "sc-p-b2a-living",
       "slug": "p-b2a-living",
       "kind": "panorama",
-      "name": "Dúplex — living/comedor",
+      "name": "El living",
       "source": {
         "base": "./baleia/scenes/p-b2a-living/tiles",
-        "faceSize": 512,
+        "faceSize": 2048,
         "tileSize": 512,
-        "levels": 1,
+        "levels": 3,
         "format": "webp"
       },
       "initialView": {
@@ -143,7 +181,235 @@
         "pitch": 0.0,
         "fov": 85
       },
-      "sort": 131
+      "sort": 132
+    },
+    {
+      "id": "sc-p-b2a-cocina",
+      "slug": "p-b2a-cocina",
+      "kind": "panorama",
+      "name": "La cocina",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-cocina/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 133
+    },
+    {
+      "id": "sc-p-b2a-living-escalera",
+      "slug": "p-b2a-living-escalera",
+      "kind": "panorama",
+      "name": "El living y la escalera",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-living-escalera/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 134
+    },
+    {
+      "id": "sc-p-b2a-living-terraza",
+      "slug": "p-b2a-living-terraza",
+      "kind": "panorama",
+      "name": "Hacia la terraza",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-living-terraza/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 135
+    },
+    {
+      "id": "sc-p-b2a-terraza",
+      "slug": "p-b2a-terraza",
+      "kind": "panorama",
+      "name": "La terraza",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-terraza/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 90
+      },
+      "sort": 136
+    },
+    {
+      "id": "sc-p-b2a-escalera",
+      "slug": "p-b2a-escalera",
+      "kind": "panorama",
+      "name": "Bajando",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-escalera/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 137
+    },
+    {
+      "id": "sc-p-b2a-dorm-01",
+      "slug": "p-b2a-dorm-01",
+      "kind": "panorama",
+      "name": "Dormitorio principal",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-dorm-01/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 138
+    },
+    {
+      "id": "sc-p-b2a-dorm-02",
+      "slug": "p-b2a-dorm-02",
+      "kind": "panorama",
+      "name": "Segundo dormitorio",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-dorm-02/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 139
+    },
+    {
+      "id": "sc-p-b2a-dorm-03",
+      "slug": "p-b2a-dorm-03",
+      "kind": "panorama",
+      "name": "El tercer ambiente",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-dorm-03/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 140
+    },
+    {
+      "id": "sc-p-b2a-vestidor",
+      "slug": "p-b2a-vestidor",
+      "kind": "panorama",
+      "name": "El vestidor",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-vestidor/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 80
+      },
+      "sort": 141
+    },
+    {
+      "id": "sc-p-b2a-bano-01",
+      "slug": "p-b2a-bano-01",
+      "kind": "panorama",
+      "name": "Baño principal",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-bano-01/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 80
+      },
+      "sort": 142
+    },
+    {
+      "id": "sc-p-b2a-bano-02",
+      "slug": "p-b2a-bano-02",
+      "kind": "panorama",
+      "name": "Baño",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-bano-02/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 80
+      },
+      "sort": 143
+    },
+    {
+      "id": "sc-p-b2a-bano-03",
+      "slug": "p-b2a-bano-03",
+      "kind": "panorama",
+      "name": "Toilette",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-bano-03/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 80
+      },
+      "sort": 144
     },
     {
       "id": "sc-video",
