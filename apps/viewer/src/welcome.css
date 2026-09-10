@@ -12,7 +12,7 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 14px;
-  padding: 0 20px calc(20px + var(--r360-safe-b));
+  padding: 0 20px calc(46px + var(--r360-safe-b));
   background: var(--r360-bg);
   opacity: 0;
   transition: opacity .32s ease;
@@ -135,7 +135,14 @@
   text-shadow: 0 2px 18px rgba(0, 0, 0, .6);
 }
 
-.r360-welcome__acciones { position: relative; display: grid; gap: 6px; }
+/* El botón no ocupa todo el ancho: a pantalla completa se leía como una barra
+   y no como un botón. */
+.r360-welcome__acciones {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
 /* El boton estaba en el azul de sistema (--r360-accent, #1f6feb): sobre una
    foto de mar y monte era lo unico saturado de la pantalla y se comia la
    portada. Va en el lenguaje del brochure: recto, sin color propio, apoyado
@@ -144,6 +151,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: min(100%, 290px);
   min-height: 54px;
   padding: 0 28px;
   border-radius: 2px;
