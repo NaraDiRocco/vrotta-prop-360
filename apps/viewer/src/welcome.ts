@@ -17,7 +17,6 @@
  */
 import './welcome.css';
 import {
-  TRAMOS,
   WELCOME_LUGAR,
   esVistaDePunta,
   puntaAnclaje,
@@ -49,6 +48,23 @@ export interface WelcomeOptions {
 }
 
 const CROSSFADE_MS = 5000;
+
+/**
+ * Quién comercializa y desarrolla, al pie de la portada.
+ *
+ * Los archivos salieron de la contratapa del brochure, donde ya están en
+ * blanco: se les recuperó el canal alfa desde la luminancia (venían blancos
+ * sobre negro plano) y se recortó el margen. Viven en `public/marca/` y
+ * también en `tools/baleia/material/marca/`, que es el material del proyecto.
+ *
+ * Está acá y no en el `tour.json` porque el manifiesto todavía no tiene un
+ * campo para socios comerciales. Cuando el visor sirva a más de un proyecto,
+ * esto tiene que venir de ahí y no de una constante.
+ */
+const PARTNERS: ReadonlyArray<{ src: string; alt: string }> = [
+  { src: '/marca/dacal-blanco.png', alt: 'Dacal Bienes Raíces' },
+  { src: '/marca/caetano-blanco.png', alt: 'Caetano Negocios Inmobiliarios' },
+];
 
 export interface WelcomeHandle {
   close(): void;
@@ -128,19 +144,19 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
   alPlano.textContent = 'Ir directo al plano';
   acciones.append(empezar, alPlano);
 
-  // El riel completo, con los nombres: el visitante sabe cuánto dura esto
-  // antes de entrar (y puede entrar por donde quiera).
-  const riel = document.createElement('div');
-  riel.className = 'r360-welcome__riel';
-  riel.setAttribute('aria-label', 'Los seis tramos del recorrido');
-  riel.innerHTML = TRAMOS.map(
-    (t, i) =>
-      `<button type="button" data-tramo="${t.id}" aria-label="Empezar en el tramo ${i + 1}: ${escapeHtml(t.short)}">
-         <i aria-hidden="true"></i><span>${escapeHtml(t.short)}</span>
-       </button>`,
-  ).join('');
+  // Al pie, quién comercializa y desarrolla, como en la contratapa del
+  // brochure. Antes acá iba el riel con los seis tramos: en la portada
+  // adelantaba el índice del recorrido antes de que el visitante decidiera
+  // entrar, y el recorrido ya se navega solo una vez adentro.
+  const socios = document.createElement('div');
+  socios.className = 'r360-welcome__socios';
+  socios.innerHTML =
+    `<p>Comercializa y desarrolla</p>` +
+    `<div>` +
+    PARTNERS.map((p) => `<img src="${p.src}" alt="${escapeHtml(p.alt)}" loading="lazy" decoding="async">`).join('') +
+    `</div>`;
 
-  el.append(stage, marca, info, acciones, riel);
+  el.append(stage, marca, info, acciones, socios);
   opts.container.appendChild(el);
   requestAnimationFrame(() => el.classList.add('is-on'));
 
@@ -167,12 +183,6 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
 
   empezar.addEventListener('click', () => { handle.close(); opts.onStart('llegada'); });
   alPlano.addEventListener('click', () => { handle.close(); opts.onPlan(); });
-  riel.addEventListener('click', (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-tramo]');
-    if (!btn?.dataset.tramo) return;
-    handle.close();
-    opts.onStart(btn.dataset.tramo as TramoId);
-  });
   empezar.focus({ preventScroll: true });
 
   return handle;

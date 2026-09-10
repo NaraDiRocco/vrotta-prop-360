@@ -161,31 +161,37 @@
 }
 .r360-welcome__link:hover { color: #fff; }
 
-.r360-welcome__riel { position: relative; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
-.r360-welcome__riel::-webkit-scrollbar { display: none; }
-.r360-welcome__riel button {
-  flex: 1 0 auto;
+/* Al pie: quién comercializa y desarrolla. Los logos van en blanco y con poca
+   opacidad — acreditan, no compiten con la marca del proyecto que está
+   arriba. La altura la fija el alto, no el ancho, para que los dos pesen
+   parecido aunque uno sea más largo que el otro. */
+.r360-welcome__socios {
+  position: relative;
   display: grid;
   justify-items: center;
-  gap: 5px;
-  min-width: 52px;
-  min-height: 44px;
-  padding: 6px 2px;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  color: #b6c6d6;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+  gap: 10px;
+  padding-top: 4px;
 }
-.r360-welcome__riel i {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .45);
+.r360-welcome__socios p {
+  margin: 0;
+  font-size: 8.5px;
+  font-weight: 400;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .55);
 }
+.r360-welcome__socios div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+}
+.r360-welcome__socios img {
+  height: 17px;
+  width: auto;
+  opacity: .78;
+}
+
 
 @media (min-width: 720px) {
   .r360-welcome { padding-left: max(20px, calc(50% - 310px)); padding-right: max(20px, calc(50% - 310px)); }
