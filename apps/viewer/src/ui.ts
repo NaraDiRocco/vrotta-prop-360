@@ -227,6 +227,11 @@ export class ViewerUi {
       onOpenPlan: () => this.goPlan(),
       onOpened: () => this.nav.setActive('tour'),
       onClosed: () => this.nav.setActive('plan'),
+      onHome: () => this.mostrarInicio(),
+      // Entrar a una panorámica cierra el riel de tramos: el recorrido 360 se
+      // navega con sus propias flechas, y la barra de abajo sigue disponible
+      // para volver al inicio o al plano.
+      onOpenScene: (slug: string) => { this.rail.hideQuiet(); this.go(slug); },
     });
 
     this.backBtn.addEventListener('click', () => this.go(this.opts.tour.start));
@@ -270,7 +275,10 @@ export class ViewerUi {
   // ------------------------------------------------------------ navegación
 
   private onNavSelect(tab: NavTab): void {
-    if (tab === 'tour') { this.rail.show(); return; }
+    // La pestaña de la casa vuelve al INICIO —la portada—, no al riel de
+    // tramos. Con el ícono de casa y el rótulo "Recorrido" prometía una cosa y
+    // hacía otra: no había forma de volver a la portada desde ningún lado.
+    if (tab === 'tour') { this.mostrarInicio(); return; }
     if (tab === 'plan') { this.goPlan(); return; }
     this.openUnitsTab();
   }
@@ -299,7 +307,24 @@ export class ViewerUi {
       return;
     }
 
-    const bloque = buildRailContent(this.opts.tour).bloque.bloque;
+    this.mostrarInicio();
+  }
+
+  /**
+   * Monta la portada. Se usa al llegar y también cada vez que el visitante
+   * vuelve al inicio (el logo, o la pestaña Inicio).
+   *
+   * `WELCOME_SEEN_KEY` sigue existiendo, pero ahora sólo decide si la portada
+   * aparece **sola** al llegar: no impide volver a ella. Antes era un camino
+   * de una sola mano — una vez que tocabas "Empezar el recorrido", la portada
+   * no se veía nunca más y no había forma de regresar.
+   */
+  mostrarInicio(): void {
+    if (this.welcome) return;   // ya está en pantalla
+    const { hero, segunda } = welcomePhotos(this.opts.tour);
+    if (!hero) { this.goPlan(); return; }
+
+    this.rail.hideQuiet();
     const marcarVista = () => {
       try { localStorage.setItem(WELCOME_SEEN_KEY, '1'); } catch { /* modo privado */ }
       this.welcome = null;
@@ -318,6 +343,7 @@ export class ViewerUi {
       onStart: (t: TramoId) => { marcarVista(); this.rail.show(t); },
       onPlan: () => { marcarVista(); this.goPlan(); },
     });
+    this.nav.setActive('tour');
   }
 
   /** Las escenas que no son el plano de arranque: los renders del proyecto,

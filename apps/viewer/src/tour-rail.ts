@@ -87,6 +87,10 @@ export interface TourRailOptions {
   onClosed: () => void;
   /** El riel volvió a estar a la vista. */
   onOpened: () => void;
+  /** Volver al inicio: lo dispara el logo de la barra superior. */
+  onHome: () => void;
+  /** Abrir una escena del recorrido por su slug (las panoramicas 360). */
+  onOpenScene: (slug: string) => void;
 }
 
 /** Mismos números que el resto del visor: separador de miles y coma decimal. */
@@ -178,7 +182,7 @@ export class TourRail {
   private readonly base: URL;
   private readonly scroll: HTMLElement;
   private readonly head: HTMLElement;
-  private readonly marca: HTMLElement;
+  private readonly marca: HTMLButtonElement;
   private readonly dots: HTMLElement;
   private readonly nextBtn: HTMLButtonElement;
   private readonly layerEl: HTMLElement;
@@ -216,9 +220,15 @@ export class TourRail {
     // que está debajo) y en ninguna pantalla aparecía el nombre del proyecto
     // (auditoría §2.8). El logo se resuelve contra el `tour.json`, así que
     // cada proyecto trae el suyo y este archivo no conoce ninguna marca.
-    this.marca = document.createElement('div');
+    // El logo es el boton de inicio, como en cualquier sitio: desde cualquier
+    // pantalla vuelve a la portada. Es un <button> y no un <div> con listener
+    // para que el teclado y el lector de pantalla lo traten como lo que es.
+    this.marca = document.createElement('button');
+    this.marca.type = 'button';
     this.marca.className = 'r360-rail__marca';
     this.marca.hidden = true;
+    this.marca.setAttribute('aria-label', 'Volver al inicio');
+    this.marca.addEventListener('click', () => opts.onHome());
     montarMarca(this.marca, this.resolve(marcaPath(opts.tour)), opts.tour.project);
     opts.container.appendChild(this.marca);
 
@@ -545,10 +555,25 @@ export class TourRail {
 
     const acciones = document.createElement('div');
     acciones.className = 'r360-rail__acciones';
+
+    // Las panoramicas 360 no se alcanzaban desde ninguna pantalla: el riel es
+    // de fotos planas y los poligonos del masterplan abren la ficha comercial.
+    // Estaban publicadas y solo se llegaba pegando la URL. Entrar a la unidad
+    // es lo mejor que tiene el recorrido, asi que va como accion principal.
+    const primera360 = this.primeraPanoramica();
+    if (primera360) {
+      acciones.appendChild(
+        this.button('Entrar a la unidad en 360°', 'is-primary', () =>
+          this.opts.onOpenScene(primera360),
+        ),
+      );
+    }
+
     if (c.bloque) {
       const resumen = resumenDeBloque(c.bloque.codes, this.opts.availability());
       acciones.appendChild(
-        this.button(`Ver las ${resumen.total} unidades del ${c.bloque.label}`, 'is-primary', () =>
+        this.button(`Ver las ${resumen.total} unidades del ${c.bloque.label}`,
+          primera360 ? 'is-ghost' : 'is-primary', () =>
           this.opts.onOpenUnit(c.bloque!.code),
         ),
       );
@@ -860,6 +885,18 @@ export class TourRail {
     const cta = this.ctaLink('tramo');
     if (cta) el.appendChild(cta);
     return el;
+  }
+
+  /**
+   * La primera panoramica del recorrido, en el orden del guion (`sort`). No
+   * se nombra ninguna escena en concreto: si manana se suman las de otra
+   * unidad, entra la que el manifiesto ponga primero.
+   */
+  private primeraPanoramica(): string | null {
+    const pans = this.opts.tour.scenes
+      .filter((s) => s.kind === 'panorama')
+      .sort((a, b) => a.sort - b.sort);
+    return pans[0]?.slug ?? null;
   }
 
   private button(label: string, cls: string, onClick: () => void): HTMLButtonElement {

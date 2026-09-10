@@ -24,8 +24,11 @@ export interface NavBarOptions {
   onSelect: (tab: NavTab) => void;
 }
 
+// La casa se llama Inicio y lleva a la portada. Antes decía "Recorrido" y
+// abría el riel de tramos: con ícono de casa, prometía volver al principio y
+// no lo hacía. El recorrido se empieza desde la portada, que es su lugar.
 const TABS: ReadonlyArray<{ id: NavTab; icon: string; label: string }> = [
-  { id: 'tour', icon: '⌂', label: 'Recorrido' },
+  { id: 'tour', icon: '⌂', label: 'Inicio' },
   { id: 'plan', icon: '▦', label: 'Plano' },
   { id: 'units', icon: '☰', label: 'Unidades' },
 ];
