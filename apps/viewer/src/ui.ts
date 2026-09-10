@@ -307,9 +307,11 @@ export class ViewerUi {
     this.welcome = mountWelcome({
       container: this.opts.container,
       logo: marcaPath(this.opts.tour),
-      // La línea de apertura es un hecho verificable del material, no un
-      // eslogan: hay fotos del bloque terminado, con fecha.
-      headline: bloque ? `El ${bloque.label} ya está construido.` : `${this.opts.tour.project}, en fotos reales.`,
+      // El lema de la marca, tal cual la portada del brochure. Antes acá iba
+      // "El Bloque 2 ya está construido": cierto y verificable, pero es un
+      // argumento de venta, no una apertura. El hecho de que esté construido
+      // lo demuestra el recorrido entero — no hace falta anunciarlo.
+      headline: 'El placer de habitar el presente',
       hero,
       segunda,
       resolve: (u) => this.resolve(u),

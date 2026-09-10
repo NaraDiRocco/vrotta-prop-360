@@ -19,7 +19,6 @@ import './welcome.css';
 import {
   TRAMOS,
   WELCOME_LUGAR,
-  chapaFor,
   esVistaDePunta,
   puntaAnclaje,
   type TramoId,
@@ -111,12 +110,11 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
   // El logo antes del lugar; si el archivo no está, queda el lugar solo.
   montarMarca(marca, opts.resolve(opts.logo ?? MARCA_SVG), opts.project ?? '');
 
+  // Sólo el titular: la portada no lleva nada debajo. El sello de "foto real"
+  // vive en el recorrido, donde cada escena puede acreditarse sola.
   const info = document.createElement('div');
   info.className = 'r360-welcome__info';
-  const chapa = chapaFor(opts.hero.procedencia);
-  info.innerHTML =
-    `<h1>${escapeHtml(opts.headline)}</h1>` +
-    (chapa ? `<p class="r360-welcome__chapa">${escapeHtml(chapa.text)}</p>` : '');
+  info.innerHTML = `<h1>${escapeHtml(opts.headline)}</h1>`;
 
   const acciones = document.createElement('div');
   acciones.className = 'r360-welcome__acciones';
@@ -153,9 +151,8 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
       capas[visible]!.fig.classList.remove('is-on');
       visible = (visible + 1) % capas.length;
       capas[visible]!.fig.classList.add('is-on');
-      // Sólo cruza las fotos. El titular no cambia y ya no hay linea al pie
-      // que describa la vista: la portada queda con el logo, el titular y el
-      // sello, nada mas.
+      // Solo cruza las fotos: el titular no cambia. La portada tiene tres
+      // cosas y ninguna depende de que foto se este viendo.
     }, CROSSFADE_MS);
   }
 

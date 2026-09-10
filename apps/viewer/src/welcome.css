@@ -59,10 +59,9 @@
 }
 @keyframes r360-welcome-punta { from { transform: scale(1.9); } to { transform: scale(2.05); } }
 
-/* Marca y lugar, arriba: quien llega desde un anuncio tiene que saber de qué
-   proyecto y de qué lugar le están hablando (auditoría §1). */
-/* Logo centrado con el lugar debajo, en columna. El logo es la marca y va
-   solo; el lugar lo acompaña en chico, sin competirle. */
+/* Marca y lugar, arriba y centrados: quien llega desde un anuncio tiene que
+   saber de qué proyecto y de qué lugar le hablan. El logo va solo; el lugar
+   lo acompaña en chico, sin competirle. */
 
 /* El degradado del stage se desvanece arriba (.1), asi que la marca queda
    sobre cielo claro. Este velo corto le devuelve contraste sin oscurecer la
@@ -111,48 +110,56 @@
   text-align: center;
 }
 .r360-welcome__info h1 {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 26px;
   line-height: 1.15;
   letter-spacing: -.015em;
   text-shadow: 0 2px 14px rgba(0, 0, 0, .75);
 }
-.r360-welcome__chapa {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #cfdcea;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
-}
 
 .r360-welcome__acciones { position: relative; display: grid; gap: 6px; }
+/* El boton estaba en el azul de sistema (--r360-accent, #1f6feb): sobre una
+   foto de mar y monte era lo unico saturado de la pantalla y se comia la
+   portada. Va en el lenguaje del brochure: recto, sin color propio, apoyado
+   en el vidrio esmerilado sobre la foto. */
 .r360-welcome__start {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
-  border-radius: 12px;
+  min-height: 54px;
+  padding: 0 28px;
+  border-radius: 2px;
   font: inherit;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
   color: #fff;
-  background: var(--r360-accent);
-  border: 0;
+  background: rgba(255, 255, 255, .12);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, .5);
   cursor: pointer;
+  transition: background .25s ease, border-color .25s ease;
 }
-.r360-welcome__start:active { transform: scale(.99); }
+.r360-welcome__start:hover { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .78); }
+.r360-welcome__start:active { transform: scale(.995); }
+
 .r360-welcome__link {
   min-height: var(--r360-tap);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: #cfdcea;
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .72);
   background: none;
   border: 0;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+  transition: color .25s ease;
 }
+.r360-welcome__link:hover { color: #fff; }
 
 .r360-welcome__riel { position: relative; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
 .r360-welcome__riel::-webkit-scrollbar { display: none; }
