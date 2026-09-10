@@ -12,7 +12,7 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 14px;
-  padding: 0 20px calc(46px + var(--r360-safe-b));
+  padding: 0 20px calc(20px + var(--r360-safe-b));
   background: var(--r360-bg);
   opacity: 0;
   transition: opacity .32s ease;
@@ -136,12 +136,14 @@
 }
 
 /* El botón no ocupa todo el ancho: a pantalla completa se leía como una barra
-   y no como un botón. */
+   y no como un botón. El margen de abajo lo despega de la línea de socios, que
+   se queda apoyada contra el borde. */
 .r360-welcome__acciones {
   position: relative;
   display: grid;
   justify-items: center;
   gap: 6px;
+  margin-bottom: 52px;
 }
 /* El boton estaba en el azul de sistema (--r360-accent, #1f6feb): sobre una
    foto de mar y monte era lo unico saturado de la pantalla y se comia la
