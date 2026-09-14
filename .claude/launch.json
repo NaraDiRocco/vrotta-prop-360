@@ -34,10 +34,7 @@
       "runtimeArgs": [
         "--filter",
         "@r360/site",
-        "exec",
-        "vite",
-        "--port",
-        "5190"
+        "dev"
       ],
       "port": 5190
     }
