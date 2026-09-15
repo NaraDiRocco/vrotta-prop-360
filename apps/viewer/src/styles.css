@@ -264,7 +264,11 @@ body.r360-no-legend #legend { display: none; }
   min-height: var(--r360-tap); margin: 0 0 4px; padding: 0 16px;
   border-radius: 10px; font-weight: 700; font-size: 14px; text-decoration: none;
   color: var(--r360-accent-ink); background: var(--r360-accent);
-  position: sticky; bottom: 0; cursor: pointer;
+  /* Sin `position: sticky`: quedaba pegado al fondo del panel y, en la altura
+     "peek", se montaba encima de lo que hubiera arriba —con "Recorrer en 360"
+     y su nota, los tres se superponian. En flujo normal cada cosa ocupa su
+     lugar y el panel se desliza si hace falta. */
+  cursor: pointer;
 }
 
 .r360-facts {
@@ -544,3 +548,29 @@ body.r360-rail-open .r360-bar > * { pointer-events: auto; }
 .r360-sheet .r360-facts dd { color: #101820; }
 .r360-sheet .r360-units-summary,
 .r360-sheet .r360-sheet__body > p { color: #35424f; }
+
+/* "Recorrer en 360°": la acción principal de la ficha de una unidad cuya
+   tipología está fotografiada. Va en tinta llena, por encima del CTA de
+   contacto: ver la unidad es el paso anterior a preguntar por ella. */
+/* Con las DOS clases: `boot.css` define `.r360-cta` y carga después, así que
+   con una sola perdía el desempate y el botón salía con el verde tenue del
+   CTA de contacto. Es la tercera vez que aparece este patrón en esta hoja. */
+.r360-cta.r360-cta--360 {
+  color: #fff;
+  background: #16202a;
+  border: 1px solid #16202a;
+  border-radius: 3px;
+}
+.r360-cta.r360-cta--360:hover { background: #22303d; }
+.r360-panel__note--360 {
+  margin: 6px 0 12px;
+  font-size: 11px;
+  color: #55636f;
+}
+
+/* La barra de controles que trae Photo Sphere Viewer (zoom, flechas, pantalla
+   completa) se superponía con la barra de pestañas: quedaban dos filas de
+   íconos encimadas en el borde inferior. Sobra — la panorámica se recorre
+   arrastrando con el dedo, el paso entre escenas tiene sus propias flechas, y
+   el pellizco hace el zoom. */
+.psv-navbar { display: none !important; }

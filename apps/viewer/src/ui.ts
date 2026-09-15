@@ -563,6 +563,7 @@ export class ViewerUi {
       back +
         this.header(titulo, chip) +
         priceRow +
+        this.recorrido360Html(attrs) +
         this.ctaHtml(code) +
         this.accionesHtml(code, unit.groupCode ?? parent ?? null, attrs) +
         this.plano3dHtml(attrs) +
@@ -719,6 +720,36 @@ export class ViewerUi {
   }
 
   /**
+   * "Recorrer en 360°", en la ficha de las unidades cuya tipología está
+   * fotografiada en panorámicas.
+   *
+   * Las 15 panorámicas son de UNA unidad dúplex, y las cinco dúplex del
+   * Bloque 2 comparten tipología: ver el recorrido en cualquiera de ellas
+   * dice lo mismo. Por eso el rótulo aclara "unidad modelo" — no se promete
+   * que sean las fotos de esa unidad en particular.
+   *
+   * La condición es la tipología, no una lista de códigos: cuando entren las
+   * panorámicas de un monoambiente, aparecen solas en esas fichas.
+   */
+  private recorrido360Html(attrs: Record<string, unknown> | null): string {
+    const escena = this.primeraPanoramica();
+    if (!escena) return '';
+    const tip = String(attrs?.tipologia ?? '');
+    if (!/duplex|dúplex/i.test(tip)) return '';
+    return `<button class="r360-cta r360-cta--360" data-abrir360="${escapeHtml(escena)}">
+        Recorrer en 360&deg; &rarr;</button>
+      <p class="r360-panel__note r360-panel__note--360">Unidad modelo de la misma tipología, fotografiada adentro.</p>`;
+  }
+
+  /** La primera panorámica del recorrido, por orden de guion. */
+  private primeraPanoramica(): string | null {
+    const pans = this.opts.tour.scenes
+      .filter((sc) => sc.kind === 'panorama')
+      .sort((a, b) => a.sort - b.sort);
+    return pans[0]?.slug ?? null;
+  }
+
+  /**
    * "Ver la unidad modelo fotografiada →": la ficha estaba a un tramo de
    * distancia de las 11 fotos reales del interior y no las mencionaba
    * (auditoría §3). No se ofrece en la ficha de un bloque (ahí el paseo ya
@@ -802,6 +833,15 @@ export class ViewerUi {
       // después del salto de tramo y lo deshace: el riel volvía al tramo de
       // donde salió. Es la misma decisión que ya toma `go()` cuando el
       // visitante cambia de escena con una hoja abierta.
+      const b360 = el.closest<HTMLElement>('[data-abrir360]');
+      if (b360?.dataset.abrir360) {
+        // Cierra la ficha y el riel: la panorámica se recorre a pantalla
+        // completa, con sus propias flechas.
+        this.closeAllLayers();
+        this.rail.hideQuiet();
+        this.go(b360.dataset.abrir360);
+        return;
+      }
       if (el.closest('[data-unidad-modelo]')) {
         this.closeAllLayers();
         this.rail.mostrarUnidadModelo();

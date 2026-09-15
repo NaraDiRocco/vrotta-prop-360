@@ -289,3 +289,13 @@ body:has(.r360-units.r360-sheet:not([hidden])) .r360-price-legend,
 body:has(.r360-units.r360-sheet:not([hidden])) #legend {
   display: none !important;
 }
+
+/* Los controles del plano no tienen nada que hacer sobre una panorámica: al
+   entrar a una desde la ficha de una unidad, el conmutador y la leyenda
+   quedaban flotando encima de la foto 360. Se ocultan cuando el plano no está
+   a la vista. */
+body:has(.r360-plan.r360-hidden) .r360-price-toggle,
+body:has(.r360-plan.r360-hidden) .r360-price-legend,
+body:has(.r360-plan.r360-hidden) #legend {
+  display: none !important;
+}
