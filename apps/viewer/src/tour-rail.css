@@ -1004,3 +1004,67 @@ body[data-pantalla="clara"] .r360-rail__marca img {
   filter: brightness(0);
   opacity: .82;
 }
+
+/* ------------------------------------------------- las pantallas de papel */
+/*
+ * Las pantallas de TEXTO van en claro, como las páginas del brochure. Antes
+ * eran cajas grises apiladas sobre negro: después de tres fotos a sangre, el
+ * ritmo se caía y las tarjetas se leían como bloques sueltos sin jerarquía.
+ *
+ * El recorrido alterna entonces dos materiales: la foto, oscura y a sangre, y
+ * el papel, claro y con aire. La lámina del render ya usaba el mismo papel.
+ */
+.r360-rail__pantalla--texto {
+  background: #eef1f3;
+  color: #16202a;
+}
+.r360-rail__pantalla--texto .r360-rail__card {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0 4px;
+}
+.r360-rail__pantalla--texto .r360-rail__lead { color: #1c2530; }
+.r360-rail__pantalla--texto .r360-rail__estados { color: #35424f; }
+.r360-rail__pantalla--texto .r360-rail__estados b { color: #101820; }
+.r360-rail__pantalla--texto .r360-rail__nota { color: #55636f; }
+.r360-rail__pantalla--texto h3 { color: #0d141b; }
+.r360-rail__pantalla--texto .r360-rail__cierre-de { color: #66757f; }
+
+/* Sobre papel, un botón fantasma sobre oscuro no se ve: se redibujan los tres
+   con la jerarquía a la vista — uno lleno, uno de contorno, uno de texto. */
+.r360-rail__pantalla--texto .r360-rail__btn {
+  border-radius: 3px;
+  font-size: 13px;
+  letter-spacing: .02em;
+}
+.r360-rail__pantalla--texto .r360-rail__btn.is-primary {
+  color: #fff;
+  background: #16202a;
+  border-color: #16202a;
+}
+.r360-rail__pantalla--texto .r360-rail__btn.is-ghost {
+  color: #16202a;
+  background: none;
+  border: 1px solid rgba(22, 32, 42, .3);
+}
+.r360-rail__pantalla--texto .r360-rail__btn.is-wa {
+  color: #0d6b34;
+  background: none;
+  border: 1px solid rgba(13, 107, 52, .32);
+}
+
+/* Un botón debajo del otro, del mismo ancho: antes quedaban de anchos
+   distintos según el largo del rótulo y se veían chuecos. */
+.r360-rail__pantalla--texto .r360-rail__acciones {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.r360-rail__pantalla--texto .r360-rail__acciones .r360-rail__btn,
+.r360-rail__pantalla--texto .r360-rail__acciones > a {
+  width: 100%;
+  /* El CTA de WhatsApp es un <a>, no un <button>: sin esto el padding se le
+     suma al ancho y quedaba 34 px más ancho que los otros dos. */
+  box-sizing: border-box;
+}

@@ -415,7 +415,9 @@ export class TourRail {
     for (const p of this.scroll.querySelectorAll<HTMLElement>('.r360-rail__pantalla')) {
       const r = p.getBoundingClientRect();
       if (r.top <= y && r.bottom > y) {
-        clara = !!p.querySelector('.r360-rail__frame.is-render');
+        // Papel: la lámina del render y las pantallas de texto.
+        clara = !!p.querySelector('.r360-rail__frame.is-render')
+          || p.classList.contains('r360-rail__pantalla--texto');
         break;
       }
     }
@@ -562,27 +564,23 @@ export class TourRail {
           caption: 'Desde la azotea del Bloque 2, la península. Tocá la etiqueta para acercarte.',
         }),
       );
-      const nota = document.createElement('p');
-      nota.className = 'r360-rail__nota';
-      nota.textContent = 'Distancias y tiempos: te los pasa el vendedor.';
-      this.add(nota);
+
     }
 
     // 4. Cómo se ordena todo esto, con el plano a un toque: el trazo del acceso
     // a los bloques se recorre en el masterplan de verdad (girado a pantalla
     // completa), no en una copia.
+    // Sin botón propio al masterplan: el cierre del tramo ya lleva "Ver el
+    // plano" y eran dos botones distintos para exactamente la misma acción.
     const plano = document.createElement('div');
     plano.className = 'r360-rail__card r360-rail__plan';
     plano.innerHTML =
-      `<p class="r360-rail__lead">El terreno baja de oeste a este: el Bloque 1 es el más alto, el 5 el más bajo. ` +
-      `Los amenities, abajo, contra la Ruta 10.</p>` +
+      `<p class="r360-rail__lead">El terreno baja de oeste a este. Los amenities quedan abajo, contra la Ruta 10.</p>` +
       `<ul class="r360-rail__estados">` +
-      `<li><b>Bloque 2</b> · Construido, entrega diciembre 2026</li>` +
+      `<li><b>Bloque 2</b> · Construido · entrega diciembre 2026</li>` +
       `<li><b>Bloques 1 y 3</b> · Próximamente</li>` +
-      `<li><b>Bloques 4 y 5</b> · Etapa futura, sin información comercial todavía</li>` +
+      `<li><b>Bloques 4 y 5</b> · Etapa futura</li>` +
       `</ul>`;
-    const btn = this.button('Abrir el masterplan', 'is-ghost', () => this.opts.onOpenPlan());
-    plano.appendChild(btn);
     this.add(plano);
   }
 
@@ -961,14 +959,14 @@ export class TourRail {
         ? `<h3>Lo que sigue: ${escapeHtml(siguiente.asNext)}.</h3>`
         : `<h3>Hasta acá el recorrido.</h3>`);
 
+    const acciones = document.createElement('div');
+    acciones.className = 'r360-rail__acciones r360-rail__acciones--pie';
+    // Uno principal y dos alternativas, no tres botones del mismo peso.
     if (siguiente) {
-      el.appendChild(
+      acciones.appendChild(
         this.button('Seguir', 'is-primary', () => this.dispatch({ type: 'siguiente' })),
       );
     }
-
-    const acciones = document.createElement('div');
-    acciones.className = 'r360-rail__acciones r360-rail__acciones--pie';
     acciones.appendChild(this.button('Ver el plano', 'is-ghost', () => this.opts.onOpenPlan()));
     const cta = this.ctaLink('tramo');
     if (cta) acciones.appendChild(cta);
