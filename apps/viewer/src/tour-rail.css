@@ -1078,3 +1078,11 @@ body[data-pantalla="clara"] .r360-rail__marca img {
      suma al ancho y quedaba 34 px más ancho que los otros dos. */
   box-sizing: border-box;
 }
+
+/* El plano va sobre papel: ahí la marca también se lee en tinta. Se resuelve
+   con `:has()` y no con el atributo que marca el riel, porque ese se calcula
+   al hacer scroll dentro de un tramo y el plano no dispara ese evento. */
+body:has(.r360-plan:not(.r360-hidden)) .r360-rail__marca img {
+  filter: brightness(0);
+  opacity: .82;
+}

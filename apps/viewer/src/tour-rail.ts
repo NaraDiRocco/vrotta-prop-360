@@ -226,7 +226,6 @@ export class TourRail {
     this.marca = document.createElement('button');
     this.marca.type = 'button';
     this.marca.className = 'r360-rail__marca';
-    this.marca.hidden = true;
     this.marca.setAttribute('aria-label', 'Volver al inicio');
     this.marca.addEventListener('click', () => opts.onHome());
     montarMarca(this.marca, this.resolve(marcaPath(opts.tour)), opts.tour.project);
@@ -367,7 +366,10 @@ export class TourRail {
 
   private paintVisibility(): void {
     this.el.hidden = !this.state.open;
-    this.marca.hidden = !this.state.open;
+    // La marca NO se oculta al cerrar el riel: acompaña al visitante en todas
+    // las pantallas —el plano, las unidades, las panorámicas— y es además el
+    // botón de volver al inicio. Aparecía sólo dentro de los tramos, así que
+    // justo donde uno se pierde no estaba.
     document.body.classList.toggle('r360-rail-open', this.state.open);
     if (this.state.open) this.scroll.scrollTop = 0;
   }
