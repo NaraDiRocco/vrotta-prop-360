@@ -214,9 +214,20 @@ body.r360-no-legend #legend { display: none; }
 .r360-sheet {
   position: absolute; top: 64px; right: 12px; width: 340px;
   max-height: calc(100% - 130px); overflow: hidden; display: flex; flex-direction: column;
-  border-radius: 12px; background: var(--r360-panel); border: 1px solid var(--r360-border);
-  backdrop-filter: blur(10px); font-size: 13px; z-index: 70;
+  border-radius: 12px; background: #eef1f3; color: #16202a;
+  border: 1px solid rgba(22, 32, 42, .12);
+  font-size: 13px; z-index: 70;
 }
+/*
+ * La hoja va en PAPEL, como las pantallas de texto del recorrido y la lamina
+ * del render: es el mismo material, y una ficha oscura sobre el plano claro
+ * se leia como una pieza de otra aplicacion. Lo que hereda color de la
+ * interfaz oscura se reescribe abajo.
+ */
+.r360-sheet h2, .r360-sheet h3, .r360-sheet b, .r360-sheet strong { color: #101820; }
+.r360-sheet .r360-close { color: #16202a; border-color: rgba(22, 32, 42, .22); }
+.r360-sheet .r360-facts { border-top-color: rgba(22, 32, 42, .14); }
+.r360-sheet__handle i { background: rgba(22, 32, 42, .25) !important; }
 .r360-sheet__handle { display: none; }
 .r360-sheet__body { overflow-y: auto; padding: 14px; flex: 1; }
 
@@ -349,8 +360,11 @@ body.r360-no-legend #legend { display: none; }
 
 @media (max-width: 640px) {
   .r360-sheet {
-    top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: none;
-    border-radius: 16px 16px 0 0; box-shadow: 0 -4px 24px rgba(0, 0, 0, .4);
+    /* Termina arriba de la barra de pestanas: la hoja la tapaba por completo
+       y quien abria una ficha se quedaba sin Inicio, Plano ni Unidades. */
+    top: auto; left: 0; right: 0; bottom: calc(var(--r360-nav-h) + var(--r360-safe-b));
+    width: auto; max-height: none;
+    border-radius: 16px 16px 0 0; box-shadow: 0 -4px 24px rgba(0, 0, 0, .35);
     transition: height .28s cubic-bezier(.2, .8, .2, 1);
   }
   .r360-sheet--dragging { transition: none; }
@@ -509,3 +523,24 @@ body.r360-rail-open .r360-bar > * { pointer-events: auto; }
   -webkit-mask: var(--r360-icon-share) center / contain no-repeat;
   mask: var(--r360-icon-share) center / contain no-repeat;
 }
+
+/* --------------------------------------------------- la hoja, sobre papel */
+/*
+ * Las piezas de adentro de la hoja venían pintadas para fondo oscuro: un
+ * blanco al 5% de fondo y textos al 65% de opacidad. Sobre papel eso queda
+ * casi invisible. Se redibujan en tinta, con el mismo peso relativo que
+ * tenían: el código de unidad manda, la superficie y el precio acompañan.
+ */
+.r360-sheet .r360-unit {
+  background: rgba(22, 32, 42, .04);
+  border-color: rgba(22, 32, 42, .14);
+  color: #16202a;
+}
+.r360-sheet .r360-unit:hover { border-color: rgba(22, 32, 42, .4); background: rgba(22, 32, 42, .08); }
+.r360-sheet .r360-unit span { color: #4a5763; opacity: 1; }
+.r360-sheet .r360-unit b { color: #101820; }
+.r360-sheet .r360-panel__status { color: #35424f; }
+.r360-sheet .r360-facts dt { color: #55636f; }
+.r360-sheet .r360-facts dd { color: #101820; }
+.r360-sheet .r360-units-summary,
+.r360-sheet .r360-sheet__body > p { color: #35424f; }
