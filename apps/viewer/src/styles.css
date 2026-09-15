@@ -132,14 +132,33 @@ body.r360-no-legend #legend { display: none; }
    botones quedan sobre la foto del tramo. Con vidrio blanco desaparecían
    contra un cielo claro, que es justo lo que hay arriba en casi todas las
    tomas. Oscuro se sostiene sobre cualquiera. */
+/*
+ * El disco se dibuja MÁS CHICO que el botón. El área que responde al dedo
+ * sigue siendo de 44 px —el mínimo para tocar sin errar— pero lo que se ve es
+ * un círculo de 34, que junto a un wordmark de 26 px de alto no compite.
+ * Achicar el botón entero habría arreglado lo visual rompiendo lo táctil.
+ */
 .r360-bar .r360-icon-btn {
+  position: relative;
   color: #fff;
+  background: none;
+  border: 0;
+}
+.r360-bar .r360-icon-btn::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  z-index: -1;
+  border-radius: 999px;
   background: rgba(6, 10, 15, .38);
-  border-color: rgba(255, 255, 255, .3);
+  border: 1px solid rgba(255, 255, 255, .3);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  transition: background .2s ease, border-color .2s ease;
 }
-.r360-bar .r360-icon-btn:hover { background: rgba(6, 10, 15, .55); border-color: rgba(255, 255, 255, .5); }
+.r360-bar .r360-icon-btn:hover::after { background: rgba(6, 10, 15, .55); border-color: rgba(255, 255, 255, .5); }
+/* El glifo, proporcional al disco nuevo. */
+.r360-bar .r360-share::before { width: 15px; height: 15px; }
 
 /* ------------------------------------------------------- navegación inferior */
 .r360-nav {
