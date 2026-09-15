@@ -977,10 +977,13 @@
    a la vista es la lámina clara del render, el texto blanco con velo oscuro
    se volvía ilegible: pasa a tinta y el velo se apaga. Lo enciende el propio
    riel, que es quien sabe qué pantalla se está viendo. */
+/* Sin velo: sobre el papel el texto en tinta se lee solo, y el degradado
+   dejaba una banda a media pantalla que se veía como una mancha. El velo
+   existe para las fotos, donde el encabezado va en blanco sobre la imagen. */
 .r360-rail[data-pantalla="clara"] .r360-rail__head {
-  background: linear-gradient(to bottom, rgba(238, 241, 243, .92), rgba(238, 241, 243, 0));
+  background: none;
 }
-.r360-rail[data-pantalla="clara"] .r360-rail__head .r360-rail__step { color: #55636f; }
+.r360-rail[data-pantalla="clara"] .r360-rail__head .r360-rail__step { color: #55636f; text-shadow: none; }
 .r360-rail[data-pantalla="clara"] .r360-rail__head h2 { color: #131a21; text-shadow: none; }
 
 /* En la lámina clara la chapa no compite con la marca centrada: baja a la
