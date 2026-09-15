@@ -194,18 +194,44 @@
 
 /* Render del proyecto: en un cuadro, siempre — pero centrado en su pantalla. */
 .r360-rail__pantalla--media > .r360-rail__render { justify-content: center; }
+/*
+ * Un render NO es una foto real y el recorrido lo tiene que decir. Antes lo
+ * decía con un marco azul y un tamaño chico sobre fondo negro: la distinción
+ * se entendía, pero la imagen quedaba como una estampilla —329 x 219 px en una
+ * pantalla de 375 x 752— flotando en un mar oscuro.
+ *
+ * La distinción se mantiene, dada vuelta: la pantalla del render es CLARA,
+ * como una página del brochure, y la imagen ocupa el ancho. Se lee como lámina
+ * de proyecto, que es exactamente lo que es, y sigue sin confundirse con las
+ * fotos reales, que van a sangre sobre oscuro.
+ */
+.r360-rail__pantalla--media:has(.r360-rail__frame.is-render) {
+  background: #eef1f3;
+}
 .r360-rail__frame.is-render {
+  /* Grande, pero no a sangre. A pantalla completa la lámina se comía el fondo
+     claro —que es lo que la distingue de una foto real— y el recorte vertical
+     de un render 3:2 se llevaba puestos los costados. Ocupa el grueso del alto
+     y deja el papel respirando arriba y abajo. */
   flex: none;
-  margin: 0 16px;
-  padding: 6px;
-  border: 1px solid rgba(110, 168, 254, .55);
-  border-radius: 6px;
-  aspect-ratio: 3 / 2;
-  max-height: 72%;
-  background-color: rgba(110, 168, 254, .06);
+  height: 62%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+  max-height: none;
+  background-color: transparent;
   cursor: default;
 }
-.r360-rail__frame.is-render img { border-radius: 3px; object-fit: contain; }
+.r360-rail__frame.is-render img { border-radius: 0; object-fit: cover; }
+
+/* Sobre claro, el pie del render se escribe en tinta. */
+.r360-rail__pantalla--media:has(.is-render) .r360-rail__caption {
+  color: #1c2530;
+  text-shadow: none;
+}
 
 /* Push-in imperceptible de la apertura (spec §2): 1,00 → 1,06 en 8 s. */
 .r360-rail__frame.is-pushin img { animation: r360-pushin 8s ease-out forwards; }
@@ -946,3 +972,35 @@
 }
 .r360-rail__cierre .r360-rail__btn { width: 100%; }
 .r360-rail__cierre .r360-rail__acciones--pie { width: 100%; margin-top: 6px; }
+
+/* El encabezado del tramo flota sobre lo que haya debajo. Cuando la pantalla
+   a la vista es la lámina clara del render, el texto blanco con velo oscuro
+   se volvía ilegible: pasa a tinta y el velo se apaga. Lo enciende el propio
+   riel, que es quien sabe qué pantalla se está viendo. */
+.r360-rail[data-pantalla="clara"] .r360-rail__head {
+  background: linear-gradient(to bottom, rgba(238, 241, 243, .92), rgba(238, 241, 243, 0));
+}
+.r360-rail[data-pantalla="clara"] .r360-rail__head .r360-rail__step { color: #55636f; }
+.r360-rail[data-pantalla="clara"] .r360-rail__head h2 { color: #131a21; text-shadow: none; }
+
+/* En la lámina clara la chapa no compite con la marca centrada: baja a la
+   esquina de la imagen, que es lo que está rotulando. */
+.r360-rail__pantalla--media:has(.is-render) .r360-rail__chapa.is-render {
+  top: auto;
+  bottom: auto;
+  transform: translateY(-34px);
+}
+/* Y el pie va debajo de la imagen, sobre el papel, no encima de la foto. */
+.r360-rail__pantalla--media:has(.is-render) .r360-rail__caption--sobre {
+  position: static;
+  padding: 14px 16px 0;
+  background: none;
+}
+
+/* La marca también se adapta al papel: el wordmark es un SVG blanco y sobre
+   la lámina clara desaparecía. `brightness(0)` lo pasa a negro sin necesitar
+   un segundo archivo. Cuelga de `body` porque la marca vive fuera del riel. */
+body[data-pantalla="clara"] .r360-rail__marca img {
+  filter: brightness(0);
+  opacity: .82;
+}

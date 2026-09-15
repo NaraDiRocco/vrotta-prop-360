@@ -233,6 +233,12 @@ export class TourRail {
     opts.container.appendChild(this.marca);
 
     this.scroll = this.el.querySelector('.r360-rail__scroll')!;
+    // El encabezado flota sobre la pantalla que esté a la vista. Casi todas
+    // son oscuras, pero la lámina del render es clara y ahí el texto blanco
+    // desaparece: se marca cuál se está viendo para que la hoja de estilos
+    // pase el encabezado a tinta. Es lo mismo que hace una barra de navegación
+    // que cambia de color al pasar sobre una sección clara.
+    this.scroll.addEventListener('scroll', this.onScrollPantalla, { passive: true });
     this.head = this.el.querySelector('.r360-rail__head')!;
     this.dots = this.el.querySelector('.r360-rail__dots')!;
     this.nextBtn = this.el.querySelector('.r360-rail__next')!;
@@ -398,6 +404,29 @@ export class TourRail {
     }
   }
 
+  /**
+   * Marca si la pantalla que se está viendo es clara, para que el encabezado
+   * flotante se lea sobre ella. Se mide contra el borde superior del riel,
+   * que es donde vive el encabezado.
+   */
+  private readonly onScrollPantalla = (): void => {
+    const y = this.scroll.getBoundingClientRect().top + 72;
+    let clara = false;
+    for (const p of this.scroll.querySelectorAll<HTMLElement>('.r360-rail__pantalla')) {
+      const r = p.getBoundingClientRect();
+      if (r.top <= y && r.bottom > y) {
+        clara = !!p.querySelector('.r360-rail__frame.is-render');
+        break;
+      }
+    }
+    const modo = clara ? 'clara' : 'oscura';
+    this.el.dataset.pantalla = modo;
+    // También en `body`: la marca y la barra superior viven FUERA del riel
+    // (las monta `ui.ts` en el contenedor), así que un selector colgado de
+    // `.r360-rail` no las alcanza.
+    document.body.dataset.pantalla = modo;
+  };
+
   private clearTramo(): void {
     for (const s of this.sliders.splice(0)) s.destroy();
     for (const off of this.seriesCleanup.splice(0)) off();
@@ -452,6 +481,8 @@ export class TourRail {
     // Qué tramo se está viendo, para que la hoja de estilos pueda vestirlo
     // sin que este archivo sepa de colores ni de fondos.
     this.el.dataset.tramo = def.id;
+    // Al entrar a un tramo el scroll no se dispara: se evalúa a mano.
+    requestAnimationFrame(() => this.onScrollPantalla());
     // El tramo de unidades es una grilla de fichas sobre negro plano: se le
     // pone detrás una foto real del bloque, muy velada, y las fichas flotan
     // encima en vidrio. La foto sale del material del propio tramo, no está
@@ -1085,6 +1116,13 @@ export class TourRail {
     const chapa = chapaFor(procedencia);
     if (!chapa || !chapaVisible(this.chapaPrev, chapa.kind)) return;
     this.chapaPrev = chapa.kind;
+    // "Foto real · 2 sep 2026" no se dibuja: que el material sea fotografía
+    // real es la norma del recorrido, no la excepción, y repetirlo encima de
+    // cada imagen ensucia sin informar. Lo que SÍ se rotula es lo que no es
+    // una foto —el render—, que es donde el visitante necesita saberlo.
+    // `chapaPrev` se actualiza igual, para que la cuenta de alternancia entre
+    // foto y render siga siendo correcta.
+    if (chapa.kind === 'foto') return;
     fig.appendChild(this.chapaEl(chapa.kind, chapa.text, chapa.detail));
   }
 
