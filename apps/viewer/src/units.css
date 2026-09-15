@@ -27,18 +27,17 @@
  * (esta hoja se importa después de `leaflet.css` en `floorplan.ts`), así que
  * es la que efectivamente se ve, sin tocar `styles.css`.
  *
- * Lo que pinta es el PAPEL del masterplan, no un gris: el lienzo es 1:4 y en
+ * Lo que pinta es blanco, no el gris oscuro de la app: el lienzo es 1:4 y en
  * un teléfono nunca llena la pantalla, así que lo que sobra a los costados se
- * veía como el negro de la app y la hoja quedaba pegada sobre otra cosa. La
- * textura es un recorte del propio masterplan (`papel.webp`, 400 px de una
- * zona sin dibujo), así que el fondo y el plano son el mismo material.
+ * veía como negro y la hoja quedaba pegada sobre otra cosa.
+ *
+ * Es blanco LISO. Se probó repitiendo un recorte de la textura del propio
+ * masterplan y no funciona: el recorte se escala y se repite, así que no
+ * coincide con el grano del plano y se lee borroso al lado del dibujo nítido.
+ * El tono es el promedio medido del papel del masterplan (#f3f3f3), que es lo
+ * que hace que el borde de la hoja no se note.
  */
-.r360-plan.leaflet-container {
-  background-color: #f7f7f7;
-  background-image: url("/papel.webp");
-  background-repeat: repeat;
-  background-size: 200px;
-}
+.r360-plan.leaflet-container { background: #f3f3f3; }
 
 .r360-units-mount { position: absolute; inset: 0; z-index: 61; pointer-events: none; }
 .r360-units-mount [hidden] { display: none !important; }
@@ -279,4 +278,14 @@ body.r360-panel-open .r360-price-legend { display: none; }
 body:has(.r360-plan:not(.r360-hidden)) .r360-scene-name {
   color: #16202a;
   text-shadow: none;
+}
+
+/* Con la lista de unidades abierta, los controles del plano quedaban flotando
+   ENCIMA de la hoja: el conmutador y la leyenda tapaban las primeras filas.
+   Ya existía `body.r360-panel-open` para la ficha de una unidad, pero la hoja
+   de la lista no marca esa clase — se detecta por el elemento mismo. */
+body:has(.r360-units.r360-sheet:not([hidden])) .r360-price-toggle,
+body:has(.r360-units.r360-sheet:not([hidden])) .r360-price-legend,
+body:has(.r360-units.r360-sheet:not([hidden])) #legend {
+  display: none !important;
 }

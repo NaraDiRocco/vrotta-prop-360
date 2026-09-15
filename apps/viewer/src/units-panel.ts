@@ -56,7 +56,7 @@ function formatPrice(p: { a: number; c: string } | null): string {
 
 export class UnitsPanel {
   private readonly root: HTMLElement;
-  private readonly toggleBtn: HTMLButtonElement;
+  private readonly toggleBtn: HTMLButtonElement | null;
   private readonly sheet: HTMLElement;
   private rows: UnitRow[] = [];
   private filter: FilterState = { ...EMPTY_FILTER };
@@ -64,11 +64,10 @@ export class UnitsPanel {
   constructor(private readonly opts: UnitsPanelOptions) {
     this.root = document.createElement('div');
     this.root.className = 'r360-units-mount';
+    // Sin botón flotante propio: la lista se abre desde la pestaña "Unidades"
+    // de la barra inferior, que hace exactamente lo mismo. Eran dos accesos a
+    // la misma pantalla, y el flotante encima le comía espacio al plano.
     this.root.innerHTML = `
-      <button type="button" class="r360-units-toggle" aria-expanded="false">
-        <span class="r360-units-toggle__icon">☰</span>
-        <span class="r360-units-toggle__label"></span>
-      </button>
       <div class="r360-units-sheet" hidden>
         <div class="r360-units-sheet__handle" aria-hidden="true"></div>
         <button type="button" class="r360-units-close" aria-label="Cerrar">×</button>
@@ -78,10 +77,10 @@ export class UnitsPanel {
       </div>`;
     opts.host.appendChild(this.root);
 
-    this.toggleBtn = this.root.querySelector('.r360-units-toggle')!;
+    this.toggleBtn = this.root.querySelector('.r360-units-toggle');
     this.sheet = this.root.querySelector('.r360-units-sheet')!;
 
-    this.toggleBtn.addEventListener('click', () => this.open());
+    this.toggleBtn?.addEventListener('click', () => this.open());
     this.root.querySelector('.r360-units-close')!.addEventListener('click', () => this.close());
     this.sheet.addEventListener('click', (e) => this.onSheetClick(e));
     this.wireDragToClose();
@@ -114,19 +113,20 @@ export class UnitsPanel {
 
   private renderToggleLabel(): void {
     const { enVenta, disponibles } = this.resumen();
-    this.toggleBtn.querySelector('.r360-units-toggle__label')!.textContent =
+    const rotulo = this.toggleBtn?.querySelector('.r360-units-toggle__label');
+    if (rotulo) rotulo.textContent =
       `Unidades · ${enVenta} en venta · ${disponibles} disp.`;
   }
 
   private open(): void {
     this.sheet.hidden = false;
-    this.toggleBtn.setAttribute('aria-expanded', 'true');
+    this.toggleBtn?.setAttribute('aria-expanded', 'true');
     this.renderSheet();
   }
 
   private close(): void {
     this.sheet.hidden = true;
-    this.toggleBtn.setAttribute('aria-expanded', 'false');
+    this.toggleBtn?.setAttribute('aria-expanded', 'false');
   }
 
   private renderSheet(): void {
