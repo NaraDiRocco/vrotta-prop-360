@@ -26,8 +26,19 @@
  * `rgb(221,221,221)`, exactamente `#ddd`). Esta regla es la última en cargar
  * (esta hoja se importa después de `leaflet.css` en `floorplan.ts`), así que
  * es la que efectivamente se ve, sin tocar `styles.css`.
+ *
+ * Lo que pinta es el PAPEL del masterplan, no un gris: el lienzo es 1:4 y en
+ * un teléfono nunca llena la pantalla, así que lo que sobra a los costados se
+ * veía como el negro de la app y la hoja quedaba pegada sobre otra cosa. La
+ * textura es un recorte del propio masterplan (`papel.webp`, 400 px de una
+ * zona sin dibujo), así que el fondo y el plano son el mismo material.
  */
-.r360-plan.leaflet-container { background: #11161d; }
+.r360-plan.leaflet-container {
+  background-color: #f7f7f7;
+  background-image: url("/papel.webp");
+  background-repeat: repeat;
+  background-size: 200px;
+}
 
 .r360-units-mount { position: absolute; inset: 0; z-index: 61; pointer-events: none; }
 .r360-units-mount [hidden] { display: none !important; }
@@ -35,7 +46,7 @@
 
 /* Botón flotante que abre la lista. 44px de alto mínimo (regla dura). */
 .r360-units-toggle {
-  position: absolute; right: 12px; bottom: calc(12px + var(--r360-legend-h, 0px)); pointer-events: auto;
+  position: absolute; right: 16px; bottom: calc(12px + var(--r360-legend-h, 0px)); pointer-events: auto;
   display: flex; align-items: center; gap: 8px;
   min-height: 44px; padding: 10px 16px; border-radius: 999px; cursor: pointer;
   font: inherit; font-size: 13px; font-weight: 600; color: var(--r360-fg, #e6edf3);
@@ -116,7 +127,7 @@ body.r360-panel-open .r360-units-toggle { display: none; }
 
 /* Toggle Estado/Precio (plan §5): dos capas conmutables, nunca simultáneas. */
 .r360-price-toggle {
-  position: absolute; left: 12px; bottom: calc(12px + var(--r360-legend-h, 0px)); pointer-events: auto;
+  position: absolute; left: 16px; bottom: calc(12px + var(--r360-legend-h, 0px)); pointer-events: auto;
   z-index: 61; /* arriba de #legend (z-index:60, main.ts): comparten la esquina inferior. */
   display: flex; min-height: 44px; border-radius: 999px; overflow: hidden;
   background: var(--r360-panel, rgba(13, 17, 23, .9));
@@ -243,4 +254,29 @@ body.r360-panel-open .r360-price-legend { display: none; }
   0% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
   35% { filter: drop-shadow(0 0 16px rgba(255, 255, 255, .95)) brightness(1.6); }
   100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
+}
+
+/*
+ * En un teléfono los dos controles del plano no entran en una línea: el
+ * conmutador Estado/Precio y la píldora de unidades suman casi los 375 px de
+ * ancho y quedaban tocándose en el medio, cada uno pegado a su borde. Se
+ * apilan: la píldora arriba, el conmutador abajo.
+ */
+@media (max-width: 460px) {
+  /* La leyenda de estados vive en `bottom: 68px` (por encima de la barra de
+     pestañas) y mide ~29 px, pero estos controles se posicionaban con
+     `12px + --r360-legend-h`, como si estuviera pegada al fondo: quedaban
+     montados sobre ella. Se apilan desde arriba de la leyenda. */
+  .r360-price-toggle { bottom: 106px; }
+  .r360-units-toggle { bottom: 162px; }
+  .r360-price-legend { bottom: 218px; }
+}
+
+/* El plano ahora es claro, así que el nombre de la escena —que va en la barra
+   de arriba, en blanco -- se perdía contra el papel. Pasa a tinta mientras el
+   plano está a la vista. El `:has()` evita tener que marcar una clase en
+   `body` desde el TypeScript sólo para esto. */
+body:has(.r360-plan:not(.r360-hidden)) .r360-scene-name {
+  color: #16202a;
+  text-shadow: none;
 }

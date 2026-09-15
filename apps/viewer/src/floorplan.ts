@@ -399,11 +399,19 @@ export class FloorplanRenderer implements SceneRenderer {
     if (!this.map) return;
     const widthView = rot ? fitWidthView(planW, planH, this.el.clientWidth, this.el.clientHeight) : null;
     if (widthView) {
-      this.map.setMinZoom(widthView.zoom);
-      this.map.setView([widthView.centerLat, widthView.centerLng], widthView.zoom, { animate: false });
+      // `fitWidthView` calcula el zoom que hace entrar el plano JUSTO en el
+      // ancho de la pantalla, sin un píxel de sobra. Abrir ahí tiene dos
+      // problemas: el plano toca los dos bordes —se siente apretado, sin
+      // margen— y como ese mismo nivel se fijaba como mínimo, no había forma
+      // de alejarse para ver el conjunto. Se abre un poco más lejos y el piso
+      // baja lo mismo, así que el visitante puede acercar Y alejar desde el
+      // primer toque.
+      const holgura = 0.3;
+      this.map.setMinZoom(widthView.zoom - holgura);
+      this.map.setView([widthView.centerLat, widthView.centerLng], widthView.zoom - holgura, { animate: false });
     } else {
       this.map.setMinZoom(this.map.getBoundsZoom(bounds));
-      this.map.fitBounds(bounds);
+      this.map.fitBounds(bounds, { padding: [16, 16] });
     }
   }
 
