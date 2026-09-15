@@ -1054,12 +1054,19 @@ body[data-pantalla="clara"] .r360-rail__marca img {
   border: 1px solid rgba(13, 107, 52, .32);
 }
 
-/* Un botón debajo del otro, del mismo ancho: antes quedaban de anchos
-   distintos según el largo del rótulo y se veían chuecos. */
+/* Un botón debajo del otro, del mismo ancho y ALINEADOS CON EL TEXTO.
+   `.r360-rail__acciones` trae `margin: 0 16px` de su uso sobre fondo oscuro;
+   sumado al `width: 100%` —que se mide contra el contenedor entero, no contra
+   el hueco que dejan los márgenes— el grupo se desbordaba: quedaba a 36 px por
+   izquierda y 4 por derecha, contra los 20 parejos del texto. */
 .r360-rail__pantalla--texto .r360-rail__acciones {
   display: grid;
   gap: 8px;
-  width: 100%;
+  margin-inline: 0;
+  /* `.r360-rail__cierre` es una grilla con `justify-items: start`, así que sus
+     hijos toman el ancho del contenido: sin esto los botones quedaban cortos,
+     terminando a 192 px del borde derecho mientras el texto llegaba a 20. */
+  justify-self: stretch;
 }
 .r360-rail__pantalla--texto .r360-rail__acciones .r360-rail__btn,
 .r360-rail__pantalla--texto .r360-rail__acciones > a {
