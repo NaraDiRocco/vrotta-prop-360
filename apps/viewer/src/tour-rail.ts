@@ -923,6 +923,14 @@ export class TourRail {
       Object.values(this.opts.tour.units).flatMap((u) => u.media ?? []),
     ).size;
 
+    // Las panorámicas también se cuentan. Esta frase estaba escrita a mano
+    // ("Panorámicas 360: todavía no") mientras todo el resto del párrafo se
+    // contaba del manifiesto: cuando entraron las 15 de la unidad A, el
+    // recorrido siguió diciéndole al visitante que no había ninguna. En una
+    // tarjeta titulada "Qué es real en este recorrido", un dato desactualizado
+    // es peor que no ponerlo.
+    const panoramas = this.opts.tour.scenes.filter((s) => s.kind === 'panorama').length;
+
     const el = document.createElement('div');
     el.className = 'r360-rail__card r360-rail__real';
     el.innerHTML =
@@ -930,7 +938,9 @@ export class TourRail {
       `<p><b>${fotos}</b> fotografías reales del predio, <b>${plantas}</b> imágenes de planta y plano de unidad, ` +
       `<b>${renders}</b> imágenes del proyecto (renders y masterplan) y <b>${Math.max(ia, pares)}</b> ` +
       `recreaciones con IA sobre foto real, que sólo se ven dentro de su comparador. ` +
-      `Panorámicas 360: todavía no.</p>`;
+      (panoramas > 0
+        ? `Y <b>${panoramas}</b> panorámicas 360 de la unidad, fotografiadas adentro.</p>`
+        : `Panorámicas 360: todavía no.</p>`);
     return el;
   }
 
