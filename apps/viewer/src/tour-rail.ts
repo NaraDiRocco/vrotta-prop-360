@@ -497,9 +497,30 @@ export class TourRail {
 
   // ------------------------------------------------------------ los tramos
 
+  /**
+   * La llegada, en el orden en que se llega a un lugar: primero se ve dónde
+   * está, después se entra, y recién entonces se mira desde adentro. Los datos
+   * van al final, cuando ya hay algo que ubicar.
+   *
+   * Antes la segunda pantalla era la vista DESDE LA AZOTEA del Bloque 2 y el
+   * acceso venía dos pantallas después: se estaba arriba del edificio antes de
+   * haber cruzado la entrada. Y el bloque de datos partía la serie de fotos al
+   * medio.
+   */
   private renderLlegada(): void {
     const [contexto, skyline] = this.content.llegada.fotos;
+
+    // 1. Dónde está: el terreno entre el bosque y la ruta.
     if (contexto) this.add(this.fotoCard(contexto));
+
+    // 2. Por dónde se entra.
+    if (this.content.llegada.render) {
+      this.add(
+        this.renderCard(this.content.llegada.render, 'El acceso al complejo, como está proyectado.'),
+      );
+    }
+
+    // 3. Lo que se ve una vez adentro.
     if (skyline) {
       // Etiqueta anclada a lo que se ve en la foto (spec §3.2, punto 4): sólo
       // lo verificable en la imagen. Ninguna distancia ni tiempo de viaje:
@@ -516,8 +537,9 @@ export class TourRail {
       this.add(nota);
     }
 
-    // El plano, a un toque: el trazo del acceso a los bloques se recorre en el
-    // masterplan de verdad (girado a pantalla completa), no en una copia.
+    // 4. Cómo se ordena todo esto, con el plano a un toque: el trazo del acceso
+    // a los bloques se recorre en el masterplan de verdad (girado a pantalla
+    // completa), no en una copia.
     const plano = document.createElement('div');
     plano.className = 'r360-rail__card r360-rail__plan';
     plano.innerHTML =
@@ -531,12 +553,6 @@ export class TourRail {
     const btn = this.button('Abrir el masterplan', 'is-ghost', () => this.opts.onOpenPlan());
     plano.appendChild(btn);
     this.add(plano);
-
-    if (this.content.llegada.render) {
-      this.add(
-        this.renderCard(this.content.llegada.render, 'El acceso al complejo, como está proyectado.'),
-      );
-    }
   }
 
   private renderBloque(): void {
@@ -891,13 +907,42 @@ export class TourRail {
 
   // -------------------------------------------------------------- piezas
 
-  /** Pie común de cada tramo: el plano a un toque y el canal de consulta. */
+  /**
+   * Cierre de cada tramo: da por terminado lo que se vino viendo y anuncia lo
+   * que sigue, con el plano y la consulta abajo.
+   *
+   * Antes era sólo los dos botones sueltos. Como última pantalla de un tramo
+   * dejaba la sensación de que la historia se cortaba: ninguna línea decía que
+   * ese capítulo había terminado ni hacia dónde iba el siguiente.
+   */
   private tramoFooter(): HTMLElement {
     const el = document.createElement('div');
-    el.className = 'r360-rail__acciones r360-rail__acciones--pie';
-    el.appendChild(this.button('Ver el plano', 'is-ghost', () => this.opts.onOpenPlan()));
+    el.className = 'r360-rail__card r360-rail__cierre';
+
+    const def = tramoDef(this.state.tramo);
+    // El tramo que sigue, por su nombre: `railNextLabel` sólo da el rótulo del
+    // botón ("Siguiente"), que acá no dice nada. `asNext` es cómo se anuncia
+    // cada tramo cuando lo nombra el anterior ("el Bloque 2, construido").
+    const siguiente = TRAMOS[tramoIndex(this.state.tramo) + 1] ?? null;
+    el.innerHTML =
+      `<p class="r360-rail__cierre-de">${escapeHtml(def.title)}</p>` +
+      (siguiente
+        ? `<h3>Lo que sigue: ${escapeHtml(siguiente.asNext)}.</h3>`
+        : `<h3>Hasta acá el recorrido.</h3>`);
+
+    if (siguiente) {
+      el.appendChild(
+        this.button('Seguir', 'is-primary', () => this.dispatch({ type: 'siguiente' })),
+      );
+    }
+
+    const acciones = document.createElement('div');
+    acciones.className = 'r360-rail__acciones r360-rail__acciones--pie';
+    acciones.appendChild(this.button('Ver el plano', 'is-ghost', () => this.opts.onOpenPlan()));
     const cta = this.ctaLink('tramo');
-    if (cta) el.appendChild(cta);
+    if (cta) acciones.appendChild(cta);
+    el.appendChild(acciones);
+
     return el;
   }
 
