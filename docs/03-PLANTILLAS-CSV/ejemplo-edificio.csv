@@ -1,4 +1,0 @@
-codigo_unidad,tipologia,superficie_cubierta_m2,superficie_total_m2,estado,precio,moneda,mostrar_precio_publico,financiacion,bloque_o_piso,orientacion,notas_internas
-04-A,2 dorm,54.30,62.10,disponible,98000,USD,SI,"30% anticipo, saldo pozo",Piso 4,Frente Norte,
-04-B,1 dorm,38.00,41.50,disponible,71000,USD,NO,"30% anticipo, saldo pozo",Piso 4,Contrafrente,Precio bajo revision
-12-C,3 dorm,89.00,105.00,vendido,145000,USD,NO,,Piso 12,Frente,

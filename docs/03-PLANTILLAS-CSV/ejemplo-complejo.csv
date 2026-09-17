@@ -1,4 +1,0 @@
-codigo_unidad,tipologia,superficie_cubierta_m2,superficie_total_m2,estado,precio,moneda,mostrar_precio_publico,financiacion,bloque_o_piso,orientacion,notas_internas
-B1-U03,Duplex 3 dorm,120.00,180.00,disponible,210000,USD,SI,"25% anticipo, 18 cuotas",Bloque 1,Vista al mar,
-B2-U05,2 dorm,75.00,95.00,reservado,150000,USD,SI,"25% anticipo, 18 cuotas",Bloque 2,Vista interna,"Reservado, vence sena 05/09"
-B4-U12,2 dorm,75.00,95.00,disponible,150000,USD,NO,"25% anticipo, 18 cuotas",Bloque 4,Vista interna,

@@ -1,0 +1,7 @@
+{
+  "base": "./scenes/p-b2a-galeria/tiles",
+  "faceSize": 2048,
+  "tileSize": 512,
+  "levels": 3,
+  "format": "webp"
+}
