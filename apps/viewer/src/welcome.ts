@@ -62,8 +62,11 @@ const CROSSFADE_MS = 5000;
  * esto tiene que venir de ahí y no de una constante.
  */
 const PARTNERS: ReadonlyArray<{ id: string; src: string; alt: string }> = [
-  { id: 'dacal', src: '/marca/dacal-blanco.png', alt: 'Dacal Bienes Raíces' },
-  { id: 'caetano', src: '/marca/caetano-blanco.png', alt: 'Caetano Negocios Inmobiliarios' },
+  // `BASE_URL` y no `/`: publicado en un subdirectorio —GitHub Pages sirve
+  // bajo `/<repositorio>/`— una ruta absoluta al dominio apunta afuera del
+  // sitio y los dos logos salen rotos.
+  { id: 'dacal', src: `${import.meta.env.BASE_URL}marca/dacal-blanco.png`, alt: 'Dacal Bienes Raíces' },
+  { id: 'caetano', src: `${import.meta.env.BASE_URL}marca/caetano-blanco.png`, alt: 'Caetano Negocios Inmobiliarios' },
 ];
 
 export interface WelcomeHandle {
