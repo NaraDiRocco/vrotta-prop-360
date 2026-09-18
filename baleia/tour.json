@@ -431,6 +431,18 @@
         "url": "./media/video/baleia-recorrido-real.poster.jpg",
         "width": 1280,
         "height": 720
+      },
+      "portrait": {
+        "url": "./media/video/baleia-recorrido-real.vertical.mp4",
+        "width": 1080,
+        "height": 1920,
+        "duration": 49.7,
+        "mobileUrl": "./media/video/baleia-recorrido-real.vertical.720.mp4",
+        "poster": {
+          "url": "./media/video/baleia-recorrido-real.vertical.poster.jpg",
+          "width": 720,
+          "height": 1280
+        }
       }
     }
   ],
@@ -2164,6 +2176,18 @@
   "photoTour": {
     "items": [
       {
+        "id": "27_aerea_tres_bloques",
+        "url": "./media/fotos/27_aerea_tres_bloques.webp",
+        "thumbUrl": "./media/fotos/27_aerea_tres_bloques.thumb.webp",
+        "width": 1024,
+        "height": 1352,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "El conjunto: tres bloques sobre el bosque."
+      },
+      {
         "id": "01_aerea_contexto_costa_lejos",
         "url": "./media/fotos/01_aerea_contexto_costa_lejos.webp",
         "thumbUrl": "./media/fotos/01_aerea_contexto_costa_lejos.thumb.webp",
@@ -2384,23 +2408,12 @@
         },
         "caption": "Desde esta terraza: Punta del Este sobre el mar. Sin retoque.",
         "ambiente": "La vista"
-      },
-      {
-        "id": "06_aerea_balcones_detalle",
-        "url": "./media/fotos/06_aerea_balcones_detalle.webp",
-        "thumbUrl": "./media/fotos/06_aerea_balcones_detalle.thumb.webp",
-        "width": 2000,
-        "height": 1499,
-        "procedencia": {
-          "kind": "foto",
-          "capturedAt": "2026-09-02"
-        }
       }
     ],
     "pairs": [
       {
         "id": "slider-paisajismo",
-        "label": "Con el paisajismo terminado",
+        "label": "Lo que falta es el paisajismo, no el edificio",
         "before": {
           "id": "24_fachada_bloque2_atardecer_angulo",
           "url": "./media/fotos/24_fachada_bloque2_atardecer_angulo.webp",
@@ -2413,43 +2426,14 @@
           }
         },
         "after": {
-          "id": "DSC05104-paisajismo-baleia",
-          "url": "./media/ia/DSC05104-paisajismo-baleia.webp",
-          "thumbUrl": "./media/ia/DSC05104-paisajismo-baleia.thumb.webp",
-          "width": 1025,
-          "height": 1534,
-          "procedencia": {
-            "kind": "ia",
-            "basedOn": "24_fachada_bloque2_atardecer_angulo"
-          },
-          "restricted": true
-        }
-      },
-      {
-        "id": "slider-terrazas",
-        "label": "Con las terrazas amuebladas",
-        "before": {
-          "id": "06_aerea_balcones_detalle",
-          "url": "./media/fotos/06_aerea_balcones_detalle.webp",
-          "thumbUrl": "./media/fotos/06_aerea_balcones_detalle.thumb.webp",
+          "id": "DSC05104-render-atardecer",
+          "url": "./media/paisajismo/DSC05104-render-atardecer.webp",
+          "thumbUrl": "./media/paisajismo/DSC05104-render-atardecer.thumb.webp",
           "width": 2000,
-          "height": 1499,
+          "height": 2981,
           "procedencia": {
-            "kind": "foto",
-            "capturedAt": "2026-09-02"
+            "kind": "render"
           }
-        },
-        "after": {
-          "id": "DJI_20260902160101_0060_D_LEO-terrazas-equipadas",
-          "url": "./media/ia/DJI_20260902160101_0060_D_LEO-terrazas-equipadas.webp",
-          "thumbUrl": "./media/ia/DJI_20260902160101_0060_D_LEO-terrazas-equipadas.thumb.webp",
-          "width": 1448,
-          "height": 1086,
-          "procedencia": {
-            "kind": "ia",
-            "basedOn": "06_aerea_balcones_detalle"
-          },
-          "restricted": true
         }
       }
     ]

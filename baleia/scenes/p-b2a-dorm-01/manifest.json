@@ -1,9 +1,9 @@
 {
   "slug": "p-b2a-dorm-01",
   "clave": "B2-A_DORM-01",
-  "source": "C:\\Users\\User\\AppData\\Local\\Temp\\claude\\C--Users-User-Desktop-RECORRIDO-360\\d1cdf0e1-a032-465e-9c2c-9ac272f3f219\\scratchpad\\360\\entrega\\B2-A_DORM-01_01.jpg",
+  "source": "/Users/naradirocco/Desktop/WEB BALEIA/tools/baleia/material-360/B2-A_DORM-01_01.jpg",
   "validation": {
-    "file": "C:/Users/User/AppData/Local/Temp/claude/C--Users-User-Desktop-RECORRIDO-360/d1cdf0e1-a032-465e-9c2c-9ac272f3f219/scratchpad/360/entrega\\B2-A_DORM-01_01.jpg",
+    "file": "material-360/B2-A_DORM-01_01.jpg",
     "width": 8192,
     "height": 4096,
     "checks": [
@@ -54,5 +54,5 @@
     "format": "webp"
   },
   "tile_count": 126,
-  "generated_at": "2026-09-10T17:56:08+00:00"
+  "generated_at": "2026-09-17T22:21:48+00:00"
 }
