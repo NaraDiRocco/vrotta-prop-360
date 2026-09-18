@@ -27,10 +27,39 @@ export interface NavBarOptions {
 // La casa se llama Inicio y lleva a la portada. Antes decía "Recorrido" y
 // abría el riel de tramos: con ícono de casa, prometía volver al principio y
 // no lo hacía. El recorrido se empieza desde la portada, que es su lugar.
+/**
+ * Los íconos son SVG propios, no glifos de texto. Antes eran `⌂`, `▦` y `☰`:
+ * los dibuja la fuente del sistema, así que cambiaban de forma, de grosor y de
+ * alineación según el dispositivo, y ninguno de los tres tenía el mismo peso
+ * visual. Acá los tres comparten caja de 24, trazo de 1.6 y remates
+ * redondeados, y heredan `currentColor` para que el estado activo siga
+ * saliendo del CSS.
+ */
+const svg = (cuerpo: string): string =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"` +
+  ` stroke-linecap="round" stroke-linejoin="round">${cuerpo}</svg>`;
+
+const ICONOS: Record<NavTab, string> = {
+  // Casa: el arranque del recorrido.
+  tour: svg('<path d="M4 10.3 12 4l8 6.3V19a1.2 1.2 0 0 1-1.2 1.2H5.2A1.2 1.2 0 0 1 4 19z"/>'),
+  // Plano: el predio visto desde arriba, con la calle y los bloques.
+  plan: svg(
+    '<rect x="3.4" y="4.2" width="17.2" height="15.6" rx="2.2"/>' +
+    '<path d="M9.6 4.2v15.6"/><path d="M3.4 12.2h6.2"/><path d="M14.4 8.6h6.2"/>' +
+    '<path d="M14.4 15.8h6.2"/>',
+  ),
+  // Unidades: un listado, no un menú hamburguesa.
+  units: svg(
+    '<path d="M9.4 6.6h10.2"/><path d="M9.4 12h10.2"/><path d="M9.4 17.4h10.2"/>' +
+    '<circle cx="5.1" cy="6.6" r="1.1"/><circle cx="5.1" cy="12" r="1.1"/>' +
+    '<circle cx="5.1" cy="17.4" r="1.1"/>',
+  ),
+};
+
 const TABS: ReadonlyArray<{ id: NavTab; icon: string; label: string }> = [
-  { id: 'tour', icon: '⌂', label: 'Inicio' },
-  { id: 'plan', icon: '▦', label: 'Plano' },
-  { id: 'units', icon: '☰', label: 'Unidades' },
+  { id: 'tour', icon: ICONOS.tour, label: 'Inicio' },
+  { id: 'plan', icon: ICONOS.plan, label: 'Plano' },
+  { id: 'units', icon: ICONOS.units, label: 'Unidades' },
 ];
 
 export class NavBar {

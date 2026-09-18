@@ -147,17 +147,19 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
    curadas (`material-real/web/`) son `foto`, con `capturedAt` leído del
    EXIF `DateTimeOriginal` de los archivos originales — nunca escrito a
    mano: ver `tools/baleia/material-real/index.csv`, columna
-   `capturado_en` (agregada el 06/09/2026 justamente para esto). Las dos
-   recreaciones amuebladas/paisajismo con IA son `ia` y viajan con
-   `restricted: true`: el plan (§3.1) prohíbe usarlas como portada o
-   miniatura fuera de su slider.
+   `capturado_en` (agregada el 06/09/2026 justamente para esto). La imagen
+   de paisajismo terminado del deslizador (`generado-ia/paisajismo/`) es
+   `render`, no `ia`: es una proyección del proyecto como cualquier otro
+   render, generada a partir de una foto real para que el ángulo calce
+   exacto (ver `BEFORE_AFTER_PAIRS`/`_paisajismo_pair_item`); no lleva
+   `restricted`. `amueblado-virtual/` sigue sin publicarse.
 
 13. `TourManifest.photoTour` (nuevo, opcional): el material narrativo del
    plan de experiencia — las fotos reales del Tramo 1 y el paseo de 11
    fotos del Tramo 2 Mitad B, con caption y `ambiente` TEXTUALES tomados
    de `docs/06-BENCHMARK/5-EXPERIENCIA-BALEIA.md` §1 (se copian literales,
-   no se resumen), más los dos deslizadores antes/después que describe el
-   mismo documento. Aditivo: no reemplaza escenas ni hotspots.
+   no se resumen), más el deslizador antes/después que describe el mismo
+   documento. Aditivo: no reemplaza escenas ni hotspots.
 
 16. LA FICHA QUE CIERRA (06/09/2026, auditoría §4 Idea 3). Tres campos
    aditivos en `units[code].attrs` — `attrs` es `Record<string, unknown>`
@@ -225,6 +227,19 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
    eso también se la excluye a mano del filtro de "otras vistas" de
    Amenities (`buildRailContent`, campo `otros`), que de otro modo la
    tomaría por un render más y le pondría un `<img>` a un archivo .mp4.
+
+18. VARIANTE VERTICAL DEL VIDEO (17/09/2026), para que en celular ocupe la
+   altura completa en vez de quedar encajonado con bandas negras. Es OTRO
+   CORTE, no el horizontal rotado: 49,7 s contra 82,8 s, con la marca del
+   proyecto incrustada en los primeros segundos (ver `media/README.md`).
+   Va en `Scene.portrait` (packages/core/src/types.ts), no en `mobileUrl`:
+   `mobileUrl` es "mismo corte, más liviano" y el visor dimensiona su caja
+   con `source.width`/`height`, así que un archivo 1080x1920 ahí se ve
+   encajonado. `portrait` trae sus propias dimensiones, su propio póster y
+   su propio `mobileUrl` (720p) para que `tour-rail.ts::renderVideo` arme
+   la caja con las medidas de la fuente que realmente usa. Igual que el
+   horizontal, opcional: sin los tres archivos `.vertical.*` en
+   `media/video/`, la escena sigue funcionando sólo con el horizontal.
 """
 from __future__ import annotations
 
@@ -254,15 +269,19 @@ TOUR_DIR = os.path.join(OUT_DIR, "tour")
 MATERIAL_REAL_DIR = os.path.join(BALEIA_DIR, "material-real")
 MATERIAL_REAL_WEB = os.path.join(MATERIAL_REAL_DIR, "web")
 MATERIAL_REAL_INDEX = os.path.join(MATERIAL_REAL_DIR, "index.csv")
-# Planos acotados reales por unidad (INVENTARIO.md §2) y las dos recreaciones
-# con IA que arman los dos deslizadores antes/después del plan de experiencia.
+# Planos acotados reales por unidad (INVENTARIO.md §2).
 UNIT_FLOORPLANS_DIR = os.path.join(MATERIAL_DIR, "planos", "unidad")
 UNIT_PDF_DIR = os.path.join(UNIT_FLOORPLANS_DIR, "src-pdf")
 PLANOS_3D_DIR = os.path.join(MATERIAL_DIR, "generado-ia", "planos-3d")
 MARCA_DIR = os.path.join(MATERIAL_DIR, "marca")
 # El único archivo de marca que consume el visor (`tour-rail.ts::MARCA_SVG`).
 MARCA_FILE = "baleia-logo-blanco.svg"
-AMUEBLADO_DIR = os.path.join(MATERIAL_DIR, "generado-ia", "amueblado-virtual")
+# `generado-ia/paisajismo/`: paisajismo terminado generado A PARTIR de una
+# foto real del predio (mismo ángulo y cámara por construcción — no es una
+# recreación libre). Alimenta el lado "después" del único deslizador
+# antes/después que queda (ver BEFORE_AFTER_PAIRS). `generado-ia/
+# amueblado-virtual/` sigue sin publicarse: los archivos quedan en el repo
+# como material interno, no se borraron, sólo no tienen referencia acá.
 PAISAJISMO_DIR = os.path.join(MATERIAL_DIR, "generado-ia", "paisajismo")
 # Video real del recorrido (decisión 15 del docstring), ya comprimido +faststart
 # en dos resoluciones. Vive fuera de `material/` porque no es una foto curada
@@ -272,6 +291,13 @@ VIDEO_DIR = os.path.join(BALEIA_DIR, "media", "video")
 VIDEO_REAL_FILE = "baleia-recorrido-real.mp4"
 VIDEO_REAL_MOBILE_FILE = "baleia-recorrido-real.720.mp4"
 VIDEO_REAL_POSTER_FILE = "baleia-recorrido-real.poster.jpg"
+# Corte VERTICAL (decisión 18), para celular. NO es el horizontal rotado: es
+# otra edición, de otra duración (49,7 s contra 82,8 s), con la marca del
+# proyecto incrustada en los primeros segundos. Opcional: si estos tres
+# archivos no están, `build_video_scene` sigue emitiendo sólo el horizontal.
+VIDEO_REAL_VERTICAL_FILE = "baleia-recorrido-real.vertical.mp4"
+VIDEO_REAL_VERTICAL_MOBILE_FILE = "baleia-recorrido-real.vertical.720.mp4"
+VIDEO_REAL_VERTICAL_POSTER_FILE = "baleia-recorrido-real.vertical.poster.jpg"
 # Fecha real de filmación (aérea de apertura + paseo por la unidad del Bloque
 # 2), documentada en tools/baleia/media/README.md. Es la misma fecha que las
 # fotos reales de `material-real/` (2 sep 2026): la procedencia `foto` con
@@ -324,9 +350,10 @@ AMENITY_SCENE = {"A": "acceso", "D": "amenities", "E": "amenities", "F": "amenit
 # Tramo 1 (§1) — sólo las dos fotos con caption escrita en el plan.
 PHOTO_CAPTIONS = {
     "01_aerea_contexto_costa_lejos": "El terreno, entre el bosque y la Ruta 10. Foto real, 2 sep 2026.",
-    # Caption de la bienvenida (§2) y apertura del Tramo 2 Mitad A (§1): la
-    # misma foto cumple los dos roles con el mismo texto.
+    # Apertura del Tramo 2 Mitad A (§1).
     "02_aerea_bloque2_oblicua_cercana": "Bloque 2. Tres niveles, nueve unidades. Foto real.",
+    # Caption de la bienvenida (§2): la aérea del conjunto que abre el recorrido.
+    "27_aerea_tres_bloques": "El conjunto: tres bloques sobre el bosque.",
 }
 
 # Tramo 2, Mitad B (§1): el paseo de 11 fotos con orden de casa. Rótulo de
@@ -346,27 +373,47 @@ UNIT_WALK = [
     ("11_vista_terraza_peninsula_skyline", "La vista", "Desde esta terraza: Punta del Este sobre el mar. Sin retoque."),
 ]
 
-# Los dos deslizadores antes/después del plan (§1 Tramo 2 Mitad A, mecánica
-# en §3.1). `before` es la foto real curada (`material-real/web`); `after`
-# es la recreación con IA (`material/generado-ia/...`), SIEMPRE `restricted`.
+# El deslizador antes/después del plan (§1 Tramo 2 Mitad A, mecánica en
+# §3.1). Reemplaza al par render/foto (`complejo-fachada` contra
+# `07_fachada_bloque2_dia_completa`), que la dueña rechazó: el render y esa
+# foto están tomados desde distancias distintas, así que el deslizador no
+# comparaba bien (el render sigue en el tramo de amenities con su chapa,
+# sólo dejó de ser parte de este comparador).
+#
+# Este par es el ángulo exacto: `before` es la foto real curada
+# (`24_fachada_bloque2_atardecer_angulo`, YA en `photoTour.items`), `after`
+# es `generado-ia/paisajismo/DSC05104-paisajismo-baleia.webp`, generada A
+# PARTIR de esa misma foto — mismo ángulo, misma cámara, mismo destello de
+# sol, por construcción. Verificado a mano: 2000x2994 contra 1025x1534,
+# mismo ratio 0.668 (vertical 2:3). Lo único que cambia es que el "after"
+# tiene césped y canteros plantados donde la foto real tiene tierra y
+# escombros — falta el paisajismo, no el edificio.
+#
+# El "after" no es `kind: 'foto'` (no es una captura) ni `kind: 'ia'` (esa
+# chapa está reservada al slider que ya no existe y además `isPublicable()`
+# la filtraría de `pairs` en `tour-rail.model.ts`); es `kind: 'render'`: como
+# cualquier render del proyecto, es una proyección de un estado — el
+# paisajismo terminado — que todavía no existe en el terreno, y con la misma
+# salvedad ("lo construido puede diferir en detalles"). No se marca
+# `restricted`: no hay nada que esconder, el punto del comparador es
+# mostrarla.
 BEFORE_AFTER_PAIRS = [
     {
         "id": "slider-paisajismo",
-        "label": "Con el paisajismo terminado",
+        # Leyenda debajo del deslizador (`tour-rail.ts::sliderCard` le agrega
+        # ". Arrastrá para comparar."). El rótulo fijo pegado a cada imagen
+        # ("Hoy · foto real" / "Render del proyecto") es constante del
+        # componente, no sale de acá — ver `beforeafter.ts`.
+        "label": "Lo que falta es el paisajismo, no el edificio",
         "before_photo": "24_fachada_bloque2_atardecer_angulo",
         "after_dir": PAISAJISMO_DIR,
-        "after_file": "DSC05104-paisajismo-baleia.webp",
-    },
-    {
-        "id": "slider-terrazas",
-        "label": "Con las terrazas amuebladas",
-        "before_photo": "06_aerea_balcones_detalle",
-        "after_dir": AMUEBLADO_DIR,
-        # La variante "-terrazas-pasto-techo-final" (techo verde) NO se usa:
-        # requiere confirmar con el cliente que el techo verde está en el
-        # proyecto para B2 (plan §1, nota bajo el slider #2). Sin
-        # confirmación, sólo la variante de mobiliario.
-        "after_file": "DJI_20260902160101_0060_D_LEO-terrazas-equipadas.webp",
+        # Reiluminada al atardecer sobre la imagen de paisajismo, que a su vez
+        # salió de esta misma foto: por eso el edificio cae en el mismo pixel
+        # y la costura del deslizador no salta. Generarla de cero desde la foto
+        # —probado— reinterpreta la perspectiva y el edificio se corre. El
+        # criterio y el prompt quedaron en `prompt-render-fachada-desde-foto.md`
+        # junto al archivo.
+        "after_file": "DSC05104-render-atardecer.webp",
     },
 ]
 
@@ -816,6 +863,45 @@ def build_video_scene(tour_dir: str) -> tuple[dict | None, list[dict]]:
             "height": poster_img.height,
         }
 
+    # Corte vertical (decisión 18, `Scene.portrait` en packages/core): mismo
+    # tratamiento que el horizontal, dimensiones leídas con `ffprobe` (nunca
+    # a mano) y `copy_video_asset`, que nunca reencodea. Opcional: si el
+    # archivo vertical no está, la escena queda sólo con el horizontal.
+    src_vertical = os.path.join(VIDEO_DIR, VIDEO_REAL_VERTICAL_FILE)
+    if os.path.isfile(src_vertical):
+        dst_vertical = os.path.join(tour_dir, "media", "video", VIDEO_REAL_VERTICAL_FILE)
+        media_info.append(copy_video_asset(src_vertical, dst_vertical))
+        v_width, v_height, v_duration = probe_video(src_vertical)
+        portrait: dict = {
+            "url": f"./media/video/{VIDEO_REAL_VERTICAL_FILE}",
+            "width": v_width,
+            "height": v_height,
+            "duration": round(v_duration, 1),
+        }
+
+        src_vertical_mobile = os.path.join(VIDEO_DIR, VIDEO_REAL_VERTICAL_MOBILE_FILE)
+        if os.path.isfile(src_vertical_mobile):
+            dst_vertical_mobile = os.path.join(
+                tour_dir, "media", "video", VIDEO_REAL_VERTICAL_MOBILE_FILE
+            )
+            media_info.append(copy_video_asset(src_vertical_mobile, dst_vertical_mobile))
+            portrait["mobileUrl"] = f"./media/video/{VIDEO_REAL_VERTICAL_MOBILE_FILE}"
+
+        src_vertical_poster = os.path.join(VIDEO_DIR, VIDEO_REAL_VERTICAL_POSTER_FILE)
+        if os.path.isfile(src_vertical_poster):
+            dst_vertical_poster = os.path.join(
+                tour_dir, "media", "video", VIDEO_REAL_VERTICAL_POSTER_FILE
+            )
+            media_info.append(copy_video_asset(src_vertical_poster, dst_vertical_poster))
+            vposter_img = Image.open(src_vertical_poster)
+            portrait["poster"] = {
+                "url": f"./media/video/{VIDEO_REAL_VERTICAL_POSTER_FILE}",
+                "width": vposter_img.width,
+                "height": vposter_img.height,
+            }
+
+        scene["portrait"] = portrait
+
     return scene, media_info
 
 
@@ -936,32 +1022,36 @@ def _photo_item(tour_dir: str, name: str, *, restricted: bool = False) -> tuple[
     return item, info
 
 
-def _ia_pair_item(tour_dir: str, src_dir: str, filename: str, based_on: str) -> tuple[dict, dict]:
-    """Igual que `_photo_item`, pero para una recreación con IA
-    (`generado-ia/...`): siempre `restricted: true` y `procedencia.kind='ia'`
-    con `basedOn` apuntando a la foto real de la que sale (plan §3.1: la
-    imagen de IA no existe fuera del slider)."""
+def _paisajismo_pair_item(tour_dir: str, src_dir: str, filename: str) -> tuple[dict, dict]:
+    """Arma el lado "después" de `BEFORE_AFTER_PAIRS`: copia la imagen de
+    paisajismo terminado (`generado-ia/paisajismo/`, ya generada A PARTIR de
+    una foto real, mismo ángulo) a `out/tour/media/paisajismo/`, sin
+    reencodear (mismo `copy_optimized` que usa `_photo_item`). `kind:
+    'render'` — no `'foto'` (no es una captura) ni `'ia'` (esa chapa y el
+    filtro `restricted` son del slider "foto real vs. IA" que ya no existe,
+    y `isPublicable()` la sacaría de `pairs`): es una proyección del
+    proyecto, igual que cualquier otro render, sólo que del paisajismo en
+    vez de la arquitectura. Devuelve `(item, info_para_reporte)`."""
     name = filename.rsplit(".", 1)[0]
     src_full = os.path.join(src_dir, filename)
-    dst_full = os.path.join(tour_dir, "media", "ia", filename)
+    dst_full = os.path.join(tour_dir, "media", "paisajismo", filename)
     info = copy_optimized(src_full, dst_full)
     item = {
         "id": name,
-        "url": f"./media/ia/{filename}",
-        "thumbUrl": f"./media/ia/{name}.thumb.webp",
+        "url": f"./media/paisajismo/{filename}",
+        "thumbUrl": f"./media/paisajismo/{name}.thumb.webp",
         "width": info["width"],
         "height": info["height"],
-        "procedencia": {"kind": "ia", "basedOn": based_on},
-        "restricted": True,
+        "procedencia": {"kind": "render"},
     }
     return item, info
 
 
 def build_photo_tour(tour_dir: str) -> tuple[dict, list[dict]]:
     """`TourManifest.photoTour` (punto 13 del docstring): las fotos reales
-    curadas, en el orden con sentido del plan de experiencia, más los dos
-    deslizadores antes/después. Devuelve `(photoTour, media_info)` — lo
-    segundo sólo para el reporte de peso publicado."""
+    curadas, en el orden con sentido del plan de experiencia, más el
+    deslizador antes/después de paisajismo. Devuelve `(photoTour,
+    media_info)` — lo segundo sólo para el reporte de peso publicado."""
     items: list[dict] = []
     media_info: list[dict] = []
     seen: set[str] = set()
@@ -978,7 +1068,10 @@ def build_photo_tour(tour_dir: str) -> tuple[dict, list[dict]]:
         items.append(item)
         media_info.append(info)
 
-    # Tramo 1 (§1): las fotos con caption propia del plan.
+    # Tramo 1 (§1): las fotos con caption propia del plan. Abre la aérea del
+    # conjunto, que es la misma de la bienvenida (§2): el recorrido arranca
+    # donde quedó la portada, sin un corte de imagen en el medio.
+    add_photo("27_aerea_tres_bloques", caption=PHOTO_CAPTIONS["27_aerea_tres_bloques"])
     add_photo("01_aerea_contexto_costa_lejos", caption=PHOTO_CAPTIONS["01_aerea_contexto_costa_lejos"])
     add_photo("04_aerea_skyline_punta_del_este")
 
@@ -992,12 +1085,16 @@ def build_photo_tour(tour_dir: str) -> tuple[dict, list[dict]]:
     for name, ambiente, caption in UNIT_WALK:
         add_photo(name, caption=caption, ambiente=ambiente)
 
-    # Deslizadores antes/después (§1, mecánica en §3.1).
+    # Deslizador antes/después de paisajismo (§1, mecánica en §3.1).
+    # `before` es la foto real, que entra por el mismo `add_photo` que las
+    # demás — ya está en la serie de fachada (`24_fachada_bloque2_atardecer_
+    # angulo`), así que `seen` evita duplicarla y el `next()` la encuentra;
+    # `after` se copia de `generado-ia/paisajismo/` (`_paisajismo_pair_item`).
     pairs = []
     for spec in BEFORE_AFTER_PAIRS:
         add_photo(spec["before_photo"])
         before_item = next(i for i in items if i["id"] == spec["before_photo"])
-        after_item, after_info = _ia_pair_item(tour_dir, spec["after_dir"], spec["after_file"], based_on=spec["before_photo"])
+        after_item, after_info = _paisajismo_pair_item(tour_dir, spec["after_dir"], spec["after_file"])
         media_info.append(after_info)
         pairs.append({"id": spec["id"], "label": spec["label"], "before": before_item, "after": after_item})
 
@@ -1025,6 +1122,17 @@ def publish(tour_dir: str) -> dict:
             sc["mobileUrl"] = sc["mobileUrl"].replace("./", "./baleia/", 1)
         if sc.get("poster"):
             sc["poster"]["url"] = sc["poster"]["url"].replace("./", "./baleia/", 1)
+        # Corte vertical (decisión 18): mismo prefijo, en sus tres campos.
+        if sc.get("portrait"):
+            sc["portrait"]["url"] = sc["portrait"]["url"].replace("./", "./baleia/", 1)
+            if sc["portrait"].get("mobileUrl"):
+                sc["portrait"]["mobileUrl"] = sc["portrait"]["mobileUrl"].replace(
+                    "./", "./baleia/", 1
+                )
+            if sc["portrait"].get("poster"):
+                sc["portrait"]["poster"]["url"] = sc["portrait"]["poster"]["url"].replace(
+                    "./", "./baleia/", 1
+                )
     for u in tour["units"].values():
         if u.get("media"):
             u["media"] = [m.replace("./", "./baleia/", 1) for m in u["media"]]

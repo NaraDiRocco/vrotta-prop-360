@@ -14,7 +14,11 @@
   /* El verde de WhatsApp queda sólo para el ícono y el borde: como relleno de
      un botón entero competía con todo lo demás. */
   --r360-wa: #25D366;
-  --r360-nav-h: 60px;
+  /* Banda reservada para la barra inferior. La barra es una píldora
+     flotante más baja que esta banda: el resto es el aire que la
+     despega del borde. Todo lo que se apoya arriba de la barra usa
+     esta variable, así que el aire se reserva una sola vez, acá. */
+  --r360-nav-h: 76px;
   --r360-safe-b: env(safe-area-inset-bottom, 0px);
   --r360-tap: 44px;
 }
@@ -164,23 +168,66 @@ body.r360-no-legend #legend { display: none; }
 .r360-bar .r360-share::before { width: 15px; height: 15px; }
 
 /* ------------------------------------------------------- navegación inferior */
+/* z-index por encima de la bienvenida (150 en `welcome.css`): la barra
+   inferior tambien se ve en la portada, para que Inicio/Plano/Unidades
+   esten disponibles desde el primer segundo y no solo despues de entrar
+   al recorrido. La bienvenida le deja el lugar con su padding de abajo.
+
+   Es una píldora flotante, no una franja pegada al borde: despegada de los
+   tres lados, en vidrio esmerilado, con la foto respirando por detrás. El
+   ancho se limita para que en pantallas anchas no se estire de lado a lado. */
 .r360-nav {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 55;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(8px + var(--r360-safe-b));
+  z-index: 200;
   display: flex;
-  padding-bottom: var(--r360-safe-b);
-  background: rgba(13, 17, 23, .94);
-  border-top: 1px solid var(--r360-border);
-  backdrop-filter: blur(10px);
+  width: calc(100% - 28px);
+  max-width: 420px;
+  /* En claro, no en oscuro: vidrio blanco esmerilado sobre la foto. El borde
+     y la sombra son lo que la despegan de imágenes claras —sin ellos, sobre
+     un cielo se perdía—. Los colores van fijos y no por los tokens del tema,
+     que son los del visor oscuro. */
+  border: 1px solid rgba(255, 255, 255, .6);
+  border-radius: 21px;
+  /* Vidrio de verdad, no blanco translúcido: la opacidad baja a la mitad para
+     que la foto se vea por detrás, y el desenfoque y la saturación suben para
+     compensar. El degradado (más claro arriba que abajo) y las dos sombras
+     internas son lo que da el canto de vidrio: la de arriba es el brillo del
+     borde, la de abajo el rebote. Sin ellas queda un rectángulo borroso. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, .6), rgba(255, 255, 255, .4));
+  backdrop-filter: blur(26px) saturate(185%);
+  -webkit-backdrop-filter: blur(26px) saturate(185%);
+  box-shadow:
+    0 12px 34px rgba(9, 14, 20, .3),
+    0 2px 10px rgba(9, 14, 20, .16),
+    inset 0 1px 0 rgba(255, 255, 255, .9),
+    inset 0 -1px 0 rgba(255, 255, 255, .3);
 }
 .r360-nav__tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; min-height: var(--r360-nav-h); padding: 6px 4px; cursor: pointer;
-  color: #93a4b5; background: none; border: 0; font: inherit;
+  gap: 2px; min-height: 52px; margin: 5px; padding: 4px; cursor: pointer;
+  color: #47535e; background: none; border: 0; border-radius: 16px; font: inherit;
+  /* Un filo blanco detrás de la letra: sobre vidrio, con la foto pasando
+     por atrás, es lo que la mantiene legible sin tener que oscurecerla. */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .55);
+  transition: background .18s ease, color .18s ease;
 }
-.r360-nav__tab.is-active { color: var(--r360-fg); }
-.r360-nav__tab.is-active .r360-nav__icon { color: var(--r360-accent); }
-.r360-nav__tab.is-pressed { background: rgba(255, 255, 255, .08); }
-.r360-nav__icon { font-size: 19px; line-height: 1; }
+/* La activa lleva cápsula además de color: en una píldora translúcida el
+   color solo no alcanza para leer dónde estás. */
+.r360-nav__tab.is-active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .78), rgba(255, 255, 255, .58));
+  color: #0d1319;
+  box-shadow: 0 1px 3px rgba(9, 14, 20, .14), inset 0 1px 0 rgba(255, 255, 255, .95);
+}
+/* El color de la activa lo fija la regla de la cápsula, más abajo: en claro
+   `--r360-fg` es casi blanco y desaparecía sobre el vidrio. */
+.r360-nav__tab.is-active .r360-nav__icon { color: #0d1319; }
+.r360-nav__tab.is-pressed { background: rgba(13, 17, 23, .1); }
+/* El ícono ya no es texto: la caja la fija el SVG, no el tamaño de fuente. */
+.r360-nav__icon { display: block; width: 23px; height: 23px; }
+.r360-nav__icon svg { display: block; width: 100%; height: 100%; }
 .r360-nav__label { font-size: 11px; font-weight: 600; letter-spacing: .01em; }
 .r360-nav__label b { font-weight: 700; opacity: .75; }
 
@@ -246,6 +293,14 @@ body.r360-no-legend #legend { display: none; }
   margin: 6px 0 12px; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
   letter-spacing: -.01em;
 }
+/* La línea que decide la compra (camino a la consulta, punto 2): tipología,
+   m², precio, entrega y estado, todo junto bajo el título. Envuelve si no
+   entra, pero es UNA sola idea, no una lista de filas separadas. */
+.r360-panel__linea {
+  margin: 6px 0 14px; font-size: 15px; font-weight: 600; line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.r360-panel__linea-estado { font-weight: 700; }
 .r360-panel__note { margin: 8px 0 0; font-size: 11.5px; line-height: 1.45; opacity: .7; }
 .r360-panel__note--muted { text-align: center; opacity: .55; }
 .r360-link {
@@ -469,14 +524,22 @@ body.r360-rail-open .r360-bar > * { pointer-events: auto; }
 }
 
 /*
- * "Ver las 9 unidades del Bloque 2" abría la hoja en `peek` (262 px) con la
- * grilla a 600 px fuera de pantalla: el botón prometía unidades y mostraba un
- * CTA (auditoría §2.4). La hoja DE BLOQUE —la única que trae grilla— abre
- * directo a la altura donde la grilla se ve; la ficha de una unidad sigue
- * conviviendo con el plano en `peek`.
+ * La ficha (unidad o bloque) es donde se decide: en móvil abre a PANTALLA
+ * COMPLETA, no a media hoja (camino a la consulta, punto 2). Antes abría en
+ * `peek`/`mid` con los botones del cierre del riel asomando por arriba de la
+ * hoja — el `panelSheet` ahora tiene un solo snap ("full") y esta regla es la
+ * que lo hace cubrir todo el viewport, por encima de la barra de pestañas y
+ * de cualquier cosa detrás. Gana por orden de cascada sobre la regla genérica
+ * `.r360-sheet[data-height="full"] { height: 85vh }` de más arriba (misma
+ * especificidad, declarada antes).
  */
 @media (max-width: 640px) {
-  .r360-panel[data-height="peek"]:has(.r360-units-grid) { height: 60vh; }
+  .r360-panel[data-height="full"] {
+    top: 0;
+    height: 100%;
+    height: 100dvh;
+    border-radius: 0;
+  }
 }
 
 /* -------------------------------------------- la ficha que cierra (Idea 3) */
@@ -548,20 +611,37 @@ body.r360-rail-open .r360-bar > * { pointer-events: auto; }
 .r360-sheet .r360-facts dd { color: #101820; }
 .r360-sheet .r360-units-summary,
 .r360-sheet .r360-sheet__body > p { color: #35424f; }
-
-/* "Recorrer en 360°": la acción principal de la ficha de una unidad cuya
-   tipología está fotografiada. Va en tinta llena, por encima del CTA de
-   contacto: ver la unidad es el paso anterior a preguntar por ella. */
-/* Con las DOS clases: `boot.css` define `.r360-cta` y carga después, así que
-   con una sola perdía el desempate y el botón salía con el verde tenue del
-   CTA de contacto. Es la tercera vez que aparece este patrón en esta hoja. */
-.r360-cta.r360-cta--360 {
-  color: #fff;
-  background: #16202a;
-  border: 1px solid #16202a;
-  border-radius: 3px;
+/* `.r360-panel__acciones`/`.r360-panel__linea-estado` seguían con el juego de
+   color pensado para fondo oscuro (texto casi blanco) — sobre el papel de la
+   ficha, "Descargar el plano (PDF)" quedaba casi invisible (blanco sobre
+   blanco). `.is-visita` no lo necesita: su verde ya se lee sobre cualquier
+   fondo. */
+.r360-sheet .r360-panel__accion:not(.is-visita) {
+  color: #16202a;
+  background: rgba(22, 32, 42, .04);
+  border-color: rgba(22, 32, 42, .18);
 }
-.r360-cta.r360-cta--360:hover { background: #22303d; }
+
+/* "Recorrer en 360°" (camino a la consulta, punto 2): una imagen grande y
+   tocable —la miniatura real de la panorámica—, no un botón de texto. Ver la
+   unidad es el paso anterior a preguntar por ella, así que va antes del CTA
+   de contacto. */
+.r360-cta360 {
+  display: block; position: relative; width: 100%; margin: 0 0 6px; padding: 0;
+  border: 0; border-radius: 10px; overflow: hidden; cursor: pointer;
+  aspect-ratio: 16 / 10; background: #16202a;
+}
+.r360-cta360 img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.r360-cta360__tag {
+  position: absolute; left: 10px; bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; color: #fff;
+  background: rgba(13, 17, 23, .78);
+}
+.r360-cta360__tag i {
+  width: 8px; height: 8px; border-radius: 999px; background: var(--r360-accent);
+}
 .r360-panel__note--360 {
   margin: 6px 0 12px;
   font-size: 11px;
