@@ -1,7 +1,17 @@
 /**
- * Deslizador antes/después — foto real vs. recreación con mobiliario
- * generada por IA sobre esa misma foto (plan `docs/06-BENCHMARK/
- * 5-EXPERIENCIA-BALEIA.md` §3.1).
+ * Deslizador antes/después — la fachada del Bloque 2 hoy (foto real) vs. la
+ * misma fachada, mismo ángulo, con el paisajismo terminado (plan
+ * `docs/06-BENCHMARK/5-EXPERIENCIA-BALEIA.md` §3.1). El par anterior
+ * (render del proyecto contra una foto de otra distancia) se descartó
+ * porque las dos imágenes no compartían cámara y el deslizador no
+ * comparaba bien; éste sí: la imagen de "después" se generó A PARTIR de la
+ * foto real de "antes", así que el ángulo calza por construcción (ver
+ * `build_tour.py::BEFORE_AFTER_PAIRS`). Antes de ese par hubo dos
+ * deslizadores "foto real vs. IA" con mobiliario/paisajismo agregado sobre
+ * una foto ya construida, que se eliminaron porque rotular "IA" encima de
+ * un edificio real hacía sospechar que el edificio era inventado — este
+ * componente no rotula IA en ningún rótulo fijo, sólo describe qué cambia
+ * entre una imagen y la otra.
  *
  * Pieza autónoma: no importa nada de `ui.ts`/`nav.ts`/`main.ts`/
  * `floorplan.ts` ni sabe que existen. Quien la monte le pasa un contenedor
@@ -16,38 +26,37 @@
  * primera mitad del archivo. La segunda mitad es la capa fina de DOM que
  * las conecta a eventos de puntero/teclado reales.
  *
- * ## La regla de honestidad (parte del contrato del componente)
+ * ## El estado inicial (parte del contrato del componente)
  *
- * La imagen de IA **no existe fuera de este slider** (spec §3.1 y §5.1):
- * no es miniatura, no es portada, no se comparte sola. La API está armada
- * para que violar eso sea difícil por accidente:
+ * Ninguna de las dos imágenes de este par es "la que no debe mostrarse por
+ * defecto" en el sentido de estar `restricted` — las dos son públicas. Lo
+ * que sigue vigente es la regla general del recorrido: "la foto es la
+ * norma, lo proyectado la excepción" (spec §5.1). Por eso el estado inicial
+ * y de reposo seguro sigue siendo la foto real completa, nunca la imagen
+ * de "después":
  *
- *  - `BeforeAfterHandle` no tiene ningún getter que devuelva la URL de la
- *    imagen de IA. La única URL que expone es `previewImageSrc`, y esa
- *    siempre es la foto real — es la que hay que usar si se comparte el
- *    tramo (spec: "si se comparte el tramo, la imagen de vista previa es
- *    la foto real").
- *  - Los rótulos ("Hoy · foto real" / "Recreación IA sobre la foto") son
+ *  - Los rótulos ("Hoy · foto real" / "Render del proyecto") son
  *    fijos, no parámetros: quien integra el componente no puede rotularlos
- *    mal ni quitarlos.
- *  - Si en algún momento hace falta la URL de la imagen de IA para algo
- *    que no sea este slider (portada, compartir, galería), la respuesta es
- *    "no", no un método nuevo. No le agregues un getter "por conveniencia".
+ *    mal.
+ *  - `previewImageSrc` siempre devuelve la URL de la foto de "antes" — es
+ *    la que hay que usar si se comparte el tramo.
  *
  * ## La semántica de `pct` (única, para todo el archivo)
  *
  * `pct` es SIEMPRE la posición del divisor medida desde la izquierda, y la
- * imagen de IA vive a la DERECHA del divisor (así quedan los rótulos: "Hoy ·
- * foto real" a la izquierda, "Recreación IA" a la derecha, fijos, spec
- * §3.1). Consecuencia directa, la que se invirtió y motivó este arreglo:
+ * imagen de "después" vive a la DERECHA del divisor (así quedan los
+ * rótulos: "Hoy · foto real" a la izquierda, "Render del proyecto"
+ * a la derecha, fijos). Consecuencia directa (ver el comentario en
+ * `labelOpacity`, más abajo, de cuándo se invirtió esto una vez):
  *
  *  - `pct = 0`   → el divisor está pegado a la izquierda → NADA de la caja
- *    queda a la izquierda del divisor → se ve la IA completa (la foto real
- *    queda 100% tapada debajo).
- *  - `pct = 50`  → mitad foto real (izquierda), mitad IA (derecha).
+ *    queda a la izquierda del divisor → se ve la imagen de "después"
+ *    completa (la foto real queda 100% tapada debajo).
+ *  - `pct = 50`  → mitad foto real (izquierda), mitad "después" (derecha).
  *  - `pct = 100` → el divisor está pegado a la derecha → toda la caja queda
- *    a la izquierda del divisor → se ve la foto real completa (la IA queda
- *    recortada a nada por el `clip-path`, ver `beforeafter.css`).
+ *    a la izquierda del divisor → se ve la foto real completa (la imagen
+ *    de "después" queda recortada a nada por el `clip-path`, ver
+ *    `beforeafter.css`).
  *
  * Esta es la ÚNICA fuente de verdad: `labelOpacity` (atenúa el rótulo del
  * lado que el `pct` actual deja tapado/recortado), `toggleTarget`, el valor
@@ -55,9 +64,8 @@
  * con esta tabla. El estado inicial y de reposo seguro es `pct = 100`
  * (foto real completa): es lo que se ve si el barrido de bienvenida no
  * llega a correr por algún motivo (pestaña en segundo plano al cargar,
- * `IntersectionObserver` que no dispara, error temprano), y mostrar la foto
- * real por defecto es la lectura correcta de la regla de honestidad de
- * arriba — nunca la imagen inventada por defecto.
+ * `IntersectionObserver` que no dispara, error temprano) — nunca la imagen
+ * de "después" por defecto.
  */
 
 // El import de la hoja de estilos es DINÁMICO y guardado con `typeof
@@ -94,7 +102,7 @@ export const DOUBLE_TAP_MAX_DIST_PX = 32;
  * veces en el constructor y en los tests — precisamente porque es el
  * número que hay que poder verificar: si alguna vez alguien la cambia sin
  * leer la cabecera, que lo note un test, no un visitante viendo la imagen
- * de IA como default.
+ * de "después" como default.
  */
 export const SAFE_DEFAULT_PCT = 100;
 
@@ -133,14 +141,14 @@ export function axisFromDelta(dx: number, dy: number, thresholdPx: number = AXIS
  * Toque simple (sin arrastre): a qué porcentaje saltar (spec: "alterna
  * entre 0% y 100%"). Se decide por dónde está el divisor ahora, no por un
  * flag de estado aparte: con la semántica de `pct` de la cabecera del
- * archivo (0 = IA completa, 100 = foto real completa), si ya se ve más IA
- * que foto (`pct < 50`) vuelve a la foto real completa (100), y viceversa.
- * Justo en el medio (donde deja al visitante el barrido automático, que
- * ahora arranca en 100 y baja hasta acá) el primer toque manda a 0, o sea
- * muestra la IA completa — es lo nuevo que todavía no vio. Esta función no
- * se tocó al corregir la inversión de `labelOpacity`: ya estaba de acuerdo
- * con la tabla de la cabecera, se verificó a mano contra los tres casos
- * (0, 50, 100).
+ * archivo (0 = "después" completo, 100 = foto real completa), si ya se ve
+ * más "después" que foto (`pct < 50`) vuelve a la foto real completa (100),
+ * y viceversa. Justo en el medio (donde deja al visitante el barrido
+ * automático, que arranca en 100 y baja hasta acá) el primer toque manda a
+ * 0, o sea muestra el "después" completo — es lo nuevo que todavía no vio.
+ * Esta función no se tocó al corregir la inversión de `labelOpacity`: ya
+ * estaba de acuerdo con la tabla de la cabecera, se verificó a mano contra
+ * los tres casos (0, 50, 100).
  */
 export function toggleTarget(currentPct: number): number {
   return currentPct < 50 ? 100 : 0;
@@ -173,7 +181,7 @@ export function arrowKeyDelta(key: string): number | null {
   return null;
 }
 
-export type ImageSide = 'real' | 'ia';
+export type ImageSide = 'before' | 'after';
 
 const LABEL_ATTENUATED = 0.35;
 /** A partir de qué % de cobertura de UN lado se atenúa el rótulo del OTRO. */
@@ -188,15 +196,15 @@ const LABEL_ATTENUATE_AT = 85;
  * cuando el rótulo deja de describir lo que se ve debajo.
  *
  * Ojo con la dirección (acá es donde se invirtió antes): con la semántica
- * de `pct` de la cabecera del archivo, la foto real queda tapada cuando
- * `pct` es BAJO (la IA cubre todo, ver tabla), y la IA queda tapada/
- * recortada a nada cuando `pct` es ALTO. Es lo contrario de "atenuar el
- * rótulo del lado cuyo número de `pct` es alto", que es el error que se
- * coló la primera vez.
+ * de `pct` de la cabecera del archivo, la foto real ("antes") queda tapada
+ * cuando `pct` es BAJO (la imagen de "después" cubre todo, ver tabla), y la
+ * de "después" queda tapada/recortada a nada cuando `pct` es ALTO. Es lo
+ * contrario de "atenuar el rótulo del lado cuyo número de `pct` es alto",
+ * que es el error que se coló la primera vez.
  */
 export function labelOpacity(pct: number, side: ImageSide): number {
   const p = clampPercent(pct);
-  if (side === 'real') return p <= 100 - LABEL_ATTENUATE_AT ? LABEL_ATTENUATED : 1;
+  if (side === 'before') return p <= 100 - LABEL_ATTENUATE_AT ? LABEL_ATTENUATED : 1;
   return p >= LABEL_ATTENUATE_AT ? LABEL_ATTENUATED : 1;
 }
 
@@ -244,9 +252,12 @@ export function clampScale(scale: number, min = 1, max = 4): number {
 // Parte 2 — capa de DOM. Traduce eventos reales a las funciones de arriba.
 // ---------------------------------------------------------------------------
 
-/** Rótulos fijos — a propósito NO son parámetros, ver la regla de honestidad arriba. */
-const LABEL_REAL = 'Hoy · foto real';
-const LABEL_IA = 'Recreación IA sobre la foto';
+/** Rótulos fijos — a propósito NO son parámetros, ver la cabecera del archivo. */
+const LABEL_BEFORE = 'Hoy · foto real';
+const LABEL_AFTER = 'Render del proyecto';
+
+/** El `aria-label` del comparador (spec: describe el par sin nombrar IA). */
+const ARIA_LABEL = 'Comparación entre la fachada del Bloque 2 hoy y el mismo ángulo con el paisajismo terminado';
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -262,19 +273,19 @@ export interface BeforeAfterOptions {
   /** Contenedor donde se monta el slider. El componente crea su propio DOM adentro. */
   container: HTMLElement;
   /**
-   * Foto real, el "antes". Es la única de las dos imágenes que puede
-   * usarse fuera de este componente (miniatura, portada, compartir) — por
-   * eso `BeforeAfterHandle.previewImageSrc` siempre devuelve esta URL.
+   * Foto real de "antes". Es la que se ve por defecto (`pct = 100`, ver la
+   * cabecera del archivo) y la que devuelve `previewImageSrc` si hace
+   * falta una URL fuera de este componente (miniatura, portada, compartir).
    */
-  real: BeforeAfterImageSpec;
+  before: BeforeAfterImageSpec;
   /**
-   * Recreación con IA, el "después". Ver la regla de honestidad en la
-   * cabecera del archivo: esta URL no sale del componente por ningún otro
-   * camino que no sea pintarla adentro del slider.
+   * Imagen de "después" — el mismo ángulo con el cambio que compara este
+   * par (ver el llamador para cuál es). Se revela al arrastrar el divisor
+   * hacia la izquierda (`pct` bajando de 100 a 0).
    */
-  ia: BeforeAfterImageSpec;
+  after: BeforeAfterImageSpec;
   /**
-   * Relación de aspecto real del par de fotos (no la de la caja en
+   * Relación de aspecto real del par de imágenes (no la de la caja en
    * pantalla — eso lo decide el componente, ver §3.1: el par 2:3 entra
    * entero en el teléfono, el 4:3 se recorta al centro y ofrece "Ver
    * completo").
@@ -287,8 +298,9 @@ export interface BeforeAfterHandle {
   readonly el: HTMLElement;
   /**
    * URL a usar como miniatura, portada o vista previa de "compartir" de
-   * este tramo. Siempre la foto real — nunca la de IA. Es la única forma
-   * que da esta API de sacar una URL de imagen hacia afuera, a propósito.
+   * este tramo. Siempre la foto real de "antes" — nunca la de "después".
+   * La foto es la norma del recorrido (spec §5.1); lo proyectado es la
+   * excepción, y una excepción no es lo que se muestra por defecto.
    */
   readonly previewImageSrc: string;
   /** Posición actual del divisor, 0-100. */
@@ -472,13 +484,13 @@ class DividerController {
 
 /**
  * Pinch-zoom de dos dedos sobre el "stage" que envuelve las DOS imágenes
- * (la real y la máscara de IA encima). Es la pieza que hace que el zoom
- * quede sincronizado entre las dos: no hay dos lógicas de zoom que
- * coordinar, hay UNA transformación CSS aplicada a un contenedor que las
- * tiene adentro a ambas. Si el zoom de cada imagen se manejara por
- * separado, mantenerlas alineadas cuadro a cuadro sería frágil; acá es
- * imposible que se desalineen porque comparten la misma matriz de
- * transformación.
+ * (la de "antes" y la de "después", una encima de la otra). Es la pieza
+ * que hace que el zoom quede sincronizado entre las dos: no hay dos
+ * lógicas de zoom que coordinar, hay UNA transformación CSS aplicada a un
+ * contenedor que las tiene adentro a ambas. Si el zoom de cada imagen se
+ * manejara por separado, mantenerlas alineadas cuadro a cuadro sería
+ * frágil; acá es imposible que se desalineen porque comparten la misma
+ * matriz de transformación.
  */
 class FullscreenPinch {
   private readonly stage: HTMLElement;
@@ -566,24 +578,24 @@ class FullscreenPinch {
   };
 }
 
-/** Arma la pareja de imágenes (real + máscara de IA) sobre un `stage` nuevo. Se usa inline y en pantalla completa. */
+/** Arma la pareja de imágenes ("antes" + "después") sobre un `stage` nuevo. Se usa inline y en pantalla completa. */
 function buildComparisonStage(opts: BeforeAfterOptions): { stage: HTMLDivElement } {
   const stage = document.createElement('div');
   stage.className = 'r360-ba__stage';
 
-  const realImg = document.createElement('img');
-  realImg.className = 'r360-ba__img';
-  realImg.src = opts.real.src;
-  realImg.alt = opts.real.alt;
-  realImg.draggable = false;
+  const beforeImg = document.createElement('img');
+  beforeImg.className = 'r360-ba__img';
+  beforeImg.src = opts.before.src;
+  beforeImg.alt = opts.before.alt;
+  beforeImg.draggable = false;
 
-  const iaImg = document.createElement('img');
-  iaImg.className = 'r360-ba__img r360-ba__after';
-  iaImg.src = opts.ia.src;
-  iaImg.alt = opts.ia.alt;
-  iaImg.draggable = false;
+  const afterImg = document.createElement('img');
+  afterImg.className = 'r360-ba__img r360-ba__after';
+  afterImg.src = opts.after.src;
+  afterImg.alt = opts.after.alt;
+  afterImg.draggable = false;
 
-  stage.append(realImg, iaImg);
+  stage.append(beforeImg, afterImg);
   return { stage };
 }
 
@@ -606,14 +618,14 @@ function buildHandle(): HTMLDivElement {
   return handle;
 }
 
-function buildLabels(): { real: HTMLSpanElement; ia: HTMLSpanElement } {
-  const real = document.createElement('span');
-  real.className = 'r360-ba__label r360-ba__label--before';
-  real.textContent = LABEL_REAL;
-  const ia = document.createElement('span');
-  ia.className = 'r360-ba__label r360-ba__label--after';
-  ia.textContent = LABEL_IA;
-  return { real, ia };
+function buildLabels(): { before: HTMLSpanElement; after: HTMLSpanElement } {
+  const before = document.createElement('span');
+  before.className = 'r360-ba__label r360-ba__label--before';
+  before.textContent = LABEL_BEFORE;
+  const after = document.createElement('span');
+  after.className = 'r360-ba__label r360-ba__label--after';
+  after.textContent = LABEL_AFTER;
+  return { before, after };
 }
 
 /**
@@ -626,8 +638,8 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
   readonly el: HTMLDivElement;
   private readonly opts: BeforeAfterOptions;
   private readonly divider: DividerController;
-  private readonly labelReal: HTMLSpanElement;
-  private readonly labelIa: HTMLSpanElement;
+  private readonly labelBefore: HTMLSpanElement;
+  private readonly labelAfter: HTMLSpanElement;
   private readonly handleEl: HTMLDivElement;
   private readonly fullscreenEl: HTMLDivElement;
   private readonly fullscreenStage: HTMLDivElement;
@@ -642,15 +654,19 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
     el.className = 'r360-ba';
     el.setAttribute('role', 'group');
     el.setAttribute('aria-roledescription', 'comparador antes y después');
-    el.setAttribute('aria-label', `${LABEL_REAL} / ${LABEL_IA}`);
-    // El par 2:3 entra entero (misma relación de la foto); el 4:3 se
-    // muestra recortado al centro en un marco vertical y usa "Ver
-    // completo" para verse entero (spec §3.1). El recorte es sólo la caja
-    // en pantalla — la imagen real nunca se toca.
+    el.setAttribute('aria-label', ARIA_LABEL);
+    // El par 2:3 entra entero (misma relación de la foto); el 4:3 (las dos
+    // imágenes apaisadas) se muestra recortado en un marco vertical 3:4 y
+    // usa "Ver completo" para verse entero (spec §3.1). El recorte es sólo
+    // la caja en pantalla — la imagen real nunca se toca.
     el.style.aspectRatio = opts.aspect === '2:3' ? '2 / 3' : '3 / 4';
+    // Foco del recorte en el tercio izquierdo (donde está la esquina del
+    // edificio en las dos imágenes del par) en vez del centro geométrico —
+    // sólo tiene sentido cuando el recorte existe (4:3).
+    if (opts.aspect === '4:3') el.style.setProperty('--ba-focus', '20% 50%');
 
     const { stage } = buildComparisonStage(opts);
-    const { real, ia } = buildLabels();
+    const { before, after } = buildLabels();
     const handle = buildHandle();
     const line = document.createElement('div');
     line.className = 'r360-ba__line';
@@ -662,12 +678,12 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
     fullBtn.hidden = opts.aspect !== '4:3';
     fullBtn.addEventListener('click', () => this.openFullscreen());
 
-    el.append(stage, real, ia, line, handle, fullBtn);
+    el.append(stage, before, after, line, handle, fullBtn);
     opts.container.append(el);
 
     this.el = el;
-    this.labelReal = real;
-    this.labelIa = ia;
+    this.labelBefore = before;
+    this.labelAfter = after;
     this.handleEl = handle;
 
     // Arranca en 100% (foto real completa, ver la tabla de semántica de
@@ -678,7 +694,8 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
     // que el barrido "enseñe el gesto" en vez de aparecer ya resuelto — y
     // si el barrido no llega a correr por lo que sea (pestaña en segundo
     // plano al cargar, observer que no dispara, error temprano), lo que
-    // queda a la vista es la foto real, nunca la imagen inventada por IA.
+    // queda a la vista es la foto real, nunca la imagen de "después" por
+    // defecto.
     this.divider = new DividerController(el, el, handle, (pct) => this.applyPercent(pct), SAFE_DEFAULT_PCT);
     this.applyPercent(SAFE_DEFAULT_PCT);
 
@@ -690,7 +707,7 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
     overlay.hidden = true;
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
-    overlay.setAttribute('aria-label', 'Comparación antes y después, pantalla completa');
+    overlay.setAttribute('aria-label', `${ARIA_LABEL}, pantalla completa`);
 
     const fsBox = document.createElement('div');
     fsBox.className = 'r360-ba';
@@ -701,11 +718,11 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
     fsBox.style.height = 'auto';
 
     const { stage: fsStage } = buildComparisonStage(opts);
-    const { real: fsReal, ia: fsIa } = buildLabels();
+    const { before: fsBefore, after: fsAfter } = buildLabels();
     const fsHandle = buildHandle();
     const fsLine = document.createElement('div');
     fsLine.className = 'r360-ba__line';
-    fsBox.append(fsStage, fsReal, fsIa, fsLine, fsHandle);
+    fsBox.append(fsStage, fsBefore, fsAfter, fsLine, fsHandle);
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -725,8 +742,8 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
       (pct) => {
         fsBox.style.setProperty('--ba-pct', `${pct}%`);
         fsHandle.setAttribute('aria-valuenow', String(Math.round(pct)));
-        fsReal.style.opacity = String(labelOpacity(pct, 'real'));
-        fsIa.style.opacity = String(labelOpacity(pct, 'ia'));
+        fsBefore.style.opacity = String(labelOpacity(pct, 'before'));
+        fsAfter.style.opacity = String(labelOpacity(pct, 'after'));
       },
       50,
     );
@@ -735,10 +752,10 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
 
     // --- Primer contacto: barrido de 100% a 50% en 1,2s, una sola vez, al
     // entrar en pantalla (spec §3.1). Arranca en la foto real completa y
-    // revela la IA hasta la mitad: primero lo que existe, después lo que
-    // se propone. `IntersectionObserver` es la forma correcta de saber
-    // "entró en pantalla" sin que el componente asuma nada de cómo hace
-    // scroll la página que lo contiene.
+    // revela la imagen de "después" hasta la mitad: primero lo que existe,
+    // después lo que falta. `IntersectionObserver` es la forma correcta de
+    // saber "entró en pantalla" sin que el componente asuma nada de cómo
+    // hace scroll la página que lo contiene.
     if (prefersReducedMotion()) {
       // Con reduced-motion arranca quieto en 50%, sin barrido (spec).
       this.divider.set(50);
@@ -759,14 +776,15 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
       // Sin IntersectionObserver disponible (entorno de test, navegador
       // muy viejo) no hay forma de saber "entró en pantalla": se arranca
       // directo en 50%, que es mejor que quedarse en 100% para siempre
-      // (nunca mostraría la IA) — pero nunca peor que el default seguro de
-      // 100%, porque 50% sigue mostrando la mitad de foto real.
+      // (nunca mostraría la imagen de "después") — pero nunca peor que el
+      // default seguro de 100%, porque 50% sigue mostrando la mitad de
+      // foto real.
       this.divider.set(50);
     }
   }
 
   get previewImageSrc(): string {
-    return this.opts.real.src;
+    return this.opts.before.src;
   }
 
   get dividerPercent(): number {
@@ -810,7 +828,7 @@ export class BeforeAfterSlider implements BeforeAfterHandle {
   private applyPercent(pct: number): void {
     this.el.style.setProperty('--ba-pct', `${pct}%`);
     this.handleEl.setAttribute('aria-valuenow', String(Math.round(pct)));
-    this.labelReal.style.opacity = String(labelOpacity(pct, 'real'));
-    this.labelIa.style.opacity = String(labelOpacity(pct, 'ia'));
+    this.labelBefore.style.opacity = String(labelOpacity(pct, 'before'));
+    this.labelAfter.style.opacity = String(labelOpacity(pct, 'after'));
   }
 }

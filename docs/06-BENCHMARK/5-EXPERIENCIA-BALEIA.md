@@ -94,9 +94,8 @@ El tramo más largo y el corazón del recorrido: es la prueba de que esto existe
 **Mitad A — afuera.**
 
 1. Apertura: `02_aerea_bloque2_oblicua_cercana` (la HERO del inventario) a pantalla completa con un push-in lento. Caption: "Bloque 2. Tres niveles, nueve unidades. Foto real."
-2. **Slider antes/después #1**: `24_fachada_bloque2_atardecer_angulo` (obra, tierra removida) contra `DSC05104-paisajismo-baleia` (mismo encuadre, con pasto y plantas generadas por IA). Rótulos: izquierda "Hoy · foto real", derecha "Con el paisajismo terminado · recreación IA sobre la foto". Mecánica en §3.
-3. **Slider antes/después #2**: `06_aerea_balcones_detalle` contra `DJI_…_0060_D_LEO-terrazas-equipadas` (mismas terrazas, con mesas, sillas y plantas). Este es el mejor de los tres pares: la geometría es idéntica píxel a píxel y el efecto es "amueblar el edificio con el dedo". La variante `…-pasto-techo-final` (que además pone verde la azotea) se ofrece como tercer estado del mismo slider sólo si el cliente confirma que el techo verde está en el proyecto para B2 — el brochure habla de "techos verdes" para el conjunto, pero no se verifica por bloque. Si no se confirma, se usa sólo la variante de mobiliario.
-4. Serie de fachada, swipe horizontal: `07`, `08`, `09`, `23`. Contador "2/4". Con la luz del atardecer (`23`, `24`, tomadas a las 17:08) al final, porque es la que mejor luce.
+2. **Slider antes/después**: `24_fachada_bloque2_atardecer_angulo` (la fachada hoy, foto real) contra la misma fachada, mismo ángulo, con el paisajismo terminado. Rótulos: izquierda "Hoy · foto real", derecha "Con el paisajismo terminado". Mecánica en §3.1 — reemplaza al par anterior (render del proyecto contra una foto de otra distancia, que no comparaba bien porque las dos imágenes no compartían cámara); antes de ese par hubo dos deslizadores "foto real vs. IA", que se sacaron por el mismo motivo que se explica en §3.1.
+3. Serie de fachada, swipe horizontal: `07`, `08`, `09`, `23`. Contador "2/4". Con la luz del atardecer (`23`, `24`, tomadas a las 17:08) al final, porque es la que mejor luce.
 
 **Mitad B — adentro: el paseo por la unidad terminada.**
 
@@ -120,7 +119,7 @@ El orden termina en la foto más importante del lote. Es la recompensa por haber
 
 **Navegación del paseo**: swipe horizontal entre fotos; arriba, una **tira de ambientes** ("Living · Cocina · Escalera · Dormitorio · Baño · Terraza · Vista") que marca dónde está y permite saltar. **[Necesita: confirmar con el fotógrafo qué unidad se fotografió.]** El inventario dice "probablemente un dúplex tipo A-E, a confirmar". Cuando se confirme, la tira de ambientes se reemplaza por el **plano 3D de esa tipología como minimapa**, con un punto que se mueve al ambiente de cada foto — es el mismo mecanismo de "ubicación en piso" que Urbania muestra en la ficha, pero sobre foto real. Hasta entonces, la tira de texto, y la ficha dice "Unidad modelo del Bloque 2" sin asignarle letra.
 
-**Qué toca.** Los dos sliders. El swipe del paseo. Al final, el botón **"Ver las 9 unidades del Bloque 2"** abre la ficha de bloque (hoja inferior, ya construida) con la grilla y los precios. Y un segundo botón, discreto: **"Coordinar una visita"** — porque la unidad está construida y se puede visitar, algo que ningún proyecto en pozo puede ofrecer (ver §6).
+**Qué toca.** El slider antes/después. El swipe del paseo. Al final, el botón **"Ver las 9 unidades del Bloque 2"** abre la ficha de bloque (hoja inferior, ya construida) con la grilla y los precios. Y un segundo botón, discreto: **"Coordinar una visita"** — porque la unidad está construida y se puede visitar, algo que ningún proyecto en pozo puede ofrecer (ver §6).
 
 **Cómo sigue.** "Siguiente: los amenities →". Antes de pasar, una línea de transición honesta: "Lo que sigue todavía no está construido. Lo mostramos como proyecto."
 
@@ -219,16 +218,17 @@ El cliente insiste en "interactivo". Lo que sigue son los controles concretos, m
 
 ### 3.1 El deslizador antes/después
 
-Es la idea validada; así se desarrolla:
+Versión revisada (esta edición, segunda vuelta): la idea validada seguía en pie, pero el par que la implementaba no. Antes de éste hubo dos deslizadores presentados como "foto real vs. IA": comparaban una foto real contra una recreación con IA de la MISMA foto, con mobiliario y paisajismo agregado encima. Rotular eso "IA" hacía sospechar que el edificio era inventado, cuando lo único inventado eran los muebles — un autogol comercial. Se reemplazaron por un deslizador render del proyecto vs. foto de lo construido, que a su vez se descartó porque las dos imágenes estaban tomadas desde distancias distintas: el deslizador no comparaba bien. La versión que queda es **un solo deslizador, la fachada del Bloque 2 hoy contra el mismo ángulo con el paisajismo terminado**: la imagen de "después" se generó A PARTIR de la foto de "antes", así que el ángulo calza por construcción — es la comparación que sí funciona, y sigue sin nombrar IA en ningún rótulo: lo único que cambia entre las dos imágenes es el paisajismo, no el edificio, y decirlo así es más honesto que ponerle una chapa que sugiera que el edificio es inventado.
 
-- **Composición**: las dos imágenes superpuestas, la "después" (IA) recortada por una máscara vertical cuyo borde es el divisor. Un asa circular de 44 px sobre el divisor, con dos flechas. Rótulos fijos en las esquinas superiores: **"Hoy · foto real"** (izquierda) y **"Recreación IA sobre la foto"** (derecha); el rótulo del lado que queda tapado se atenúa.
-- **Primer contacto**: al entrar en pantalla, el divisor hace un **barrido automático de 0 % a 50 % en 1,2 s**, una sola vez. Enseña el gesto sin texto. Con `prefers-reduced-motion`, arranca en 50 % quieto.
+- **El par**: `24_fachada_bloque2_atardecer_angulo` (la fachada del Bloque 2 hoy, foto real, de `material-real/`) contra la imagen generada de `generado-ia/paisajismo/DSC05104-paisajismo-baleia.webp`. Comparten cámara por construcción: mismo ángulo, mismo destello de sol. La diferencia entre las dos es la que importa: la de "después" tiene césped y canteros plantados donde la foto real tiene tierra y escombros — falta el paisajismo, no el edificio.
+- **Composición**: las dos imágenes superpuestas, la de "después" recortada por una máscara vertical cuyo borde es el divisor. Un asa circular de 44 px sobre el divisor, con dos flechas. Rótulos fijos en las esquinas superiores: **"Hoy · foto real"** (izquierda) y **"Con el paisajismo terminado"** (derecha); el rótulo del lado que queda tapado se atenúa.
+- **Primer contacto**: al entrar en pantalla, el divisor hace un **barrido automático de foto real completa a la mitad, en 1,2 s**, una sola vez — nunca al revés: el estado de arranque y de reposo seguro es siempre la foto real completa (nunca la imagen de "después" por defecto). Enseña el gesto sin texto. Con `prefers-reduced-motion`, arranca a la mitad, quieto.
 - **Arrastre en cualquier punto de la imagen**, no sólo en el asa: el dedo tapa el asa. Arrastre horizontal mueve el divisor; el scroll vertical de la página sigue funcionando (umbral: si el gesto arranca con más componente vertical que horizontal, es scroll).
-- **Toque simple** (sin arrastre): alterna entre 0 % y 100 % con una transición de 400 ms. Para quien quiere ver las dos completas.
-- **Doble toque**: vuelve a 50 %.
-- **Formato**: el par de la fachada es vertical (2:3) y entra entero en el teléfono; el par aéreo es 4:3 y se recorta al centro en vertical con un botón "Ver completo" que abre el par en pantalla completa con el mismo slider y pinch-zoom sincronizado (el zoom aplica a las dos imágenes a la vez, si no el efecto se rompe).
+- **Toque simple** (sin arrastre): alterna entre las dos imágenes completas con una transición de 400 ms. Para quien quiere ver las dos enteras.
+- **Doble toque**: vuelve a la mitad.
+- **Formato**: las dos imágenes son verticales (2:3, como la foto original) y entran enteras en el teléfono — no hace falta recortarlas ni el botón "Ver completo" (ese camino sigue existiendo en el componente para un par horizontal, pero este par no lo usa).
 - **Escritorio**: mismo comportamiento con el mouse; teclas ← → mueven el divisor 5 %.
-- **Regla de honestidad incorporada al componente**: la imagen de IA **no existe fuera del slider**. No es miniatura, no es hero, no se comparte sola. Si se comparte el tramo, la imagen de vista previa es la foto real.
+- **Ninguna de las dos imágenes está restringida**: las dos son públicas y ninguna necesita esconderse fuera del slider. Lo que sigue vigente es la regla general del recorrido: la foto es la norma, así que si se comparte el tramo, la imagen de vista previa es siempre la foto real.
 
 ### 3.2 Recorrer muchas imágenes sin que sea una galería
 
@@ -302,21 +302,22 @@ MP360 y Urbania muestran renders y los llaman "experiencia". Baleia puede mostra
 
 ### 5.1 Las chapas de procedencia
 
-Tres, y sólo tres. Van como una caption, no como descargo legal: sin asterisco, sin gris de letra chica, sin "las imágenes son ilustrativas".
+Dos, y sólo dos. Van como una caption, no como descargo legal: sin asterisco, sin gris de letra chica, sin "las imágenes son ilustrativas". Ya no hay una tercera para IA: los dos deslizadores "foto real vs. IA" que la necesitaban se sacaron (ver §3.1), y el único par que queda hoy, la fachada de hoy contra el paisajismo terminado, no restringe ninguno de los dos lados ni pone chapa de IA (ver §3.1: sus rótulos son fijos y describen qué cambia, no de dónde salió la imagen).
 
 | Chapa | Cuándo | Dónde | Al tocarla |
 |---|---|---|---|
 | **Foto real · 2 sep 2026** | Las 26 fotos, el video de 83 s | Esquina inferior izquierda, sobre la imagen, tipografía de caption | "Fotografía y drone del 2 de septiembre de 2026 en el predio. Sin retoque de arquitectura." |
 | **Render del proyecto** | Los 7 renders, el masterplan | Esquina superior izquierda, con el filete de marco (§4) | "Imagen del proyecto arquitectónico. Lo construido puede diferir en detalles." |
-| **Recreación IA sobre foto real** | Las 3 imágenes amuebladas (sólo dentro del slider), el video generado cuando exista fiel | Rótulo derecho del slider | "Sobre la foto real se agregó mobiliario y paisajismo con inteligencia artificial, para mostrar el uso. La estructura es la real." |
 
 La fecha en la chapa de foto no es decoración: **fecha = prueba**. Un render no tiene fecha de captura; una foto sí. Cuando se vuelva a fotografiar (amenities, otros bloques) la chapa cambia sola y el visitante ve que el recorrido envejece con la obra.
+
+La chapa de "Foto real" se dibuja como máximo una vez por tramo (repetirla en cada foto de una serie es ruido, no información). La de "Render del proyecto" **no se deduplica**: va en TODO render, siempre — la foto es la norma del recorrido, el render la excepción, y una tira de renders sin chapa se lee, cuatro pantallas después, como fotos del edificio terminado.
 
 ### 5.2 Contar lo real, literalmente
 
 En el menú (☰), una entrada **"Qué es real en este recorrido"**, una pantalla:
 
-> **26 fotografías** del 2 de septiembre de 2026 (Sony A7 IV, FX3 y drone DJI), **1 video** real de 83 segundos, **9 planos** de unidad del proyecto, **7 renders** del proyecto, **3 imágenes** con mobiliario recreado por IA sobre foto real. Panorámicas 360: todavía no.
+> **26 fotografías** del 2 de septiembre de 2026 (Sony A7 IV, FX3 y drone DJI), **1 video** real de 83 segundos, **9 planos** de unidad del proyecto, **7 renders** del proyecto y **1 comparación** entre la fachada de hoy y el paisajismo terminado. Panorámicas 360: todavía no.
 
 Nadie del benchmark puede publicar esta pantalla. Es la ventaja convertida en texto verificable.
 

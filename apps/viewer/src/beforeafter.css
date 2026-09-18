@@ -30,10 +30,16 @@
      de cada par de fotos. */
 }
 
-/* Capa "antes": ocupa todo, es la base. */
+/* Capa "antes": ocupa todo, es la base. `--ba-focus` es el punto de foco del
+   recorte (`beforeafter.ts` lo fija por par, sólo cuando el par es apaisado
+   y el recorte inline es vertical 3:4: ahí el centro geométrico no siempre
+   es lo que importa de la imagen — en el par render/foto de fachada, lo que
+   importa es la esquina del edificio, que queda en el tercio izquierdo de
+   las dos imágenes). Sin ese dato, centrado de toda la vida. */
 .r360-ba__img {
   position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; display: block; pointer-events: none;
+  object-fit: cover; object-position: var(--ba-focus, 50% 50%);
+  display: block; pointer-events: none;
   -webkit-user-drag: none;
 }
 

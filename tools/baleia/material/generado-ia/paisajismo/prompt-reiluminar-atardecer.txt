@@ -1,0 +1,10 @@
+Keep this image exactly as it is: same camera, same framing, same building geometry, same lawn, same planters, same plants, same paving. Do not move, rescale, re-crop or redraw anything. Do not change the roof line or any opening.
+
+Change only the light, so it reads as an architectural presentation render instead of a photograph:
+- Replace the daylight sky with calm twilight blue hour: a smooth gradient from deep blue at the top to pale rose near the horizon.
+- Remove the sun and the lens flare completely. Soft diffuse ambient light, no direct sun, no hard shadows.
+- Turn on warm amber interior lighting behind the existing glass on both floors, with pale curtains faintly visible inside.
+- Add a slim continuous LED strip along the underside of the existing slab edges, following their current line exactly.
+- Clean, matte, physically based CGI finish: no photographic grain, no chromatic aberration.
+
+Nothing else changes. No new floors, balconies, plants, people, text or watermarks.

@@ -134,27 +134,27 @@ test('arrowKeyDelta ignora cualquier otra tecla', () => {
 // --- labelOpacity ----------------------------------------------------------
 
 test('labelOpacity: a mitad de camino los dos rótulos están completos', () => {
-  assert.equal(labelOpacity(50, 'real'), 1);
-  assert.equal(labelOpacity(50, 'ia'), 1);
+  assert.equal(labelOpacity(50, 'before'), 1);
+  assert.equal(labelOpacity(50, 'after'), 1);
 });
 
-// pct bajo (cerca de 0) = el divisor está pegado a la izquierda = la IA
-// cubre casi toda la caja (ver la tabla de semántica en beforeafter.ts).
-test('labelOpacity: pct bajo → la IA tapó casi toda la pantalla, se atenúa el rótulo de la foto real', () => {
-  assert.equal(labelOpacity(10, 'real'), 0.35);
-  assert.equal(labelOpacity(10, 'ia'), 1);
+// pct bajo (cerca de 0) = el divisor está pegado a la izquierda = la imagen
+// de "después" cubre casi toda la caja (ver la tabla de semántica en beforeafter.ts).
+test('labelOpacity: pct bajo → "después" tapó casi toda la pantalla, se atenúa el rótulo de la foto real', () => {
+  assert.equal(labelOpacity(10, 'before'), 0.35);
+  assert.equal(labelOpacity(10, 'after'), 1);
 });
 
 // pct alto (cerca de 100) = el divisor está pegado a la derecha = la foto
-// real cubre casi toda la caja, la IA queda recortada a casi nada.
-test('labelOpacity: pct alto → la foto real ocupa casi toda la pantalla, se atenúa el rótulo de la IA', () => {
-  assert.equal(labelOpacity(90, 'ia'), 0.35);
-  assert.equal(labelOpacity(90, 'real'), 1);
+// real cubre casi toda la caja, "después" queda recortado a casi nada.
+test('labelOpacity: pct alto → la foto real ocupa casi toda la pantalla, se atenúa el rótulo de "después"', () => {
+  assert.equal(labelOpacity(90, 'after'), 0.35);
+  assert.equal(labelOpacity(90, 'before'), 1);
 });
 
 test('labelOpacity tolera un porcentaje fuera de rango (lo recorta primero)', () => {
-  assert.equal(labelOpacity(-50, 'real'), 0.35); // recorta a 0: IA cubre todo
-  assert.equal(labelOpacity(500, 'ia'), 0.35); // recorta a 100: foto real cubre todo
+  assert.equal(labelOpacity(-50, 'before'), 0.35); // recorta a 0: "después" cubre todo
+  assert.equal(labelOpacity(500, 'after'), 0.35); // recorta a 100: foto real cubre todo
 });
 
 // --- invariante pct / imagen visible / rótulo atenuado ----------------------
@@ -163,18 +163,18 @@ test('labelOpacity tolera un porcentaje fuera de rango (lo recorta primero)', ()
 // por separado (33 verdes) mientras `labelOpacity` interpretaba `pct` al
 // revés que el `clip-path` de `beforeafter.css`. Un test que sólo mira
 // `labelOpacity` en aislado no puede atrapar eso — hace falta atar la
-// semántica de `pct` (cabecera de `beforeafter.ts`: 0 = IA completa,
+// semántica de `pct` (cabecera de `beforeafter.ts`: 0 = "después" completo,
 // 100 = foto real completa) a lo que `labelOpacity` decide atenuar, y a
 // dónde manda `toggleTarget`.
 
-test('invariante: en pct=0 (IA cubre toda la caja) se atenúa el rótulo de la foto real, no el de la IA', () => {
-  assert.equal(labelOpacity(0, 'real'), 0.35, 'la foto real está 100% tapada por la IA: su rótulo debe atenuarse');
-  assert.equal(labelOpacity(0, 'ia'), 1, 'la IA se ve entera: su rótulo debe quedar brillante');
+test('invariante: en pct=0 ("después" cubre toda la caja) se atenúa el rótulo de la foto real, no el de "después"', () => {
+  assert.equal(labelOpacity(0, 'before'), 0.35, 'la foto real está 100% tapada por "después": su rótulo debe atenuarse');
+  assert.equal(labelOpacity(0, 'after'), 1, '"después" se ve entero: su rótulo debe quedar brillante');
 });
 
-test('invariante: en pct=100 (foto real cubre toda la caja) se atenúa el rótulo de la IA, no el de la foto real', () => {
-  assert.equal(labelOpacity(100, 'ia'), 0.35, 'la IA quedó recortada a nada: su rótulo debe atenuarse');
-  assert.equal(labelOpacity(100, 'real'), 1, 'la foto real se ve entera: su rótulo debe quedar brillante');
+test('invariante: en pct=100 (foto real cubre toda la caja) se atenúa el rótulo de "después", no el de la foto real', () => {
+  assert.equal(labelOpacity(100, 'after'), 0.35, '"después" quedó recortado a nada: su rótulo debe atenuarse');
+  assert.equal(labelOpacity(100, 'before'), 1, 'la foto real se ve entera: su rótulo debe quedar brillante');
 });
 
 test('invariante: toggleTarget siempre aterriza en un extremo cuyo propio rótulo queda brillante (nunca el atenuado)', () => {
@@ -182,24 +182,24 @@ test('invariante: toggleTarget siempre aterriza en un extremo cuyo propio rótul
     const target = toggleTarget(pct);
     assert.ok(target === 0 || target === 100, `toggleTarget(${pct}) debe ser un extremo, dio ${target}`);
     if (target === 100) {
-      // Destino: foto real completa → su propio rótulo brillante, el de la IA atenuado.
-      assert.equal(labelOpacity(target, 'real'), 1);
-      assert.equal(labelOpacity(target, 'ia'), 0.35);
+      // Destino: foto real completa → su propio rótulo brillante, el de "después" atenuado.
+      assert.equal(labelOpacity(target, 'before'), 1);
+      assert.equal(labelOpacity(target, 'after'), 0.35);
     } else {
-      // Destino: IA completa → su propio rótulo brillante, el de la foto real atenuado.
-      assert.equal(labelOpacity(target, 'ia'), 1);
-      assert.equal(labelOpacity(target, 'real'), 0.35);
+      // Destino: "después" completo → su propio rótulo brillante, el de la foto real atenuado.
+      assert.equal(labelOpacity(target, 'after'), 1);
+      assert.equal(labelOpacity(target, 'before'), 0.35);
     }
   }
 });
 
-test('invariante: el default seguro de arranque (SAFE_DEFAULT_PCT) es foto real completa, nunca la IA', () => {
+test('invariante: el default seguro de arranque (SAFE_DEFAULT_PCT) es foto real completa, nunca "después"', () => {
   // Si el barrido de bienvenida no llega a correr (tab en segundo plano,
   // observer que no dispara, error temprano) esto es lo que queda a la
-  // vista — tiene que ser la foto real, nunca la imagen inventada.
+  // vista — tiene que ser la foto real, nunca la imagen de "después".
   assert.equal(SAFE_DEFAULT_PCT, 100);
-  assert.equal(labelOpacity(SAFE_DEFAULT_PCT, 'real'), 1);
-  assert.equal(labelOpacity(SAFE_DEFAULT_PCT, 'ia'), 0.35);
+  assert.equal(labelOpacity(SAFE_DEFAULT_PCT, 'before'), 1);
+  assert.equal(labelOpacity(SAFE_DEFAULT_PCT, 'after'), 0.35);
 });
 
 // --- easeInOutCubic / valueAt ------------------------------------------------
