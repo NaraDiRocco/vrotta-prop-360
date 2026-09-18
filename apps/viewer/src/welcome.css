@@ -1,3 +1,20 @@
+/* El titular de portada llevaba la pila del sistema: correcta para la interfaz,
+   pero anodina en una portada, y sin nada en comun con el wordmark de Baleia
+   —contraste alto entre grueso y fino, terminaciones abiertas—. Cormorant
+   Garamond en peso liviano acompana ese caracter sin imitarlo ni competirle.
+
+   Va autoalojada, no pedida a Google: el recorrido se muestra en obra y con
+   mala senal, y una fuente externa que no llega arruina justo la portada.
+   Un solo woff2 variable, subconjunto latino, 37 KB. Vite le aplica el `base`
+   configurable porque el archivo vive en `src/`, no en `public/`. */
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('./fonts/cormorant-garamond-latin.woff2') format('woff2');
+  font-weight: 300 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*
  * La bienvenida (spec §2). Dos fotos reales en loop cruzado, una línea, un
  * botón rotulado y el riel de seis puntos. Nada más: ni puerta, ni video, ni
@@ -12,7 +29,10 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 14px;
-  padding: 0 20px calc(20px + var(--r360-safe-b));
+  /* El alto de la barra inferior se reserva acá: la barra se dibuja
+     encima de la portada (z-index 200 en `styles.css`) y sin este hueco
+     tapaba la línea de socios. */
+  padding: 0 20px calc(20px + var(--r360-nav-h) + var(--r360-safe-b));
   background: var(--r360-bg);
   opacity: 0;
   transition: opacity .32s ease;
@@ -128,11 +148,18 @@
    lejos. Escala con la pantalla en vez de saltar en un solo punto de corte. */
 .r360-welcome__info h1 {
   margin: 0;
-  font-size: clamp(30px, 8.6vw, 52px);
-  line-height: 1.06;
-  letter-spacing: -.025em;
+  /* Cormorant tiene altura-x chica y trazo fino: al mismo cuerpo que la sans
+     se leia debil, asi que sube. El interletrado negativo que compensaba la
+     sans en negrita aca sobra —cierra los blancos internos de la serif— y se
+     va a cero. */
+  font-family: 'Cormorant Garamond', Didot, "Bodoni 72", Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(40px, 11.2vw, 68px);
+  line-height: 1.04;
+  letter-spacing: 0;
   text-wrap: balance;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, .6);
+  /* La sombra se ablanda: con trazo fino, una sombra dura ensucia la letra. */
+  text-shadow: 0 2px 24px rgba(0, 0, 0, .55);
 }
 
 /* El botón no ocupa todo el ancho: a pantalla completa se leía como una barra
@@ -203,6 +230,14 @@
   gap: 8px 16px;
   padding-top: 4px;
 }
+/* En 375 px la fila mide 335 y el contenido ya sumaba 334: el logo de Dacal
+   estaba contra el limite y un pixel mas partia a Caetano a una segunda
+   linea. La separacion entre columnas se achica solo en pantalla angosta —el
+   aire horizontal es lo unico que sobra ahi— y los tres elementos siguen en
+   una sola linea. */
+@media (max-width: 480px) {
+  .r360-welcome__socios { gap: 8px 10px; }
+}
 .r360-welcome__socios p {
   margin: 0;
   font-size: 8px;
@@ -223,6 +258,12 @@
    propia), no el del brochure: aquél venía a 406 px y el isotipo se
    empastaba. */
 .r360-welcome__socios img[data-marca="caetano"] { height: 25px; }
+/* El wordmark de Dacal se actualizó (trazo más limpio) y quedó con relación
+   de aspecto más angosta (3.21 contra 3.98 del archivo anterior): a los
+   mismos 15px de alto pierde ~20% de ancho y desequilibra el pie contra
+   Caetano. Se sube a 19px para conservar el ancho visual de antes
+   (15px × 3.98 ≈ 19px × 3.21). */
+.r360-welcome__socios img[data-marca="dacal"] { height: 22px; }
 
 
 @media (min-width: 720px) {

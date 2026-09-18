@@ -33,6 +33,7 @@ SELECTION = [
     ("DSC05104.jpg", "24_fachada_bloque2_atardecer_angulo", "obra-exterior"),
     ("DSC05108.jpg", "25_terraza_cubierta_interior_video", "unidad-terraza"),
     ("DSC05094.jpg", "26_pasillo_placard_video", "unidad-interior"),
+    ("tres_bloques.png", "27_aerea_tres_bloques", "obra-exterior"),
 ]
 
 FULL_W = 2000
