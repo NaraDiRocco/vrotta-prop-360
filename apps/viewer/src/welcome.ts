@@ -44,7 +44,9 @@ export interface WelcomeOptions {
   /** Resuelve una URL relativa al `tour.json`. */
   resolve: (url: string) => string;
   onStart: (tramo: TramoId) => void;
-  onPlan: () => void;
+  /** Abre el brochure dentro del recorrido. Sin esto no se dibuja el enlace:
+   *  un botón que no abre nada es peor que no tenerlo. */
+  onBrochure?: (() => void) | null;
 }
 
 const CROSSFADE_MS = 5000;
@@ -141,11 +143,17 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
   empezar.type = 'button';
   empezar.className = 'r360-welcome__start';
   empezar.textContent = 'Empezar el recorrido';
-  const alPlano = document.createElement('button');
-  alPlano.type = 'button';
-  alPlano.className = 'r360-welcome__link';
-  alPlano.textContent = 'Ir directo al plano';
-  acciones.append(empezar, alPlano);
+  // El brochure se abre DENTRO del recorrido, encima de la portada, no en una
+  // pestaña aparte. Si el manifiesto no trae páginas, no se dibuja el enlace.
+  const alBrochure = document.createElement('button');
+  alBrochure.type = 'button';
+  alBrochure.className = 'r360-welcome__link';
+  alBrochure.textContent = 'Ver brochure';
+  acciones.append(empezar);
+  if (opts.onBrochure) {
+    acciones.append(alBrochure);
+    alBrochure.addEventListener('click', () => opts.onBrochure?.());
+  }
 
   // Al pie, quién comercializa y desarrolla, como en la contratapa del
   // brochure. Antes acá iba el riel con los seis tramos: en la portada
@@ -185,7 +193,7 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
   };
 
   empezar.addEventListener('click', () => { handle.close(); opts.onStart('llegada'); });
-  alPlano.addEventListener('click', () => { handle.close(); opts.onPlan(); });
+  // El brochure se abre encima, sin cerrar la portada: al cerrarlo, se vuelve.
   empezar.focus({ preventScroll: true });
 
   return handle;

@@ -47,7 +47,19 @@ function blockLabelHtml(facts: UnitFacts, tour: Parameters<typeof tokenFor>[1]):
   // de experiencia (§5.3) pide justamente eso: sin chip comercial, y la ficha
   // dice "Etapa futura. Sin información comercial todavía." El polígono se
   // sigue dibujando: la regla dura no se toca, sólo deja de mentir el rótulo.
-  if (facts.fellBack && !facts.informational) return nombre;
+  // Sin dato NO va chip COMERCIAL. Pero dejarlos mudos tampoco servía: el
+  // visitante veía dos bloques marcados, más apagados que el resto y sin una
+  // palabra que dijera qué son. "Etapa futura" no afirma nada de venta —no
+  // dice disponible, ni vendido, ni que exista la unidad—, sólo ubica el
+  // bloque en el tiempo, que es exactamente lo que la ficha ya dice de ellos
+  // ("Etapa futura. Sin información comercial todavía.").
+  if (facts.fellBack && !facts.informational) {
+    const { base: gris } = paintFor(facts, tour);
+    return (
+      nombre +
+      `<div class="r360-plan-label__chip"><i style="background:${gris}"></i>Etapa futura</div>`
+    );
+  }
   const { base } = paintFor(facts, tour);
   const statusLabel = facts.informational ? INFO_TOKEN.label : STATUS_TOKENS[facts.status].label;
   return (
@@ -541,7 +553,10 @@ export class FloorplanRenderer implements SceneRenderer {
     }
 
     const { base, fill } = paintFor(facts, this.tour);
-    layer.setStyle({ color: base, fillColor: base, fillOpacity: fill, weight: highlighted ? 4 : 2, opacity: 1 });
+    // Sin relleno, el trazo es lo único que dibuja el bloque: se engrosa para
+    // que "próximamente" se lea igual que los que sí tienen color adentro.
+    const grosor = highlighted ? 4 : (fill === 0 ? 3 : 2);
+    layer.setStyle({ color: base, fillColor: base, fillOpacity: fill, weight: grosor, opacity: 1 });
   }
 
   private repaintAll(): void {

@@ -349,7 +349,9 @@ AMENITY_SCENE = {"A": "acceso", "D": "amenities", "E": "amenities", "F": "amenit
 #
 # Tramo 1 (§1) — sólo las dos fotos con caption escrita en el plan.
 PHOTO_CAPTIONS = {
-    "01_aerea_contexto_costa_lejos": "El terreno, entre el bosque y la Ruta 10. Foto real, 2 sep 2026.",
+    # El salto de línea decide dónde corta la frase en pantalla; el visor lo
+    # respeta (`pintarConSaltos` en `tour-rail.ts`).
+    "01_aerea_contexto_costa_lejos": "El terreno,\nentre el bosque y la Ruta 10. Foto real, 2 sep 2026.",
     # Apertura del Tramo 2 Mitad A (§1).
     "02_aerea_bloque2_oblicua_cercana": "Bloque 2. Tres niveles, nueve unidades. Foto real.",
     # Caption de la bienvenida (§2): la aérea del conjunto que abre el recorrido.
@@ -363,9 +365,9 @@ UNIT_WALK = [
     ("16_living_comedor_amplio", "Living", "Living-comedor de un dúplex. Piso de madera, ventanales corredizos a la terraza."),
     ("14_living_ventanales_vista_verde", "Living", "Los ventanales dan al este: la vista, no el estacionamiento."),
     ("17_cocina_equipada_completa", "Cocina", "Cocina entregada así: mesada de cuarzo negro, horno y anafe instalados."),
-    ("18_cocina_vista_horizonte_mar", "Cocina", "Desde la cocina, el horizonte."),
+    ("18_cocina_vista_horizonte_mar", "La vista", "El bosque y, al fondo, Punta del Este sobre el mar."),
     ("21_escalera_interna_duplex", "Escalera", "La escalera del dúplex: dos plantas."),
-    ("20_dormitorio_placard_vacio", "Dormitorio", "Dormitorio con placard instalado. Sin amueblar: así se entrega."),
+    ("20_dormitorio_placard_vacio", "Dormitorio", "Dormitorio con placard instalado. Sin\u00a0amueblar: así se entrega."),
     ("19_bano_completo_ducha", "Baño", "Baño completo, mampara de vidrio, sanitarios colocados."),
     ("12_terraza_pergolotecho_parrillero", "Terraza", "Terraza con parrillero de obra."),
     ("22_parrillero_empotrado_detalle", "Terraza", "El parrillero, de cerca."),
@@ -951,6 +953,22 @@ def build_media(tour_dir: str) -> dict:
         info["units"] = codes
         planos3d[filename] = info
 
+    # El brochure, página por página como imagen. NO como PDF embebido: en el
+    # navegador del teléfono un PDF dentro de la página es poco confiable —en
+    # iOS suele quedar en blanco o mostrar sólo la primera hoja—. Como
+    # imágenes se ve en cualquier teléfono y se pasa con el dedo. El PDF
+    # completo sigue en `material/brochure/` para quien lo quiera entero.
+    brochure_dir = os.path.join(MATERIAL_DIR, "brochure", "paginas")
+    brochure_pages = []
+    if os.path.isdir(brochure_dir):
+        for filename in sorted(os.listdir(brochure_dir)):
+            if not filename.endswith(".webp"):
+                continue
+            dst = os.path.join(tour_dir, "media", "brochure", filename)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(os.path.join(brochure_dir, filename), dst)
+            brochure_pages.append(f"./media/brochure/{filename}")
+
     # Los PDF originales, renombrados al código de unidad: son un archivo para
     # bajar, no una imagen, así que no pasan por Pillow ni tienen miniatura.
     pdfs = {}
@@ -973,6 +991,7 @@ def build_media(tour_dir: str) -> dict:
         "floorplanes": floorplanes,
         "planos3d": planos3d,
         "pdfs": pdfs,
+        "brochure_pages": brochure_pages,
     }
 
 
@@ -1113,6 +1132,8 @@ def publish(tour_dir: str) -> dict:
         tour = json.load(f)
     # `./x` -> `./baleia/x`: el mismo manifiesto servido un nivel más arriba.
     tour["availabilityUrl"] = "./baleia/availability.json"
+    if tour.get("brochurePages"):
+        tour["brochurePages"] = [u.replace("./", "./baleia/", 1) for u in tour["brochurePages"]]
     if tour.get("brandLogo"):
         tour["brandLogo"] = tour["brandLogo"].replace("./", "./baleia/", 1)
     for sc in tour["scenes"]:
@@ -1335,6 +1356,7 @@ def build(argv: list[str] | None = None) -> int:
         "version": 1,
         "tenant": "baleia",
         "availabilityUrl": "./availability.json",
+        "brochurePages": media["brochure_pages"],
         "start": "masterplan",
         "scenes": scenes,
         "hotspots": hotspots,

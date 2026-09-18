@@ -27,11 +27,21 @@ export interface StatusToken {
 }
 
 export const STATUS_TOKENS: Record<UnitStatus, StatusToken> = {
+  // Los dos estados que el comprador tiene que entender de un vistazo van en
+  // verde y rojo: se leen sin rótulo y sin explicación. El resto usa la paleta
+  // de marca, que sobre el plano —un dibujo claro— no alcanzaba para que
+  // "disponible" se recortara del fondo. El `pattern` de cada estado los
+  // distingue igual sin depender del color, que es lo que sostiene la lectura
+  // para quien no distingue matices.
   disponible:    { base: '#16A34A', fill: 0.28, label: 'Disponible',    pattern: 'solid',    order: 1 },
-  reservado:     { base: '#D97706', fill: 0.30, label: 'Reservado',     pattern: 'diagonal', order: 2 },
+  reservado:     { base: '#ad9a84', fill: 0.30, label: 'Reservado',     pattern: 'diagonal', order: 2 },
   vendido:       { base: '#DC2626', fill: 0.26, label: 'Vendido',       pattern: 'solid',    order: 3 },
-  bloqueado:     { base: '#7C3AED', fill: 0.24, label: 'Bloqueado',     pattern: 'cross',    order: 4 },
-  no_disponible: { base: '#64748B', fill: 0.20, label: 'No disponible', pattern: 'dots',     order: 5 },
+  bloqueado:     { base: '#ffffff', fill: 0.24, label: 'Bloqueado',     pattern: 'cross',    order: 4 },
+  // Gris apagado, no negro: es el estado al que caen los bloques SIN dato
+  // (B4 y B5, etapa futura). En negro eran lo más pesado del plano —más que
+  // lo vendido— cuando son justamente lo más lejano y lo que menos tiene
+  // que pedir atención.
+  no_disponible: { base: '#6b7280', fill: 0.16, label: 'No disponible', pattern: 'dots',     order: 5 },
   // Estado de primera clase (plan de experiencia, docs/06-BENCHMARK/5-EXPERIENCIA-BALEIA.md
   // §5.3): un bloque que todavía no está a la venta pero SÍ tiene fecha
   // pública de "próximamente" (a diferencia de B4/B5, que no tienen ni eso y
@@ -43,7 +53,10 @@ export const STATUS_TOKENS: Record<UnitStatus, StatusToken> = {
   // ni vendido, pero SÍ es una unidad/bloque vendible en el futuro": el
   // polígono se dibuja sólo con el trazo (chip de contorno), nunca relleno,
   // para no confundirlo visualmente con "disponible" ni con "vendido".
-  proximamente:  { base: '#0D9488', fill: 0,    label: 'Próximamente',  pattern: 'outline',  order: 6 },
+  // Trazo en el celeste de la marca, no en el beige: sobre el plano —un
+  // dibujo claro— el beige no despegaba del fondo y el bloque parecía no
+  // tener estado. El relleno sigue en cero a propósito (ver arriba).
+  proximamente:  { base: '#7c9aa8', fill: 0,    label: 'Próximamente',  pattern: 'outline',  order: 6 },
 };
 
 export function isUnitStatus(v: unknown): v is UnitStatus {

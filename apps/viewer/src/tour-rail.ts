@@ -59,9 +59,7 @@ import {
   captionSinChapa,
   chapaFor,
   chapaVisible,
-  esVistaDePunta,
   indiceDeAmbiente,
-  puntaAnclaje,
   initialRailState,
   parseTramoHash,
   railCtaLabel,
@@ -116,6 +114,21 @@ function reducedMotion(): boolean {
  * pintarla) el `load` puede no volver a dispararse, y sin esta línea la
  * imagen se quedaría transparente para siempre.
  */
+/**
+ * Pinta un texto respetando los saltos de línea que traiga el manifiesto: un
+ * `\n` en la caption se dibuja como salto. Sirve para decidir dónde corta una
+ * frase desde el dato y no a fuerza de ancho de caja, que cambia con cada
+ * pantalla. Va por nodos de texto, no por `innerHTML`: la caption viene del
+ * manifiesto y no se interpreta como marcado.
+ */
+function pintarConSaltos(el: HTMLElement, texto: string): void {
+  const lineas = texto.split('\n');
+  lineas.forEach((linea, i) => {
+    if (i > 0) el.appendChild(document.createElement('br'));
+    el.appendChild(document.createTextNode(linea));
+  });
+}
+
 function fadeIn(img: HTMLImageElement): void {
   const on = () => img.classList.add('is-on');
   img.addEventListener('load', on, { once: true });
@@ -193,6 +206,7 @@ export class TourRail {
   private readonly head: HTMLElement;
   private readonly marca: HTMLButtonElement;
   private readonly dots: HTMLElement;
+  private readonly prevBtn: HTMLButtonElement;
   private readonly nextBtn: HTMLButtonElement;
   private readonly layerEl: HTMLElement;
   private readonly sliders: BeforeAfterHandle[] = [];
@@ -218,6 +232,7 @@ export class TourRail {
       `<header class="r360-rail__head"></header>` +
       `<div class="r360-rail__scroll" tabindex="-1"></div>` +
       `<footer class="r360-rail__foot">` +
+      `<button type="button" class="r360-rail__prev"></button>` +
       `<div class="r360-rail__dots" role="tablist" aria-label="Tramos del recorrido"></div>` +
       `<button type="button" class="r360-rail__next"></button>` +
       `</footer>` +
@@ -249,10 +264,12 @@ export class TourRail {
     this.scroll.addEventListener('scroll', this.onScrollPantalla, { passive: true });
     this.head = this.el.querySelector('.r360-rail__head')!;
     this.dots = this.el.querySelector('.r360-rail__dots')!;
+    this.prevBtn = this.el.querySelector('.r360-rail__prev')!;
     this.nextBtn = this.el.querySelector('.r360-rail__next')!;
     this.layerEl = this.el.querySelector('.r360-rail__layer')!;
 
     this.renderDots();
+    this.prevBtn.addEventListener('click', () => this.dispatch({ type: 'anterior' }));
     this.nextBtn.addEventListener('click', () => this.dispatch({ type: 'siguiente' }));
     this.dots.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-tramo]');
@@ -403,15 +420,30 @@ export class TourRail {
       btn.classList.toggle('is-done', idx < i);
       btn.setAttribute('aria-selected', idx === i ? 'true' : 'false');
     }
+    // Las dos flechas ocupan lugar SIEMPRE, aunque no lleven a ningún lado:
+    // en las puntas del recorrido se atenúan y dejan de responder, pero no se
+    // van. Si desaparecieran, la tira de puntos dejaría de estar centrada
+    // justo en el primer y el último tramo.
+    const anterior = TRAMOS[i - 1] ?? null;
+    this.prevBtn.textContent = '←';
+    this.prevBtn.disabled = !anterior;
+    this.prevBtn.setAttribute(
+      'aria-label',
+      anterior ? `Volver: ${anterior.title}` : 'No hay tramo anterior',
+    );
+    if (anterior) this.prevBtn.title = anterior.title;
+
     const next = railNextLabel(this.state.tramo);
-    this.nextBtn.hidden = !next;
+    this.nextBtn.textContent = '→';
+    this.nextBtn.disabled = !next;
     if (next) {
       // Sólo la flecha: el rótulo del paso ya lo dice el chip de la izquierda,
       // y el texto completo empujaba el pie a lo ancho. El `aria-label` sigue
       // diciendo a dónde lleva, que es lo que lee un lector de pantalla.
-      this.nextBtn.textContent = '→';
       this.nextBtn.setAttribute('aria-label', next.aria);
       this.nextBtn.title = next.label;
+    } else {
+      this.nextBtn.setAttribute('aria-label', 'No hay tramo siguiente');
     }
   }
 
@@ -426,9 +458,9 @@ export class TourRail {
     for (const p of this.scroll.querySelectorAll<HTMLElement>('.r360-rail__pantalla')) {
       const r = p.getBoundingClientRect();
       if (r.top <= y && r.bottom > y) {
-        // Papel: sólo la lámina del render (spec §4). Las pantallas de texto
-        // dejaron de ir en claro (fondo unificado, `tour-rail.css`), así que
-        // ya no cuentan acá.
+        // Papel: la lámina del render (spec §4) y el tramo de unidades, que
+        // va en fondo blanco. El resto de las pantallas de texto dejaron de ir
+        // en claro (fondo unificado, `tour-rail.css`) y no cuentan acá.
         clara = !!p.querySelector('.r360-rail__frame.is-render');
         break;
       }
@@ -508,13 +540,20 @@ export class TourRail {
     else if (def.id === 'bloque-2') this.renderBloque();
     else if (def.id === 'amenities') this.renderAmenities();
     else if (def.id === 'video') this.renderVideo();
-    else if (def.id === 'unidades') this.renderUnidades();
     else this.renderConsultar();
 
-    // El acceso al plano y a WhatsApp está en TODOS los tramos: el masterplan
-    // siempre a un toque (spec §1) y el canal de consulta siempre abierto
-    // (spec §6), sin obligar a llegar al final.
-    if (def.id !== 'consultar') this.add(this.tramoFooter());
+    // El acceso al plano y a WhatsApp está en casi todos los tramos: el
+    // masterplan siempre a un toque (spec §1) y el canal de consulta siempre
+    // abierto (spec §6), sin obligar a llegar al final.
+    //
+    // Dos excepciones. `consultar` ES la pantalla de consulta, así que no se
+    // cierra a sí misma. Y `llegada` quedó reducido a una sola imagen con una
+    // frase: una tarjeta de cierre detrás de esa única foto agregaba una
+    // segunda pantalla y deshacía justamente lo que se buscaba. Se sigue al
+    // tramo siguiente con la flecha del pie, que está en todas las pantallas.
+    if (def.id !== 'consultar' && def.id !== 'llegada' && def.id !== 'bloque-2') {
+      this.add(this.tramoFooter());
+    }
     this.flush();
     this.paintDots();
     this.aplicarFoco();
@@ -553,122 +592,37 @@ export class TourRail {
    * medio.
    */
   private renderLlegada(): void {
-    const [contexto, skyline] = this.content.llegada.fotos;
-
-    // 1. Dónde está: el terreno entre el bosque y la ruta.
+    // Una sola imagen y una sola frase. Antes el tramo encadenaba cuatro
+    // pantallas —el terreno, el render del acceso, el skyline desde la azotea
+    // y una tarjeta con el estado de los bloques—: demasiado para una
+    // apertura, que tiene que ubicar y nada más. Lo que se sacó no se perdió;
+    // el recorrido lo cuenta igual más adelante.
+    const [contexto] = this.content.llegada.fotos;
     if (contexto) this.add(this.fotoCard(contexto));
-
-    // 2. Por dónde se entra.
-    if (this.content.llegada.render) {
-      this.add(
-        // El foco al 38%: en 375 px se ve un tercio del ancho del render, y
-        // centrado se perdía el portón. A 38% entran el portón (25%) y el
-        // cartel de Baleia (49%), que es lo que identifica la imagen.
-        this.renderCard(this.content.llegada.render, 'El acceso al complejo, como está proyectado.', {
-          aSangre: true,
-          foco: '38% 50%',
-        }),
-      );
-    }
-
-    // 3. Lo que se ve una vez adentro.
-    if (skyline) {
-      // Etiqueta anclada a lo que se ve en la foto (spec §3.2, punto 4): sólo
-      // lo verificable en la imagen. Ninguna distancia ni tiempo de viaje:
-      // ese dato no está en el material del proyecto. Tocarla acerca la
-      // cámara al skyline (auditoría §4, Idea 2).
-      this.add(
-        this.fotoCard(skyline, {
-          caption: 'Desde la azotea del Bloque 2, la península. Tocá la etiqueta para acercarte.',
-        }),
-      );
-
-    }
-
-    // 4. Cómo se ordena todo esto, con el plano a un toque: el trazo del acceso
-    // a los bloques se recorre en el masterplan de verdad (girado a pantalla
-    // completa), no en una copia.
-    // Sin botón propio al masterplan: el cierre del tramo ya lleva "Ver el
-    // plano" y eran dos botones distintos para exactamente la misma acción.
-    const plano = document.createElement('div');
-    plano.className = 'r360-rail__card r360-rail__plan';
-    plano.innerHTML =
-      `<p class="r360-rail__lead">El terreno baja de oeste a este. Los amenities quedan abajo, contra la Ruta 10.</p>` +
-      `<ul class="r360-rail__estados">` +
-      `<li><b>Bloque 2</b> · Construido · entrega diciembre 2026</li>` +
-      `<li><b>Bloques 1 y 3</b> · Próximamente</li>` +
-      `<li><b>Bloques 4 y 5</b> · Etapa futura</li>` +
-      `</ul>`;
-    this.add(plano);
   }
 
   private renderBloque(): void {
     const c = this.content.bloque;
-    if (c.hero) this.add(this.fotoCard(c.hero, { pushIn: true }));
 
-    for (const pair of c.pares) this.add(this.sliderCard(pair));
-
-    if (c.fachadas.length) {
-      this.add(
-        this.serieCard('fachadas', c.fachadas, {
-          titulo: 'La fachada, de día y al atardecer',
-        }),
-      );
-    }
-
+    // El tramo queda en UNA sola pantalla: el paseo por la unidad modelo. Lo
+    // que salió —la aérea de apertura, el deslizador render/obra y la serie de
+    // fachadas— sigue generándose en el manifiesto y no se borró de ningún
+    // lado; simplemente ya no se arma acá.
     if (c.paseo.length) {
       // Antes esto era un párrafo suelto, pantalla propia y vacía salvo esa
       // frase (spec, pantallas vacías → caption): ahora es el título que
       // corona la primera foto del paseo, en la MISMA pantalla — el mismo
       // patrón que ya usa `serieCard` para "fachadas".
       this.add(
-        this.serieCard('paseo', c.paseo, {
-          titulo: 'Adentro: el paseo por la unidad modelo',
-          ambientes: true,
-        }),
-      );
-      const nota = document.createElement('p');
-      nota.className = 'r360-rail__nota';
-      nota.textContent =
-        'Unidad modelo del Bloque 2.';
-      this.add(nota);
-    }
-
-    const acciones = document.createElement('div');
-    acciones.className = 'r360-rail__acciones';
-
-    // Camino a la consulta: éste es el momento de máxima convicción del
-    // recorrido —recién se vieron las fotos de adentro y el 360 de la unidad
-    // modelo— así que la ÚNICA acción primaria de esta pantalla es escribir
-    // por WhatsApp. Entrar en 360° y ver las unidades siguen disponibles,
-    // pero como enlaces secundarios: son para seguir mirando, no para
-    // consultar.
-    const visita = this.ctaLink('visita');
-    if (visita) acciones.appendChild(visita);
-
-    // Las panoramicas 360 no se alcanzaban desde ninguna pantalla: el riel es
-    // de fotos planas y los poligonos del masterplan abren la ficha comercial.
-    // Estaban publicadas y solo se llegaba pegando la URL. Sin un WhatsApp que
-    // ofrecer (proyecto sin `contact`), sigue siendo la acción principal.
-    const primera360 = this.primeraPanoramica();
-    if (primera360) {
-      acciones.appendChild(
-        this.button('Entrar a la unidad en 360°', visita ? 'is-ghost' : 'is-primary', () =>
-          this.opts.onOpenScene(primera360),
-        ),
+        this.serieCard('paseo', c.paseo, { editorial: true }),
       );
     }
 
-    if (c.bloque) {
-      const resumen = resumenDeBloque(c.bloque.codes, this.opts.availability());
-      acciones.appendChild(
-        this.button(`Ver las ${resumen.total} unidades del ${c.bloque.label}`,
-          visita || primera360 ? 'is-ghost' : 'is-primary', () =>
-          this.opts.onOpenUnit(c.bloque!.code),
-        ),
-      );
-    }
-    this.add(acciones);
+    // Sin nota ni botonera: el tramo queda en UNA pantalla, sólo el paseo. El
+    // WhatsApp de este bloque, la entrada al 360 y el listado de unidades
+    // salieron de acá. El 360 sigue a mano desde la ficha de cada unidad
+    // ("Recorrer en 360°") y las unidades desde la pestaña de la barra
+    // inferior; el canal de consulta, desde el tramo de cierre.
     // La frase "lo que sigue todavía no está construido" YA NO va acá: con el
     // nuevo orden narrativo (llegada → bloque → video → unidades →
     // amenities), lo que sigue a este tramo es el VIDEO, que es tan real
@@ -850,10 +804,9 @@ export class TourRail {
       if (posterUrl) video.poster = this.resolve(posterUrl);
       card.appendChild(video);
 
-      const cap = document.createElement('p');
-      cap.className = 'r360-rail__caption r360-rail__caption--sobre';
-      cap.textContent = 'La obra terminada, filmada. Arranca sin sonido: activalo con el control.';
-      card.appendChild(cap);
+      // Sin leyenda: el video se explica solo y el texto encima le comía la
+      // imagen. Que arranca en silencio lo dice el propio control de sonido,
+      // que está a la vista en el reproductor.
 
       // Pantalla completa a la vista: son 83 segundos de obra real y el
       // control nativo la esconde detrás de un ícono de 20 px.
@@ -1197,18 +1150,6 @@ export class TourRail {
     return a;
   }
 
-  /**
-   * La primera panoramica del recorrido, en el orden del guion (`sort`). No
-   * se nombra ninguna escena en concreto: si manana se suman las de otra
-   * unidad, entra la que el manifiesto ponga primero.
-   */
-  private primeraPanoramica(): string | null {
-    const pans = this.opts.tour.scenes
-      .filter((s) => s.kind === 'panorama')
-      .sort((a, b) => a.sort - b.sort);
-    return pans[0]?.slug ?? null;
-  }
-
   private button(label: string, cls: string, onClick: () => void): HTMLButtonElement {
     const b = document.createElement('button');
     b.type = 'button';
@@ -1285,10 +1226,9 @@ export class TourRail {
     fig.appendChild(img);
 
     this.chapaSiCorresponde(fig, item.procedencia);
-    this.tagDePunta(fig, item);
 
     fig.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('.r360-rail__chapa, .r360-rail__tag')) return;
+      if ((e.target as HTMLElement).closest('.r360-rail__chapa')) return;
       this.openFoto(item);
     });
 
@@ -1298,7 +1238,7 @@ export class TourRail {
     if (caption) {
       const p = document.createElement('figcaption');
       p.className = 'r360-rail__caption r360-rail__caption--sobre';
-      p.textContent = caption;
+      pintarConSaltos(p, caption);
       fig.appendChild(p);
     }
     card.appendChild(fig);
@@ -1377,39 +1317,6 @@ export class TourRail {
     fig.appendChild(this.chapaEl(chapa.kind, chapa.text, chapa.detail));
   }
 
-  /**
-   * Idea 2 — la Punta como protagonista. En las dos fotos donde el skyline
-   * está a la vista, tocar la etiqueta acerca la cámara sobre la imagen que ya
-   * está cargada: 2,5×, 600 ms, centrado en el horizonte. Ni un byte más de
-   * red, y es el argumento que ningún render puede dar.
-   */
-  private tagDePunta(fig: HTMLElement, item: PhotoTourItem): void {
-    if (!esVistaDePunta(item)) return;
-    const ancla = puntaAnclaje(item.id);
-    fig.classList.add('is-punta');
-    if (ancla) {
-      fig.style.setProperty('--r360-punta-tag', `${(ancla.etiqueta * 100).toFixed(1)}%`);
-      fig.style.setProperty('--r360-punta-horizonte', `${(ancla.horizonte * 100).toFixed(1)}%`);
-    }
-    const tag = document.createElement('button');
-    tag.type = 'button';
-    tag.className = 'r360-rail__tag';
-    tag.innerHTML = `<i aria-hidden="true"></i>Punta del Este`;
-    const rotular = (cerca: boolean) => {
-      tag.setAttribute('aria-pressed', String(cerca));
-      tag.setAttribute(
-        'aria-label',
-        cerca ? 'Punta del Este: alejar la cámara' : 'Punta del Este: acercar la cámara al skyline',
-      );
-    };
-    rotular(false);
-    tag.addEventListener('click', (e) => {
-      e.stopPropagation();
-      rotular(fig.classList.toggle('is-cerca'));
-    });
-    fig.appendChild(tag);
-  }
-
   private chapaEl(kind: 'foto' | 'render', text: string, detail: string): HTMLElement {
     const b = document.createElement('button');
     b.type = 'button';
@@ -1471,14 +1378,15 @@ export class TourRail {
   private serieCard(
     id: string,
     items: readonly PhotoTourItem[],
-    opts: { titulo?: string; ambientes?: boolean } = {},
+    opts: { titulo?: string; ambientes?: boolean; editorial?: boolean } = {},
   ): HTMLElement {
     const card = document.createElement('div');
     card.className = 'r360-rail__card r360-rail__serie';
     // La ficha de la unidad puede pedir que el recorrido abra en una foto
     // concreta de esta serie (`aplicarFoco`): la necesita poder encontrar.
     card.dataset.serie = id;
-    if (opts.titulo) {
+    if (opts.editorial) card.classList.add('is-editorial');
+    if (opts.titulo && !opts.editorial) {
       const h = document.createElement('h3');
       h.className = 'r360-rail__serie-title';
       h.textContent = opts.titulo;
@@ -1486,7 +1394,7 @@ export class TourRail {
     }
 
     let tira: HTMLElement | null = null;
-    if (opts.ambientes) {
+    if (opts.ambientes && !opts.editorial) {
       // La tira desbordaba 587 px en 375 de ancho, con la barra oculta y sin
       // ninguna señal: "Terraza" y "La vista" no existían para quien no
       // arrastraba (auditoría §2.9). Ahora el envoltorio pone un degradado en
@@ -1531,7 +1439,42 @@ export class TourRail {
       fadeIn(img);
       slide.appendChild(img);
       this.chapaSiCorresponde(slide, item.procedencia);
-      this.tagDePunta(slide, item);
+      // Lenguaje del brochure: una guía que entra desde arriba y termina en un
+      // punto, el ambiente en mayúsculas y la descripción debajo, las dos
+      // alineadas a la derecha. El texto sale del manifiesto —`ambiente` y
+      // `caption` de cada foto—, así que no hay copia nueva que mantener.
+      if (opts.editorial && (item.ambiente || item.caption)) {
+        const ed = document.createElement('div');
+        // Cuatro posiciones que se van turnando: si todas las fotos llevaran
+        // el bloque en el mismo lugar, once pantallas seguidas se leerían como
+        // una plantilla. Ninguna cae abajo a la izquierda, que es donde vive
+        // el encabezado del tramo.
+        const POSICIONES = ['ab-der', 'ar-izq', 'ar-der', 'ar-der-b'] as const;
+        ed.className = `r360-editorial is-${POSICIONES[track.childElementCount % POSICIONES.length]}`;
+        // La guía y el título viajan juntos en una caja que se ajusta al ANCHO
+        // DEL TÍTULO: así el punto cae en el centro del título y no en el del
+        // párrafo, que es más ancho y dejaba el punto corrido.
+        if (item.ambiente) {
+          const cabeza = document.createElement('div');
+          cabeza.className = 'r360-editorial__cabeza';
+          const guia = document.createElement('span');
+          guia.className = 'r360-editorial__guia';
+          guia.setAttribute('aria-hidden', 'true');
+          const h = document.createElement('h3');
+          h.className = 'r360-editorial__titulo';
+          h.textContent = item.ambiente;
+          cabeza.append(guia, h);
+          ed.appendChild(cabeza);
+        }
+        const texto = captionSinChapa(item.caption);
+        if (texto) {
+          const pp = document.createElement('p');
+          pp.className = 'r360-editorial__texto';
+          pp.textContent = texto;
+          ed.appendChild(pp);
+        }
+        slide.appendChild(ed);
+      }
       slide.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).closest('.r360-rail__chapa, .r360-rail__tag')) return;
         this.openFoto(item, items);
@@ -1739,6 +1682,9 @@ export class TourRail {
 
     pintar();
     this.layerEl.hidden = false;
+    // Marca en el cuerpo para que la franja de arriba deje de taparle el
+    // botón de cerrar (ver `body.r360-foto-open` en `styles.css`).
+    document.body.classList.add('r360-foto-open');
     close.focus();
 
     // La capa empuja historia: Atrás del teléfono la cierra en vez de sacar
@@ -1760,6 +1706,7 @@ export class TourRail {
     this.pinch = null;
     this.layerEl.hidden = true;
     this.layerEl.innerHTML = '';
+    document.body.classList.remove('r360-foto-open');
   }
 
   private resolve(url: string): string {

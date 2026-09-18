@@ -42,6 +42,7 @@ import {
 import { escapeHtml, formatPrice, priceTextForUnit } from './polygons.ts';
 import { parseHash, type SceneController, type UnitClickPayload } from './scenes.ts';
 import { shouldRotate } from './plan-orientation.ts';
+import { mountBrochure, type BrochureHandle } from './brochure.ts';
 import { NavBar, type NavTab } from './nav.ts';
 import { Sheet, type SnapPoint } from './sheet.ts';
 // El CTA de contacto (mensaje prellenado + link de WhatsApp) es lógica pura,
@@ -172,6 +173,7 @@ export class ViewerUi {
   private readonly nav: NavBar;
   private readonly rail: TourRail;
   private welcome: WelcomeHandle | null = null;
+  private brochure: BrochureHandle | null = null;
   private readonly unitsSheet: Sheet;
   private readonly panelSheet: Sheet;
   private readonly base: URL;
@@ -232,7 +234,11 @@ export class ViewerUi {
     this.unitsSheet = new Sheet({
       el: this.units,
       handle: this.units.querySelector('.r360-sheet__handle')!,
-      snaps: SINGLE_SNAP(0.85),
+      // 72% y no 85%: la hoja de unidades se abre SOBRE el masterplan, y a 85%
+      // dejaba 58 px de plano —una franja en la que no se reconocía nada—. El
+      // alto fino lo fija el CSS (`.r360-units[data-height]`), que le gana a
+      // este valor; acá va el mismo número para que el arrastre coincida.
+      snaps: SINGLE_SNAP(0.72),
       onClose: () => this.onSheetGestureClose('units'),
     });
     this.panelSheet = new Sheet({
@@ -364,6 +370,20 @@ export class ViewerUi {
    * Lo único que la saltea es un hash que nombre un destino —una unidad, un
    * tramo, una panorámica—, porque eso lo eligió alguien.
    */
+  /**
+   * El brochure, encima de lo que haya en pantalla. No cierra la portada: al
+   * salir del brochure se vuelve exactamente a donde se estaba.
+   */
+  private abrirBrochure(): void {
+    const pages = this.opts.tour.brochurePages ?? [];
+    if (!pages.length || this.brochure) return;
+    this.brochure = mountBrochure({
+      container: this.opts.container,
+      pages: pages.map((u) => this.resolve(u)),
+      onClose: () => { this.brochure = null; },
+    });
+  }
+
   mostrarInicio(): void {
     if (this.welcome) return;   // ya está en pantalla
     const { hero, segunda } = welcomePhotos(this.opts.tour);
@@ -386,11 +406,13 @@ export class ViewerUi {
       // argumento de venta, no una apertura. El hecho de que esté construido
       // lo demuestra el recorrido entero — no hace falta anunciarlo.
       headline: 'El placer de habitar el presente',
+      onBrochure: (this.opts.tour.brochurePages?.length ?? 0) > 0
+        ? () => this.abrirBrochure()
+        : null,
       hero,
       segunda,
       resolve: (u) => this.resolve(u),
       onStart: (t: TramoId) => { marcarVista(); this.rail.show(t); },
-      onPlan: () => { marcarVista(); this.goPlan(); },
     });
     this.nav.setActive('tour');
   }
@@ -488,7 +510,13 @@ export class ViewerUi {
       (c) => avail?.units[c]?.s ?? null,
     );
 
+    // La marca, DENTRO de la hoja blanca. Flotando arriba quedaba en la franja
+    // oscura del plano, encimada con "Masterplan" y en tinta sobre fondo
+    // oscuro: ilegible y con pinta de error. Acá va en el flujo, arriba del
+    // resumen, y se desplaza con la lista.
+    const logo = marcaPath(this.opts.tour);
     list.innerHTML =
+      (logo ? `<img class="r360-units__marca" src="${escapeHtml(this.resolve(logo))}" alt="Baleia">` : '') +
       `<p class="r360-units__summary">${escapeHtml(lineaEnVenta(resumen))}</p>` +
       groups
         .map((g) => {
@@ -524,8 +552,16 @@ export class ViewerUi {
 
   private openUnitsTab(): void {
     this.renderUnitsTab(); // la disponibilidad puede haber cambiado desde el montaje
+    // La hoja se apoya SOBRE el masterplan, así que el plano tiene que estar
+    // dibujado detrás. Entrando directo desde la portada —alguien que no
+    // quiere el recorrido y va a ver precios— nunca se había montado y
+    // quedaba un vacío negro atrás de la hoja.
+    if (!this.rail.isOpen) this.go(this.opts.tour.start);
     this.pushLayer('units');
     this.unitsSheet.open(0);
+    // La hoja trae su propia marca adentro: mientras está abierta, la flotante
+    // del riel se oculta (ver `body.r360-units-open` en `styles.css`).
+    document.body.classList.add('r360-units-open');
     this.nav.setActive('units');
   }
 
@@ -1029,7 +1065,10 @@ export class ViewerUi {
 
   private afterLayerClosed(name: Layer): void {
     if (name === 'panel') document.body.classList.remove('r360-panel-open');
-    if (name === 'units') this.nav.setActive(this.rail.isOpen ? 'tour' : 'plan');
+    if (name === 'units') {
+      document.body.classList.remove('r360-units-open');
+      this.nav.setActive(this.rail.isOpen ? 'tour' : 'plan');
+    }
   }
 
   private closeAllLayers(): void {

@@ -262,6 +262,11 @@ export interface TourManifest {
   /** Ver `PhotoTour`. Ausente = el visor no dibuja el recorrido narrativo de fotos. */
   photoTour?: PhotoTour;
   availabilityUrl: string;
+  /** El brochure del proyecto, página por página, para verlo DENTRO del
+   *  recorrido. Son imágenes y no un PDF embebido a propósito: en el navegador
+   *  del teléfono un PDF dentro de la página es poco confiable. Opcional: sin
+   *  páginas, el visor no dibuja el botón. */
+  brochurePages?: string[];
   start: string;
   scenes: Scene[];
   hotspots: Hotspot[];

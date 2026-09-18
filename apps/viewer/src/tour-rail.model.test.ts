@@ -108,15 +108,19 @@ const TOUR: TourManifest = {
 
 // ------------------------------------------------------------ los seis tramos
 
-test('el riel tiene seis tramos, en el orden narrativo (real, elegir, proyecto, consultar)', () => {
+test('el riel tiene cinco tramos, en el orden narrativo (real, proyecto, consultar)', () => {
   assert.deepEqual(
     TRAMOS.map((t) => t.id),
-    // Llegada → Bloque 2 → Video (los tres, material real) → Elegí tu
-    // unidad → Amenities (proyecto) → Consultar: todo lo real va junto y el
-    // recorrido recién entra a lo proyectado después de elegir unidad.
-    ['llegada', 'bloque-2', 'video', 'unidades', 'amenities', 'consultar'],
+    // Llegada → Bloque 2 → Video (los tres, material real) → Amenities
+    // (proyecto) → Consultar: todo lo real va junto y el recorrido recién
+    // entra a lo proyectado al final.
+    //
+    // El listado de unidades salió del riel: vive en la pestaña "Unidades" de
+    // la barra inferior, disponible desde cualquier pantalla, así que como
+    // tramo repetía una pantalla que ya estaba a un toque.
+    ['llegada', 'bloque-2', 'video', 'amenities', 'consultar'],
   );
-  assert.equal(tramoIndex('unidades'), 3);
+  assert.equal(tramoIndex('amenities'), 3);
 });
 
 test('cada tramo tiene su propio hash y se lo puede leer de vuelta', () => {

@@ -17,6 +17,15 @@
  * proyecto".
  */
 
+/* Margen superior del logo del riel. Se declara en el contenedor raíz y no
+   dentro de `.r360-rail` porque `.r360-rail__marca` es HERMANA del riel, no
+   hija: declarada adentro no le llegaba y el logo se quedaba donde estaba.
+   La usan dos reglas que tienen que moverse juntas: la posición del logo y la
+   franja que se reserva debajo para los overlays (`--r360-rail-top`). */
+.r360-root {
+  --r360-rail-marca-top: max(26px, env(safe-area-inset-top));
+}
+
 .r360-rail {
   position: absolute;
   /* Arranca en el borde de arriba: la foto de cada tramo va a sangre y la
@@ -49,7 +58,9 @@
    * título o encima de la marca según el caso; ahora todas comparten esta
    * única medida.
    */
-  --r360-rail-top: calc(max(10px, env(safe-area-inset-top)) + 116px);
+  /* Sólo la marca: el encabezado del tramo se mudó abajo, así que la franja
+     de arriba ya no tiene que reservarle sus dos líneas de texto. */
+  --r360-rail-top: calc(var(--r360-rail-marca-top) + 52px);
 }
 
 /* El tramo de unidades era una grilla de fichas sobre negro plano. Lleva
@@ -137,14 +148,22 @@
    no le come alto a la imagen. */
 .r360-rail__head {
   position: absolute;
-  top: 0;
+  /* Abajo a la izquierda, apoyado sobre la tira de tramos: arriba competía
+     con la leyenda de la foto, que ahora ocupa esa esquina. */
+  bottom: calc(var(--r360-nav-h) + var(--r360-safe-b) + 72px);
   left: 0;
   right: 0;
-  z-index: 4;
-  /* Arranca debajo de la marca, que flota centrada en la franja de arriba. */
-  padding: calc(max(10px, env(safe-area-inset-top)) + 46px) 16px 26px;
+  /* Por delante del pie (z-index 5): el degradado del pie sube hasta acá y,
+     pintándose encima, apagaba el texto del tramo. Esta capa no recibe
+     toques, así que estar arriba no le quita nada a los puntos. */
+  z-index: 6;
+  padding: 26px 16px 10px 28px;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(6, 10, 15, .72), rgba(6, 10, 15, .3) 55%, rgba(6, 10, 15, 0));
+  text-align: left;
+  /* Sin degradado propio: el oscuro de esta esquina lo pone el del pie, que
+     ahora sube lo suficiente para cubrir también este encabezado. Con los dos
+     apilados se veía una banda repetida, un escalón de transparencia. */
+  background: none;
 }
 .r360-rail__step {
   margin: 0 0 2px;
@@ -276,22 +295,22 @@
 /* La caption, SOBRE la foto, abajo, con el degradado de la bienvenida. */
 .r360-rail__caption--sobre {
   position: absolute;
+  /* Arriba a la derecha: es lo primero que se lee de la foto, y abajo competía
+     con el encabezado del tramo y con la tira de pasos. */
+  top: calc(var(--r360-rail-top) + 62px);
   left: 0;
   right: 0;
-  /* Termina ARRIBA de la banda de la barra, no en el borde. Su degradado es
-     casi opaco abajo: llegando hasta el fondo, tapaba la foto justo detrás de
-     la píldora de vidrio y el efecto se perdía. Corriéndola, el vidrio apoya
-     sobre la foto limpia. */
-  bottom: calc(var(--r360-nav-h) + var(--r360-safe-b));
   z-index: 3;
   margin: 0;
-  /* Deja libre la franja del pie, que flota encima de la foto: sin este
-     colchón, el texto de la foto y el chip del paso se pisaban. */
-  padding: 48px 16px 64px;
-  font-size: 14px;
+  padding: 0 40px 0 20%;
+  text-align: right;
+  /* Más grande que el resto de la interfaz: es la frase de la imagen, no un
+     pie de foto. Sin degradado —arriba taparía el cielo, que es justo lo que
+     se quiere ver—: la legibilidad la da la sombra. */
+  font-size: clamp(17px, 4.8vw, 22px);
+  line-height: 1.3;
   color: #eef4fa;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, .8);
-  background: linear-gradient(to top, rgba(6, 10, 15, .92) 10%, rgba(6, 10, 15, .35) 55%, rgba(6, 10, 15, 0));
+  text-shadow: 0 1px 12px rgba(0, 0, 0, .85), 0 1px 3px rgba(0, 0, 0, .6);
   pointer-events: none;
 }
 
@@ -327,60 +346,6 @@
   border: 1px solid rgba(110, 168, 254, .5);
 }
 .r360-rail__chapa.is-expanded { font-weight: 500; max-width: calc(100% - 24px); }
-
-/* ------------------------------------------------------ etiqueta sobre la foto */
-
-.r360-rail__tag {
-  position: absolute;
-  /* El horizonte de `04` está al 31-33 % del alto de la imagen; la píldora se
-     ancla justo encima para señalar la ciudad y no el bosque (auditoría
-     §2.10). Antes estaba al 38 %: debajo del skyline. */
-  top: var(--r360-punta-tag, 27%);
-  left: 46%;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--r360-tap);
-  padding: 6px 12px;
-  border-radius: 999px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  background: rgba(6, 10, 15, .68);
-  border: 1px solid rgba(255, 255, 255, .35);
-  cursor: zoom-in;
-  transition: opacity .3s ease, transform .3s ease;
-}
-.r360-rail__tag i {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, .25);
-}
-.r360-rail__tagnote {
-  margin: 8px 16px 0;
-  font-size: 12px;
-  line-height: 1.45;
-  color: #c3d0dc;
-}
-
-/* Idea 2 — la Punta como protagonista: tocar la etiqueta acerca la cámara al
-   skyline sobre la imagen que YA está cargada (2000 px de ancho: a 2,5× sigue
-   nítida). Sin pedir un byte más. */
-.r360-rail__frame.is-punta img,
-.r360-rail__slide.is-punta img {
-  transition: transform .6s cubic-bezier(.22, .61, .36, 1), opacity .35s ease;
-  transform-origin: 50% var(--r360-punta-horizonte, 30%);
-}
-.r360-rail__frame.is-punta.is-cerca img,
-.r360-rail__slide.is-punta.is-cerca img { transform: scale(2.5); }
-/* Con la cámara acercada, la etiqueta ya cumplió: se corre para no tapar lo
-   que fue a mostrar. */
-.r360-rail__frame.is-cerca .r360-rail__tag,
-.r360-rail__slide.is-cerca .r360-rail__tag { top: auto; bottom: 84px; left: 12px; cursor: zoom-out; }
 
 /* --------------------------------------------- series (horizontal = hermanos) */
 
@@ -713,11 +678,14 @@
   border-color: rgba(255, 255, 255, .3);
   transform: translateY(-1px);
 }
+/* Mismos valores que `STATUS_TOKENS` en `packages/core/src/status.ts`, que es
+   lo que pinta los polígonos del masterplan y su leyenda: si acá se cambian
+   sueltos, la grilla y el plano dicen cosas distintas de la misma unidad. */
 .r360-rail__unidad[data-estado="disponible"] { border-left-color: #16A34A; }
 .r360-rail__unidad[data-estado="vendido"] { border-left-color: #DC2626; }
-.r360-rail__unidad[data-estado="reservado"] { border-left-color: #D97706; }
-.r360-rail__unidad[data-estado="bloqueado"] { border-left-color: #7C3AED; }
-.r360-rail__unidad[data-estado="proximamente"] { border-left-color: #0D9488; }
+.r360-rail__unidad[data-estado="reservado"] { border-left-color: #ad9a84; }
+.r360-rail__unidad[data-estado="bloqueado"] { border-left-color: #ffffff; }
+.r360-rail__unidad[data-estado="proximamente"] { border-left-color: #dbd4cc; }
 .r360-rail__unidad b { font-size: 13px; }
 /*
  * "163,42 m²" entra en una línea; "175,92 m²" o "1 dormitorio · 96,95 m²" no
@@ -796,20 +764,40 @@
   position: absolute;
   left: 0;
   right: 0;
-  /* Arriba de la píldora flotante: el riel ahora llega al borde, el pie no. */
+  /* Pegado a la barra inferior, sin hueco: el degradado de este pie tiene que
+     llegar hasta ella. Despegado, el oscuro cortaba 14 px antes y debajo
+     quedaba la foto sin oscurecer — se veía como un renglón cruzando la
+     pantalla. El aire de la tira lo da el relleno de abajo, no el hueco. */
   bottom: calc(var(--r360-nav-h) + var(--r360-safe-b));
   z-index: 5;
   display: flex;
   align-items: center;
+  /* Una flecha a cada lado y la tira de puntos centrada entre las dos. Como
+     las dos flechas miden lo mismo y ninguna desaparece nunca (en las puntas
+     se atenúan pero siguen ocupando su lugar), la tira queda centrada en
+     todos los tramos. */
+  justify-content: space-between;
   gap: 8px;
   min-height: 48px;
-  padding: 22px 10px 10px;
+  /* El relleno de arriba estira la caja hacia arriba: es lo que hace que este
+     único degradado cubra también el encabezado del tramo, que ya no lleva el
+     suyo.
+
+     Los laterales alinean los CÍRCULOS pintados de las flechas con los textos:
+     28 px a la izquierda con el encabezado del tramo, 40 px a la derecha con
+     el final de la frase. Se les restan los 6 px de relleno que cada botón
+     tiene adentro para dibujar el círculo más chico que su área de toque —sin
+     esa resta los círculos quedaban 6 px hacia adentro de los textos. */
+  padding: 130px 34px 24px 22px;
   pointer-events: none;
-  background: linear-gradient(to top, rgba(6, 10, 15, .78), rgba(6, 10, 15, .34) 55%, rgba(6, 10, 15, 0));
+  background: linear-gradient(to top, rgba(6, 10, 15, .8), rgba(6, 10, 15, .34) 62%, rgba(6, 10, 15, 0));
 }
 .r360-rail__foot > * { pointer-events: auto; }
 .r360-rail__dots {
-  flex: 1;
+  /* Ocupa lo que necesita, no todo el ancho disponible: estirada de borde a
+     borde los puntos quedaban desparramados. `shrink` sigue en 1 para que en
+     pantallas angostas pueda achicarse y scrollear en horizontal. */
+  flex: 0 1 auto;
   display: flex;
   gap: 2px;
   min-width: 0;
@@ -838,29 +826,18 @@
    que estás. Los otros cinco quedan como puntos. Una fila de puntos mudos no
    dice dónde estás parado, que es justo lo que tiene que decir. */
 .r360-rail__dot span { display: none; }
+/* El tramo en curso se marca sólo con el punto pintado: sin píldora y sin
+   rótulo al lado. El nombre ya está en el encabezado del tramo, abajo a la
+   izquierda, así que repetirlo acá era decir dos veces lo mismo y además
+   desbalanceaba la tira —un punto ancho con texto contra cinco puntos
+   chicos—. El nombre sigue en el `aria-label` del botón, así que un lector
+   de pantalla lo anuncia igual. */
 .r360-rail__dot.is-active {
-  /* Fila, no grilla: el `display:grid` con `justify-items:center` que usan los
-     puntos apilaba el punto sobre el rótulo en vez de ponerlo al lado. */
-  flex: 0 1 auto;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--r360-accent-soft);
+  flex: 1 1 auto;
+  padding: 4px 2px;
+  background: none;
 }
-.r360-rail__dot.is-active i { flex: none; }
-.r360-rail__dot.is-active span {
-  display: block;
-  max-width: 46vw;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  letter-spacing: .02em;
-}
+.r360-rail__dot.is-active span { display: none; }
 .r360-rail__dot i {
   width: 8px;
   height: 8px;
@@ -871,23 +848,32 @@
 .r360-rail__dot.is-done i { background: rgba(110, 168, 254, .6); }
 .r360-rail__dot.is-active { color: var(--r360-fg); }
 .r360-rail__dot.is-active i { background: var(--r360-accent); transform: scale(1.6); }
+.r360-rail__prev,
 .r360-rail__next {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  /* El círculo se dibuja más chico que el botón: la caja sigue midiendo los
+     44 px del área de toque —por debajo de eso el dedo falla— pero el relleno
+     y `background-clip` hacen que el color llegue sólo hasta los 32 px del
+     medio. Achicar la caja habría achicado también el blanco al que hay que
+     apuntar. */
   width: var(--r360-tap);
   min-width: var(--r360-tap);
   min-height: var(--r360-tap);
-  padding: 0;
+  padding: 6px;
   border-radius: 999px;
   font: inherit;
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 400;
   line-height: 1;
   white-space: nowrap;
   color: var(--r360-accent-ink);
   background: var(--r360-accent);
+  /* Después del `background` en forma corta, que si no lo reinicia a
+     `border-box` y el círculo vuelve a ocupar la caja entera. */
+  background-clip: content-box;
   border: 0;
   cursor: pointer;
   transition: transform .1s ease;
@@ -997,8 +983,6 @@
   .r360-rail__frame.is-pushin img { animation: none; }
   .r360-rail__frame img,
   .r360-rail__slide img,
-  .r360-rail__frame.is-punta img,
-  .r360-rail__slide.is-punta img,
   .r360-rail__switch-stage > .r360-rail__card,
   .r360-rail__btn,
   .r360-rail__next,
@@ -1065,24 +1049,29 @@
    proyecto trae el suyo. */
 .r360-rail__marca {
   position: absolute;
-  top: max(10px, env(safe-area-inset-top));
+  top: var(--r360-rail-marca-top);
   left: 0;
   right: 0;
   z-index: 66;
   display: flex;
   align-items: center;
-  justify-content: center;
+  /* A la izquierda, alineada con el resto del contenido del riel: el
+     encabezado del tramo y la tira de puntos arrancan en los mismos 28 px. */
+  justify-content: flex-start;
   height: var(--r360-tap);
-  /* Centrada, pero sin tapar el resto de la franja: sólo el logo recibe el
-     toque, así el dedo puede pasar a los lados sin que la marca se lo coma. */
+  /* Sin tapar el resto de la franja: sólo el logo recibe el toque, así el
+     dedo puede pasar a los lados sin que la marca se lo coma. */
   pointer-events: none;
 }
 .r360-rail__marca > * { pointer-events: auto; }
 .r360-rail__marca[hidden] { display: none !important; }
 /* Es un boton, pero no debe parecer uno: la marca se ve igual que antes. */
-.r360-rail__marca { appearance: none; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: inherit; }
+/* El relleno izquierdo va acá y no en la regla de arriba: este reseteo de
+   botón se declara después y con `padding: 0` la pisaba, dejando el logo
+   contra el borde y con la letra cortada. */
+.r360-rail__marca { appearance: none; background: none; border: 0; padding: 0 0 0 28px; cursor: pointer; font: inherit; color: inherit; }
 .r360-rail__marca:hover img { opacity: 1; }
-.r360-rail__marca img { display: block; height: 19px; width: auto; opacity: 1; }
+.r360-rail__marca img { display: block; height: 24px; width: auto; opacity: 1; }
 .r360-rail__marca b { font-size: 15px; font-weight: 700; letter-spacing: .04em; }
 /*
  * El logo del encabezado y la marca incrustada en el video (primeros
@@ -1264,3 +1253,229 @@ body:has(.r360-plan:not(.r360-hidden)) .r360-rail__marca img {
   pointer-events: none;
 }
 .r360-rail__slider { position: relative; }
+
+/* En las puntas del recorrido la flecha que no lleva a ningún lado se atenúa
+   y deja de responder, pero no se va: su lugar es lo que mantiene centrada la
+   tira de puntos. */
+.r360-rail__prev[disabled],
+.r360-rail__next[disabled] {
+  opacity: .25;
+  pointer-events: none;
+}
+
+/* La marca del riel sólo se muestra CON el recorrido abierto. En el plano no
+   corresponde —la franja de arriba ya dice el nombre de la escena, y para
+   volver al inicio está la pestaña de la barra inferior— y además se encimaba
+   con ese nombre y con los botones de acercar: los tres ocupaban la misma
+   esquina y el texto quedaba ilegible, uno escrito sobre el otro. */
+body:not(.r360-rail-open) .r360-rail__marca { display: none; }
+
+/* ------------------------------------------------------- bloque editorial */
+/*
+ * El lenguaje del brochure dentro del recorrido: una guía fina que baja hasta
+ * un punto, el ambiente en mayúsculas y la descripción debajo, todo alineado a
+ * la derecha. Va DENTRO de cada foto de la serie, no flotando sobre la
+ * pantalla, porque el texto es de esa foto y viaja con ella al pasar de una a
+ * otra.
+ */
+.r360-editorial {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  max-width: min(74%, 400px);
+  pointer-events: none;
+}
+/* Las cuatro posiciones. El lado manda la alineación del texto y hacia dónde
+   entra la guía, para que el conjunto se lea como una sola pieza. */
+.r360-editorial.is-ab-der { right: 10%; bottom: 32%; text-align: right; }
+.r360-editorial.is-ar-der { right: 24px; top: 49%;   text-align: right; }
+.r360-editorial.is-ar-izq { left: 100px; top: 40%;   text-align: left; max-width: 251px; }
+/* Más ancho que el resto: el párrafo arranca 100 px adentro para alinearse con
+   el título, así que con el 74 % de siempre le quedaban 177 px y la frase caía
+   en tres líneas con "mar." solo. */
+.r360-editorial.is-ar-der-b { right: 24px; top: 24%;  text-align: right; max-width: min(92%, 400px); }
+
+/* Sólo la PRIMERA imagen se espeja en vertical: la descripción arriba de todo,
+   después el título, y la guía colgando abajo con el punto mirando hacia él.
+   Las otras tres conservan el gesto original (línea arriba, punto abajo). */
+.r360-editorial.is-ab-der { flex-direction: column-reverse; }
+.r360-editorial.is-ab-der .r360-editorial__cabeza {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.r360-editorial.is-ab-der .r360-editorial__guia {
+  margin-top: 16px;
+  margin-bottom: 0;
+  border-top: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .85);
+}
+.r360-editorial.is-ab-der .r360-editorial__guia::after {
+  top: -5px;
+  bottom: auto;
+}
+.r360-editorial.is-ab-der .r360-editorial__titulo { margin: 0; }
+.r360-editorial.is-ab-der .r360-editorial__texto { margin-bottom: 10px; }
+
+/* La caja que envuelve guía y título: `inline-block` para que mida lo que mide
+   el título, ni más. Es lo que hace que el punto caiga en el centro del
+   TÍTULO y no en el del párrafo, que es más ancho. */
+.r360-editorial__cabeza { display: inline-block; }
+/* Con la cabeza en flex (la primera imagen) `inline-block` deja de encoger:
+   `align-self` es lo que la mantiene del ancho del título. */
+.r360-editorial.is-ab-der .r360-editorial__cabeza { align-self: flex-end; }
+/* Sin esto la cabeza se estira al ancho del bloque (es un ítem flex) y el
+   punto, que cae a la mitad de la cabeza, se iba muy a la derecha del título.
+   Encogida al título, el punto queda en su centro. */
+/* Acá título y párrafo arrancan los dos en el margen del bloque —quedan
+   alineados solos, mida lo que mida el rótulo— y es la guía la que se sale:
+   va posicionada, con su extremo derecho en el centro de la cabeza (o sea, en
+   el centro del título, donde baja el punto) y su largo creciendo hacia la
+   izquierda, por fuera del bloque. Por eso el bloque arranca a 100 px del
+   borde: es el lugar que necesita la línea. Esto reemplaza al truco de
+   centrar el título en una caja del doble del largo de la guía, que sólo
+   funcionaba con un rótulo de ancho conocido. */
+.r360-editorial.is-ar-izq .r360-editorial__cabeza {
+  align-self: flex-start;
+  position: relative;
+  width: auto;
+}
+.r360-editorial.is-ar-izq .r360-editorial__guia {
+  position: absolute;
+  right: 50%;
+  bottom: calc(100% + 14px);
+  width: 110px;
+  margin: 0;
+}
+
+/* La cocina (tercera imagen): el texto va a la derecha, alineado a la derecha,
+   y la línea entra al revés que en el resto —baja en su extremo IZQUIERDO, que
+   es donde cae el punto, justo sobre el horno—. El ancho va en píxeles y no en
+   el 50 % de la cabeza porque lo que manda es dónde está el horno, no cuánto
+   mide el título. */
+.r360-editorial.is-ar-der .r360-editorial__cabeza {
+  align-self: flex-end;
+  /* Corrida hacia adentro para que su centro —y con él el punto— caiga sobre
+     el horno, en vez de quedar pegada al margen derecho del bloque. */
+  margin-right: 37px;
+}
+.r360-editorial.is-ar-der .r360-editorial__guia {
+  margin-right: 0;
+  margin-left: auto;
+  border-right: 0;
+  border-left: 1px solid rgba(255, 255, 255, .85);
+}
+.r360-editorial.is-ar-der .r360-editorial__guia::after { right: auto; left: -5px; }
+/* El párrafo acompaña el corrimiento de la cabeza para terminar donde termina
+   "COCINA" (37 px del bloque + los ~2 px de espaciado que el título arrastra
+   después de su última letra). */
+.r360-editorial.is-ar-der .r360-editorial__texto { margin-right: 39px; }
+
+/* La vista al horizonte (cuarta imagen): arriba a la derecha, con la línea
+   dada vuelta —baja en su extremo izquierdo, donde cae el punto, y se extiende
+   hacia la derecha—. El nombre de la posición dice "ar-der-b" porque es la
+   segunda que vive arriba a la derecha, con el gesto espejado. */
+.r360-editorial.is-ar-der-b .r360-editorial__cabeza {
+  align-self: flex-end;
+  /* El doble del largo de la guía, con el título centrado adentro: así el
+     centro del título cae exactamente donde baja la línea, sin tener que
+     conocer cuánto mide la palabra. */
+  width: 280px;
+  text-align: center;
+}
+.r360-editorial.is-ar-der-b .r360-editorial__guia {
+  /* Larga hacia adentro: el extremo derecho queda fijo contra el margen del
+     bloque y el punto se corre hacia el centro de la foto. */
+  width: 140px;
+  margin-right: 0;
+  margin-left: auto;
+  border-right: 0;
+  border-left: 1px solid rgba(255, 255, 255, .85);
+}
+.r360-editorial.is-ar-der-b .r360-editorial__guia::after { right: auto; left: -5px; }
+/* El párrafo termina donde termina "LA VISTA": el título quedó centrado bajo
+   el punto, a 100 px del borde derecho del bloque, así que el párrafo se corre
+   otro tanto. Es una medida atada a ese rótulo; si cambia el texto del título,
+   hay que volver a medir. */
+.r360-editorial.is-ar-der-b .r360-editorial__texto { margin-right: 100px; }
+
+/* Y espejado en vertical: el párrafo arriba, después el título y la guía
+   colgando abajo, con el punto mirando hacia arriba —la línea sube desde el
+   pie hasta el texto en vez de bajar hacia él—. */
+.r360-editorial.is-ar-der-b,
+.r360-editorial.is-ar-der-b .r360-editorial__cabeza { flex-direction: column-reverse; }
+.r360-editorial.is-ar-der-b .r360-editorial__cabeza { display: flex; }
+.r360-editorial.is-ar-der-b .r360-editorial__guia {
+  margin-bottom: 0;
+  margin-top: 14px;
+  border-top: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .85);
+}
+.r360-editorial.is-ar-der-b .r360-editorial__guia::after { top: -5px; bottom: auto; }
+.r360-editorial.is-ar-der-b .r360-editorial__titulo { margin: 0; }
+.r360-editorial.is-ar-der-b .r360-editorial__texto { margin-bottom: 10px; }
+
+/* La guía: una línea que entra de costado, dobla y baja hasta un punto, en el
+   centro del título. */
+.r360-editorial__guia {
+  display: block;
+  width: 50%;
+  height: 52px;
+  margin-bottom: 16px;
+  position: relative;
+  border-top: 1px solid rgba(255, 255, 255, .85);
+}
+.r360-editorial__guia::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #fff;
+}
+/* La línea entra SIEMPRE por la izquierda y dobla hacia abajo en su extremo
+   derecho, como en el brochure. Es el mismo gesto en las cuatro posiciones:
+   dos direcciones distintas según el lado se leían como dos recursos y no como
+   uno. La guía ocupa la mitad izquierda del título, así que la bajada —y el
+   punto— caen en el centro del título. */
+.r360-editorial__guia {
+  margin-right: auto;
+  border-right: 1px solid rgba(255, 255, 255, .85);
+}
+.r360-editorial__guia::after { right: -5px; }
+
+/* Doble clase: `.r360-rail__card h3` (más específica) le mete `margin: 0 16px`
+   y el título salía corrido 16 px respecto del párrafo y de la guía. Esa misma
+   regla le imponía además su `font-size: 15px`; al ganarle la especificidad
+   creció de golpe, así que acá se declara el tamaño que venía teniendo. */
+.r360-editorial .r360-editorial__titulo {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, .8);
+}
+.r360-editorial__texto {
+  margin: 0;
+  font-size: clamp(14px, 3.9vw, 17px);
+  line-height: 1.45;
+  font-weight: 300;
+  color: rgba(255, 255, 255, .94);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, .85);
+}
+/* Un velo desde abajo: las fotos del paseo son claras y el texto blanco se
+   perdía sobre el piso de madera. */
+.r360-rail__serie.is-editorial .r360-rail__slide::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(6, 10, 15, .62), rgba(6, 10, 15, .18) 52%, rgba(6, 10, 15, 0) 78%);
+}
+/* La leyenda del pie sobra: el texto ya está sobre la foto. El contador se
+   queda, que es lo que dice cuántas fotos hay. */
+.r360-rail__serie.is-editorial .r360-rail__seriepie .r360-rail__caption { display: none; }

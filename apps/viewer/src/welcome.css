@@ -1,16 +1,17 @@
 /* El titular de portada llevaba la pila del sistema: correcta para la interfaz,
-   pero anodina en una portada, y sin nada en comun con el wordmark de Baleia
-   —contraste alto entre grueso y fino, terminaciones abiertas—. Cormorant
-   Garamond en peso liviano acompana ese caracter sin imitarlo ni competirle.
+   pero anodina en una portada. Montserrat es la tipografia que ya usa la web
+   comercial del proyecto (`apps/site`), asi que el recorrido y el sitio hablan
+   con la misma voz.
 
-   Va autoalojada, no pedida a Google: el recorrido se muestra en obra y con
-   mala senal, y una fuente externa que no llega arruina justo la portada.
-   Un solo woff2 variable, subconjunto latino, 37 KB. Vite le aplica el `base`
-   configurable porque el archivo vive en `src/`, no en `public/`. */
+   Va autoalojada, no pedida a Google como hace `apps/site`: el recorrido se
+   muestra en obra y con mala senal, y una fuente externa que no llega arruina
+   justo la portada. Un solo woff2 variable, subconjunto latino, 35 KB. Vite le
+   aplica el `base` configurable porque el archivo vive en `src/`, no en
+   `public/`. */
 @font-face {
-  font-family: 'Cormorant Garamond';
-  src: url('./fonts/cormorant-garamond-latin.woff2') format('woff2');
-  font-weight: 300 400;
+  font-family: 'Montserrat';
+  src: url('./fonts/montserrat-latin.woff2') format('woff2');
+  font-weight: 300 600;
   font-style: normal;
   font-display: swap;
 }
@@ -29,10 +30,19 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 14px;
-  /* El alto de la barra inferior se reserva acá: la barra se dibuja
-     encima de la portada (z-index 200 en `styles.css`) y sin este hueco
-     tapaba la línea de socios. */
-  padding: 0 20px calc(20px + var(--r360-nav-h) + var(--r360-safe-b));
+  /* Margen superior del logo. Vive acá, en una sola variable, porque lo usan
+     dos reglas que tienen que moverse juntas: la posición del logo y la banda
+     que se reserva arriba. */
+  --r360-welcome-marca-top: max(40px, env(safe-area-inset-top));
+  /* Arriba se reserva la banda de la marca, que está posicionada en absoluto
+     y por lo tanto fuera del reparto flexible: sin este hueco, el aire que
+     equilibra el bloque se contaba desde el borde de la pantalla y no desde
+     el logo, y el titular quedaba corrido hacia abajo.
+     Abajo se reserva el alto de la barra inferior, que se dibuja encima de la
+     portada (z-index 200 en `styles.css`) y sin el hueco tapaba los socios. */
+  padding:
+    calc(var(--r360-welcome-marca-top) + 42px) 20px
+    calc(36px + var(--r360-nav-h) + var(--r360-safe-b));
   background: var(--r360-bg);
   opacity: 0;
   transition: opacity .32s ease;
@@ -91,8 +101,14 @@
   position: absolute;
   left: -20px;
   right: -20px;
-  top: calc(-1 * max(14px, env(safe-area-inset-top)) - 10px);
-  height: 120px;
+  /* Arranca 10 px POR ENCIMA del borde de la pantalla, siempre: si empieza
+     dentro, su borde superior se ve como un renglón claro cruzando la foto.
+     Por eso sigue a la misma variable que el logo — con el valor clavado, al
+     bajar el logo el velo se despegaba del borde y aparecía la línea. El alto
+     crece igual, para que el degradado termine donde terminaba respecto del
+     logo. */
+  top: calc(-1 * var(--r360-welcome-marca-top) - 10px);
+  height: calc(var(--r360-welcome-marca-top) + 106px);
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(6, 10, 15, .38), transparent);
   /* Detrás del logo, no encima. Un pseudo-elemento con `position:absolute` se
@@ -104,7 +120,7 @@
 
 .r360-welcome__marca {
   position: absolute;
-  top: max(14px, env(safe-area-inset-top));
+  top: var(--r360-welcome-marca-top);
   left: 20px;
   right: 20px;
   display: flex;
@@ -141,22 +157,32 @@
    acciones, que siguen abajo. */
 .r360-welcome__info {
   position: relative;
-  margin-block: auto;
+  /* El aire sobrante se reparte entre ARRIBA del titular y ABAJO de los
+     botones (ver `margin-bottom: auto` en `__acciones`), así el conjunto
+     titular+acción queda centrado como una sola pieza. El `0` de abajo es lo
+     que mantiene los botones pegados al titular en vez de repartir también
+     ese hueco. */
+  margin-block: auto 0;
   text-align: center;
 }
 /* Titular de portada, no de sección: ocupa el ancho que tiene y se lee desde
    lejos. Escala con la pantalla en vez de saltar en un solo punto de corte. */
 .r360-welcome__info h1 {
   margin: 0;
-  /* Cormorant tiene altura-x chica y trazo fino: al mismo cuerpo que la sans
-     se leia debil, asi que sube. El interletrado negativo que compensaba la
-     sans en negrita aca sobra —cierra los blancos internos de la serif— y se
-     va a cero. */
-  font-family: 'Cormorant Garamond', Didot, "Bodoni 72", Georgia, serif;
+  /* Montserrat tiene altura-x grande y ancho parejo: al cuerpo que pedia la
+     serif quedaba enorme y pesado, asi que baja. En peso liviano se sostiene
+     sin gritar; en negrita, a este tamano, la portada parecia un cartel.
+
+     En mayusculas baja otro escalon —una caja alta ocupa mas que la misma
+     medida en minusculas— y el interletrado pasa a positivo: encerradas, las
+     mayusculas se apelmazan y dejan de leerse de lejos. */
+  font-family: 'Montserrat', ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-weight: 300;
-  font-size: clamp(40px, 11.2vw, 68px);
-  line-height: 1.04;
-  letter-spacing: 0;
+  font-size: clamp(26px, 7.2vw, 44px);
+  line-height: 1.26;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+  text-align: center;
   text-wrap: balance;
   /* La sombra se ablanda: con trazo fino, una sombra dura ensucia la letra. */
   text-shadow: 0 2px 24px rgba(0, 0, 0, .55);
@@ -170,7 +196,13 @@
   display: grid;
   justify-items: center;
   gap: 6px;
-  margin-bottom: 52px;
+  /* La separación con el titular se afina acá: se suma al `gap` de 14 px de
+     la columna. En 0 quedan a 14 px; en negativo, pegados. */
+  margin-top: 14px;
+  /* `auto` reparte el aire sobrante con el de arriba del titular: el bloque
+     queda centrado entre la marca y la línea de socios. Con un valor fijo,
+     todo el sobrante se acumulaba arriba y la portada quedaba cargada al pie. */
+  margin-bottom: auto;
 }
 /* El boton estaba en el azul de sistema (--r360-accent, #1f6feb): sobre una
    foto de mar y monte era lo unico saturado de la pantalla y se comia la
@@ -227,18 +259,18 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 8px 16px;
+  gap: 10px 20px;
   padding-top: 4px;
 }
-/* En 375 px la fila mide 335 y el contenido ya sumaba 334: el logo de Dacal
-   estaba contra el limite y un pixel mas partia a Caetano a una segunda
-   linea. La separacion entre columnas se achica solo en pantalla angosta —el
-   aire horizontal es lo unico que sobra ahi— y los tres elementos siguen en
-   una sola linea. */
-@media (max-width: 480px) {
-  .r360-welcome__socios { gap: 8px 10px; }
-}
+/* Ya no hace falta apretar la separación en pantalla angosta: el rótulo se
+   lleva su propia línea y abajo quedan sólo los dos logos, que entran
+   holgados. */
 .r360-welcome__socios p {
+  /* Su propia línea: los dos logos bajan a la de abajo. Al ocupar todo el
+     ancho, el `justify-content` del contenedor ya no lo centra —centra la
+     caja, no el texto— así que el centrado va acá. */
+  flex-basis: 100%;
+  text-align: center;
   margin: 0;
   font-size: 8px;
   font-weight: 400;

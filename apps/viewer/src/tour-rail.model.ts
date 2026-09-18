@@ -41,7 +41,7 @@ import type {
 
 // ---------------------------------------------------------------- los tramos
 
-export type TramoId = 'llegada' | 'bloque-2' | 'amenities' | 'video' | 'unidades' | 'consultar';
+export type TramoId = 'llegada' | 'bloque-2' | 'amenities' | 'video' | 'consultar';
 
 export interface TramoDef {
   id: TramoId;
@@ -74,7 +74,6 @@ export const TRAMOS: readonly TramoDef[] = [
   { id: 'llegada',   short: 'Llegada',   title: 'La llegada',                 asNext: 'la llegada' },
   { id: 'bloque-2',  short: 'El bloque', title: 'El bloque, afuera y adentro', asNext: 'el Bloque 2, construido' },
   { id: 'video',     short: 'Video',     title: 'El video',                   asNext: 'el video' },
-  { id: 'unidades',  short: 'Tu unidad', title: 'Elegí tu unidad',            asNext: 'elegí tu unidad' },
   { id: 'amenities', short: 'Amenities', title: 'Los amenities, como están proyectados', asNext: 'los amenities' },
   { id: 'consultar', short: 'Consultar', title: 'Consultar',                  asNext: 'consultar' },
 ];
