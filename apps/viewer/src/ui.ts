@@ -71,6 +71,7 @@ import {
   tituloDeUnidad,
 } from './unidad.ts';
 import {
+  LAST_UNIT_SEEN_KEY,
   WELCOME_SEEN_KEY,
   buildRailContent,
   parseTramoHash,
@@ -93,14 +94,34 @@ export interface UiOptions {
 type Layer = 'lightbox' | 'panel' | 'units';
 
 const THUMB = (url: string) => url.replace(/\.webp$/i, '.thumb.webp');
+
+/**
+ * `./scenes/p-b2a-living/tiles` → `./scenes/p-b2a-living/preview.webp`.
+ * `preview.webp` es un archivo que el pipeline ya publica al lado de
+ * `tiles/` para CADA panorámica (no hay ninguna que no lo tenga: es del
+ * mismo paso que genera las teselas) — no es un campo del manifiesto, es una
+ * convención de carpeta, así que se deriva de `TiledSource.base` en vez de
+ * agregar un campo nuevo a `Scene` para una sola pantalla. `null` si algún
+ * día `base` no termina en `/tiles` (una fuente no tiled, o el pipeline
+ * cambió la convención): sin imagen, el botón de 360 sigue funcionando, sólo
+ * que sin miniatura.
+ */
+function panoramaPreviewUrl(base: string): string | null {
+  return base.endsWith('/tiles') ? `${base.slice(0, -'/tiles'.length)}/preview.webp` : null;
+}
 const NUM = new Intl.NumberFormat('es-AR');
 const num = (v: unknown) => NUM.format(Number(v));
+/** Entrega del Bloque 2, la única unidad construida hoy (README §3.1). No
+ *  hay ese dato por unidad, así que no varía entre fichas. */
+const ENTREGA_LABEL = 'Entrega dic 2026';
 const row = (k: string, v: string) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`;
-const PANEL_SNAPS: SnapPoint[] = [
-  { name: 'peek', ratio: 0.32 },
-  { name: 'mid', ratio: 0.6 },
-  { name: 'full', ratio: 0.92 },
-];
+// La ficha (unidad o bloque) es la pantalla donde se decide: abre SIEMPRE a
+// pantalla completa en móvil, no a media hoja (camino a la consulta, punto
+// 2) — antes tenía tres alturas y el arrastre a `peek`/`mid` dejaba los
+// botones del cierre del riel asomando por encima de la hoja. Un solo snap,
+// nombrado igual que el CSS que lo hace ocupar el viewport entero
+// (`.r360-panel[data-height="full"]`, `styles.css`).
+const PANEL_SNAPS: SnapPoint[] = [{ name: 'full', ratio: 0.98 }];
 const SINGLE_SNAP = (ratio: number): SnapPoint[] => [{ name: 'open', ratio }];
 
 function hashFor(slug: string | null, code: string): string {
@@ -196,8 +217,15 @@ export class ViewerUi {
     this.panel = this.root.querySelector('.r360-panel')!;
     this.lightbox = this.root.querySelector('.r360-lightbox')!;
 
+    // La barra va colgada del contenedor raíz, NO de `.r360-ui`. `.r360-ui`
+    // vive en z-index 50 y la bienvenida en 150 (`welcome.css`), las dos hijas
+    // de `.r360-root`: un z-index sólo compite dentro del contexto de su
+    // padre, así que la barra quedaba debajo de la portada por más alto que se
+    // le pusiera. Colgada de la raíz es hermana de la bienvenida y su z-index
+    // 200 sí gana. Así Inicio/Plano/Unidades están disponibles desde la
+    // portada, no sólo después de entrar al recorrido.
     this.nav = new NavBar({
-      container: this.root,
+      container: opts.container,
       onSelect: (tab) => this.onNavSelect(tab),
     });
 
@@ -279,8 +307,24 @@ export class ViewerUi {
     // tramos. Con el ícono de casa y el rótulo "Recorrido" prometía una cosa y
     // hacía otra: no había forma de volver a la portada desde ningún lado.
     if (tab === 'tour') { this.mostrarInicio(); return; }
+    // El plano y las unidades viven en `.r360-ui` (z-index 50), debajo de la
+    // portada (150): si la portada sigue montada, el destino se abre tapado y
+    // el botón parece no responder. Se cierra primero.
+    this.cerrarPortada();
     if (tab === 'plan') { this.goPlan(); return; }
     this.openUnitsTab();
+  }
+
+  /**
+   * Baja la portada, si está en pantalla, y la da por vista — lo mismo que
+   * hacen sus propios botones. Sirve para cualquier navegación que salga de
+   * ella sin pasar por "Empezar el recorrido" ni "Ir directo al plano".
+   */
+  private cerrarPortada(): void {
+    if (!this.welcome) return;
+    this.welcome.close();
+    this.welcome = null;
+    try { localStorage.setItem(WELCOME_SEEN_KEY, '1'); } catch { /* modo privado */ }
   }
 
   /** El plano: cierra el recorrido guiado (sin tocar la historia) y vuelve al masterplan. */
@@ -325,6 +369,10 @@ export class ViewerUi {
     const { hero, segunda } = welcomePhotos(this.opts.tour);
     if (!hero) { this.goPlan(); return; }
 
+    // La portada es el arranque del recorrido: baja todo lo que haya quedado
+    // abierto (la hoja de unidades, la ficha, el visor de fotos). Si no, la
+    // portada las tapa y reaparecen al tocar Plano sin que nadie las pidiera.
+    this.closeAllLayers();
     this.rail.hideQuiet();
     const marcarVista = () => {
       try { localStorage.setItem(WELCOME_SEEN_KEY, '1'); } catch { /* modo privado */ }
@@ -519,6 +567,14 @@ export class ViewerUi {
     // visor: llega en `attrs.numeroComercial` o no existe (ver `unidad.ts`).
     const titulo = codes ? label : tituloDeUnidad({ code, label, numero });
 
+    // Camino a la consulta, Tramo 6: si esto es una unidad hoja (no un
+    // bloque), queda marcada como "lo último que se miró" — el cierre del
+    // recorrido usa esto para armar el mensaje de WhatsApp por ESA unidad en
+    // vez de la invitación genérica a visitar el bloque.
+    if (!codes) {
+      try { sessionStorage.setItem(LAST_UNIT_SEEN_KEY, code); } catch { /* modo privado */ }
+    }
+
     const back = parent
       ? `<button class="r360-link r360-panel__back" data-unit="${escapeHtml(parent)}">&larr; ${escapeHtml(
           tour.units[parent]?.label ?? parent,
@@ -553,16 +609,19 @@ export class ViewerUi {
 
     const media = (unit.media ?? []).map((m) => this.resolve(m));
 
-    const priceRow = codes
-      ? this.blockSummary(codes)
-      : price
-        ? `<div class="r360-panel__price">${escapeHtml(price)}</div>`
-        : '';
+    const priceRow = codes ? this.blockSummary(codes) : '';
+    // La ficha de UNA unidad es la pantalla donde se decide la compra: la
+    // cabecera dice, en una línea, lo que hace falta para decidir — código,
+    // tipología, m², precio, entrega y estado (camino a la consulta, punto
+    // 2). La ficha de un bloque sigue mostrando el resumen de siempre
+    // (`blockSummary`, arriba).
+    const lineaDecision = codes ? '' : this.lineaDecisionHtml({ attrs, areaTotalM2: unit.areaTotalM2 ?? null, price, chip });
 
     this.renderPanel(
       back +
-        this.header(titulo, chip) +
+        this.header(titulo, codes ? chip : null) +
         priceRow +
+        lineaDecision +
         this.recorrido360Html(attrs) +
         this.ctaHtml(code) +
         this.accionesHtml(code, unit.groupCode ?? parent ?? null, attrs) +
@@ -591,8 +650,13 @@ export class ViewerUi {
             ? ''
             : `<p class="r360-panel__note">Sin imagen de esta unidad en el material disponible.</p>`) +
         this.unidadModeloHtml(code, codes) +
-        `<button class="r360-link r360-panel__share" data-share-unit="${escapeHtml(code)}">` +
-        `<i class="r360-ico-share" aria-hidden="true"></i>Compartir esta unidad</button>`,
+        // "Compartir esta unidad" es una acción de UNA unidad puntual: en la
+        // ficha de un bloque quedaba duplicada (no hay "esta unidad" todavía,
+        // hay nueve) y se sacó de ahí.
+        (codes
+          ? ''
+          : `<button class="r360-link r360-panel__share" data-share-unit="${escapeHtml(code)}">` +
+            `<i class="r360-ico-share" aria-hidden="true"></i>Compartir esta unidad</button>`),
     );
 
     this.showPanel({ fresh: opts.fresh });
@@ -736,8 +800,20 @@ export class ViewerUi {
     if (!escena) return '';
     const tip = String(attrs?.tipologia ?? '');
     if (!/duplex|dúplex/i.test(tip)) return '';
-    return `<button class="r360-cta r360-cta--360" data-abrir360="${escapeHtml(escena)}">
-        Recorrer en 360&deg; &rarr;</button>
+    // Imagen grande y tocable, no un botón de texto (camino a la consulta,
+    // punto 2): el `preview.webp` vive siempre al lado de `tiles/` en cada
+    // panorámica publicada (convención del builder, `panoramaPreviewUrl`),
+    // así que no hace falta un campo nuevo en el manifiesto para mostrarla.
+    const scene = this.opts.tour.scenes.find((sc) => sc.slug === escena);
+    const preview =
+      scene && 'base' in scene.source ? panoramaPreviewUrl(scene.source.base) : null;
+    const img = preview
+      ? `<img loading="lazy" alt="Panorámica 360° de la unidad modelo" src="${escapeHtml(this.resolve(preview))}" />`
+      : '';
+    return `<button class="r360-cta360" data-abrir360="${escapeHtml(escena)}" aria-label="Recorrer en 360°, unidad modelo de la misma tipología">
+        ${img}
+        <span class="r360-cta360__tag"><i aria-hidden="true"></i>Recorrer en 360&deg;</span>
+      </button>
       <p class="r360-panel__note r360-panel__note--360">Unidad modelo de la misma tipología, fotografiada adentro.</p>`;
   }
 
@@ -770,10 +846,14 @@ export class ViewerUi {
     const s = this.statusOf(code);
     const t = s ? STATUS_TOKENS[s] : null;
     const theme = s ? this.opts.tour.theme?.states?.[s] : undefined;
-    // Igual que en el mapa: sin dato NO se oculta, se muestra en gris y dicho.
+    // Igual que en el mapa (`polygons.ts::resolveStatus`, FALLBACK_STATUS):
+    // sin dato NO se oculta ni se dice "Sin dato" (esa cadena no se le
+    // muestra nunca al visitante) — cae al mismo token "No disponible" que
+    // ya usa el mapa para el mismo caso, así la ficha no dice algo distinto
+    // de lo que dice el polígono para la misma unidad.
     return t
       ? { base: theme?.base ?? t.base, label: t.label }
-      : { base: STATUS_TOKENS.no_disponible.base, label: 'Sin dato' };
+      : { base: STATUS_TOKENS.no_disponible.base, label: STATUS_TOKENS.no_disponible.label };
   }
 
   /** `chip: null` = no hay estado comercial que mostrar y no se inventa ninguno. */
@@ -785,6 +865,34 @@ export class ViewerUi {
       (chip
         ? `<div class="r360-panel__status"><i style="background:${chip.base}"></i>${escapeHtml(chip.label)}</div>`
         : '');
+  }
+
+  /**
+   * La línea que decide la compra (camino a la consulta, punto 2): tipología,
+   * m², precio, entrega y estado, en una sola línea legible bajo el título.
+   * `Entrega dic 2026` es la fecha de entrega del Bloque 2 — la única
+   * construida hoy y la única de la que hay fecha (`tools/baleia/README.md`
+   * §3.1); no hay ese dato por unidad en ningún lado del manifiesto, así que
+   * no se inventa una distinta para cada una.
+   *
+   * `price` ya viene resuelto por `priceTextForUnit`, que es quien sabe
+   * cuándo NO hay que decir nada (206/207 bloqueadas: ni precio ni
+   * "Consultar" — README §3.2): acá sólo se agrega el segmento si no es
+   * `null`, nunca se rearma esa regla.
+   */
+  private lineaDecisionHtml(opts: {
+    attrs: Record<string, unknown>;
+    areaTotalM2: number | null;
+    price: string | null;
+    chip: { base: string; label: string };
+  }): string {
+    const partes: string[] = [];
+    if (opts.attrs.tipologia) partes.push(escapeHtml(String(opts.attrs.tipologia)));
+    if (opts.areaTotalM2 != null) partes.push(escapeHtml(`${num(opts.areaTotalM2)} m²`));
+    if (opts.price) partes.push(escapeHtml(opts.price));
+    partes.push(ENTREGA_LABEL);
+    return `<p class="r360-panel__linea">${partes.join(' &middot; ')} &middot; ` +
+      `<span class="r360-panel__linea-estado" style="color:${opts.chip.base}">${escapeHtml(opts.chip.label)}</span></p>`;
   }
 
   private renderPanel(html: string): void {

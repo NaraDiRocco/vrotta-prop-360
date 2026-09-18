@@ -10,7 +10,7 @@
  * del recorrido viviera desparramado en clases y atributos del DOM, la única
  * forma de verificarlo sería mirarlo.
  *
- * Tres cosas que este módulo garantiza y que los tests cuidan:
+ * Cuatro cosas que este módulo garantiza y que los tests cuidan:
  *
  *  1. **La regla de gestos** (spec §1): horizontal mueve entre HERMANOS
  *     (fotos de una serie) y NUNCA entre tramos; el cambio de tramo es
@@ -18,10 +18,17 @@
  *  2. **Atrás sale de una capa por vez** y nunca del recorrido de un salto
  *     (spec §1 y plan anterior §2): capa → riel cerrado (plano) → recién ahí
  *     el navegador.
- *  3. **La imagen de IA no existe fuera del deslizador** (spec §3.1/§5.1):
- *     ningún ítem con `restricted` (ni con `procedencia.kind === 'ia'`) entra
- *     en las listas que arma `buildRailContent`, y `chapaFor` devuelve `null`
- *     para `ia` — no hay chapa de IA fuera del slider, que pone la suya.
+ *  3. **Ningún ítem `restricted` sale de su contexto original** (spec
+ *     §3.1/§5.1): hoy ningún ítem del manifiesto lo es (los dos
+ *     deslizadores "foto vs. IA" que necesitaban esto se sacaron; el único
+ *     par que queda, la fachada de hoy contra el paisajismo terminado, no
+ *     restringe ninguno de los dos lados), pero la regla se deja escrita y
+ *     `isPublicable` sigue filtrando por las dudas: si algún día vuelve a
+ *     haber material generado que SÍ haga falta esconder, no puede colarse
+ *     en las listas que arma `buildRailContent` por default.
+ *  4. **La foto es la norma, el render la excepción** (spec §5.1): por eso
+ *     la chapa "Foto real" se dibuja como máximo una vez por tramo, pero
+ *     TODO render lleva la suya, siempre — ver `chapaVisible` más abajo.
  */
 import type {
   AvailabilityFile,
@@ -47,16 +54,28 @@ export interface TramoDef {
 }
 
 /**
- * El orden es el del cliente con un cambio que la spec justifica: "detalles"
- * (5) antes que "consultar" (6), porque la consulta buena necesita la unidad
- * ya elegida. Consultar no se pierde: hay CTA en todos los tramos.
+ * El orden es el del cliente con dos cambios que la spec justifica:
+ *
+ *  1. "detalles" (hoy "unidades") antes que "consultar", porque la consulta
+ *     buena necesita la unidad ya elegida. Consultar no se pierde: hay CTA
+ *     en todos los tramos.
+ *  2. El VIDEO (obra real, filmada) se adelanta a justo después del Bloque
+ *     2 (fotos + 360, también real) y antes de "Elegí tu unidad" — el orden
+ *     de antes era Llegada → Bloque 2 → Amenities (proyecto, renders) →
+ *     Video (real) → Unidades → Consultar: la mitad real del recorrido
+ *     quedaba partida en dos por la mitad proyectada, y el visitante volvía
+ *     a la realidad (el video) justo después de haberla dejado (los
+ *     amenities). Ahora es real → real → elegir → proyecto → consultar: TODO
+ *     lo fotografiado/filmado de verdad va junto, la decisión de unidad se
+ *     toma con esa evidencia fresca, y lo que todavía no existe (amenities)
+ *     queda de último, antes de escribir.
  */
 export const TRAMOS: readonly TramoDef[] = [
   { id: 'llegada',   short: 'Llegada',   title: 'La llegada',                 asNext: 'la llegada' },
   { id: 'bloque-2',  short: 'El bloque', title: 'El bloque, afuera y adentro', asNext: 'el Bloque 2, construido' },
-  { id: 'amenities', short: 'Amenities', title: 'Los amenities',              asNext: 'los amenities' },
   { id: 'video',     short: 'Video',     title: 'El video',                   asNext: 'el video' },
-  { id: 'unidades',  short: 'Detalles',  title: 'Elegí tu unidad',            asNext: 'elegí tu unidad' },
+  { id: 'unidades',  short: 'Tu unidad', title: 'Elegí tu unidad',            asNext: 'elegí tu unidad' },
+  { id: 'amenities', short: 'Amenities', title: 'Los amenities, como están proyectados', asNext: 'los amenities' },
   { id: 'consultar', short: 'Consultar', title: 'Consultar',                  asNext: 'consultar' },
 ];
 
@@ -325,13 +344,23 @@ export function captionSinChapa(caption: string | null | undefined): string | nu
 }
 
 /**
- * ¿Se dibuja la chapa en esta pieza? La fecha como prueba funciona **una vez
- * por tramo**; diecisiete veces seguidas es ruido (auditoría §2.13). La regla
- * es: la primera pieza del tramo la lleva, y después sólo cuando cambia la
- * NATURALEZA del material (foto → render → foto). `prev` es la naturaleza de
- * la última pieza que sí llevó chapa; `null` al empezar cada tramo.
+ * ¿Se dibuja la chapa en esta pieza? Para `foto` la fecha como prueba
+ * funciona **una vez por tramo**; diecisiete veces seguidas es ruido
+ * (auditoría §2.13) — ahí la regla es: la primera pieza del tramo la lleva,
+ * y después sólo cuando cambia la NATURALEZA del material (foto → render →
+ * foto). `prev` es la naturaleza de la última pieza que sí llevó chapa;
+ * `null` al empezar cada tramo.
+ *
+ * Para `render` esa regla no aplica: la foto es la norma del recorrido y el
+ * render la excepción (spec §5.1), así que TODO render lleva su chapa,
+ * siempre, sin deduplicar contra el anterior. Sin esto, una tira de varios
+ * renders seguidos (Tramo 3, amenities) sólo marcaba el primero, y cuatro
+ * pantallas después uno sin chapa (`complejo4`, con techo verde y césped) se
+ * lee en el celular como la foto del edificio terminado — exactamente lo
+ * que la chapa existe para evitar.
  */
 export function chapaVisible(prev: ChapaKind | null, kind: ChapaKind | null): boolean {
+  if (kind === 'render') return true;
   return !!kind && kind !== prev;
 }
 
@@ -389,7 +418,7 @@ export interface RailContent {
 /** Ids de la spec §1. Si alguno falta en el manifiesto, el tramo se dibuja con lo que haya. */
 const ID_CONTEXTO = '01_aerea_contexto_costa_lejos';
 const ID_SKYLINE_AEREO = '04_aerea_skyline_punta_del_este';
-const ID_HERO = '02_aerea_bloque2_oblicua_cercana';
+const ID_HERO = '27_aerea_tres_bloques';
 const ID_SKYLINE_TERRAZA = '11_vista_terraza_peninsula_skyline';
 const IDS_FACHADA = [
   '07_fachada_bloque2_dia_completa',
@@ -788,6 +817,16 @@ export const WELCOME_LUGAR = 'Punta Ballena · Uruguay';
 
 /** Clave de la marca local "ya vi la bienvenida". Una sola, compartida. */
 export const WELCOME_SEEN_KEY = 'r360:bienvenida-vista';
+
+/**
+ * Qué unidad (hoja, no bloque) fue la última que la ficha abrió en esta
+ * pestaña (`ui.ts::openUnit`). El Tramo 6 la lee para decidir el mensaje del
+ * único botón de WhatsApp: si el visitante ya eligió una unidad, el CTA
+ * pregunta por ESA unidad; si sólo vio el bloque, pregunta por una visita.
+ * `sessionStorage` y no `localStorage`: es lo que se estuvo mirando EN ESTA
+ * visita, no un dato que deba sobrevivir a que alguien cierre la pestaña.
+ */
+export const LAST_UNIT_SEEN_KEY = 'r360:ultima-unidad';
 
 export function shouldShowWelcome(opts: { hash: string; start?: string }): boolean {
   // Un deep link a una unidad: lo mandó un vendedor con algo puntual para

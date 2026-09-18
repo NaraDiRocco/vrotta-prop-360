@@ -62,11 +62,32 @@ export function diffAvailability(
   return out;
 }
 
+/**
+ * Piso entre dos refrescos, sin importar quién los pida (el timer o
+ * `visibilitychange`). Existe por I5 (auditoría de rendimiento): con el
+ * intervalo en 60 s se midieron 102 pedidos a `availability.json` en diez
+ * minutos de navegación — muchos más que los ~10 que el timer solo
+ * explicaría. La causa es `visibilitychange`: cada vez que la pestaña pierde
+ * y recupera el foco (cambiar de app, abrir el selector de fotos del
+ * teléfono, o —en las pruebas— cambiar de pestaña del navegador) el
+ * visitante puede volver en segundos, y cada vuelta pedía el archivo de
+ * nuevo. El piso no le quita el propósito a `visibilitychange` (volver de
+ * MINUTOS en segundo plano sigue refrescando al toque): sólo colapsa las
+ * vueltas de menos de `MIN_GAP_MS` en una sola descarga.
+ */
+const MIN_GAP_MS = 15_000;
+
 export class AvailabilityPoller {
   private timer: ReturnType<typeof setInterval> | null = null;
   private controller: AbortController | null = null;
   private current: AvailabilityFile | null;
   private readonly opts: Required<Pick<PollerOptions, 'intervalMs'>> & PollerOptions;
+  /** `Date.now()` del último refresco EMPEZADO (con éxito o no). */
+  private lastFetchAt = 0;
+  /** El refresco en curso, si hay uno: una segunda llamada se le engancha
+   *  en vez de disparar otro `fetch` en paralelo (timer y `visibilitychange`
+   *  pueden pedirlo casi al mismo tiempo). */
+  private inFlight: Promise<AvailabilityChange[]> | null = null;
 
   constructor(opts: PollerOptions) {
     this.opts = { intervalMs: 60_000, ...opts };
@@ -77,13 +98,23 @@ export class AvailabilityPoller {
     return this.current;
   }
 
+  /**
+   * Idempotente a propósito: si algo llama a `start()` dos veces sobre la
+   * MISMA instancia (un remontaje que no pasó por `stop()`, por ejemplo)
+   * seguía habiendo un solo timer — pero además nunca sumaba un segundo
+   * listener de `visibilitychange`, así que esta guarda no cambia
+   * comportamiento, sólo lo deja explícito y probado.
+   */
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => void this.refresh(), this.opts.intervalMs);
-    // Al volver de segundo plano el dato puede tener minutos: refrescar ya.
+    // Al volver de segundo plano el dato puede tener minutos: refrescar ya
+    // (sujeto al piso de `MIN_GAP_MS` de más abajo).
     document.addEventListener('visibilitychange', this.onVisibility);
   }
 
+  /** Limpia timer, listener y cualquier fetch en curso — para que un
+   *  `mountViewer` que se desmonta no deje nada vivo detrás. */
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
@@ -92,10 +123,24 @@ export class AvailabilityPoller {
   }
 
   private onVisibility = (): void => {
-    if (document.visibilityState === 'visible') void this.refresh();
+    if (document.visibilityState !== 'visible') return;
+    if (Date.now() - this.lastFetchAt < MIN_GAP_MS) return; // ver MIN_GAP_MS
+    void this.refresh();
   };
 
-  async refresh(): Promise<AvailabilityChange[]> {
+  refresh(): Promise<AvailabilityChange[]> {
+    // Una descarga a la vez: si ya hay una en curso, todo el que la pida
+    // mientras tanto recibe la MISMA promesa en vez de sumar otro `fetch`.
+    if (this.inFlight) return this.inFlight;
+    const p = this.doRefresh().finally(() => {
+      this.inFlight = null;
+    });
+    this.inFlight = p;
+    return p;
+  }
+
+  private async doRefresh(): Promise<AvailabilityChange[]> {
+    this.lastFetchAt = Date.now();
     this.controller?.abort();
     this.controller = new AbortController();
     try {

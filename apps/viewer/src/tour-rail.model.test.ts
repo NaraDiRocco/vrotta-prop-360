@@ -85,7 +85,7 @@ const TOUR: TourManifest = {
     items: [
       foto('01_aerea_contexto_costa_lejos', { caption: 'El terreno, entre el bosque y la Ruta 10.' }),
       foto('04_aerea_skyline_punta_del_este'),
-      foto('02_aerea_bloque2_oblicua_cercana', { caption: 'Bloque 2. Tres niveles, nueve unidades. Foto real.' }),
+      foto('27_aerea_tres_bloques', { caption: 'El conjunto: tres bloques sobre el bosque.' }),
       foto('07_fachada_bloque2_dia_completa'),
       foto('08_fachada_bloque2_angulo'),
       foto('09_fachada_bloque2_vertical'),
@@ -108,12 +108,15 @@ const TOUR: TourManifest = {
 
 // ------------------------------------------------------------ los seis tramos
 
-test('el riel tiene seis tramos, en el orden de la spec', () => {
+test('el riel tiene seis tramos, en el orden narrativo (real, elegir, proyecto, consultar)', () => {
   assert.deepEqual(
     TRAMOS.map((t) => t.id),
-    ['llegada', 'bloque-2', 'amenities', 'video', 'unidades', 'consultar'],
+    // Llegada → Bloque 2 → Video (los tres, material real) → Elegí tu
+    // unidad → Amenities (proyecto) → Consultar: todo lo real va junto y el
+    // recorrido recién entra a lo proyectado después de elegir unidad.
+    ['llegada', 'bloque-2', 'video', 'unidades', 'amenities', 'consultar'],
   );
-  assert.equal(tramoIndex('unidades'), 4);
+  assert.equal(tramoIndex('unidades'), 3);
 });
 
 test('cada tramo tiene su propio hash y se lo puede leer de vuelta', () => {
@@ -203,7 +206,7 @@ test('cambiar de tramo cierra las capas del anterior pero conserva la posición 
     { type: 'abrir-capa', layer: 'foto' },
     { type: 'siguiente' },
   );
-  assert.equal(s.tramo, 'amenities');
+  assert.equal(s.tramo, 'video');
   assert.deepEqual(s.layers, [], 'una foto grande no sobrevive al cambio de capítulo');
   assert.equal(serieIndex(s, 'paseo', 11), 6, 'volver al tramo te deja donde estabas');
 });
@@ -286,7 +289,7 @@ test('cada tramo toma su material del manifiesto y nada más', () => {
   ]);
   assert.equal(c.llegada.render?.slug, 'acceso');
   assert.equal(c.llegada.render?.procedencia.kind, 'render');
-  assert.equal(c.bloque.hero?.id, '02_aerea_bloque2_oblicua_cercana');
+  assert.equal(c.bloque.hero?.id, '27_aerea_tres_bloques');
   assert.deepEqual(c.amenities.renders.map((r) => r.slug), ['amenities', 'complejo-laguna', 'complejo-pergola']);
   assert.equal(c.amenities.hoy?.id, '01_aerea_contexto_costa_lejos');
   // Ninguna vista del proyecto queda sin lugar al sacar la pestaña "Vistas",
@@ -399,11 +402,15 @@ test('un bloque que todavía no salió a la venta dice "próximamente", no "0 di
 
 // ------------------------------------------------------------------ chapas
 
-test('la chapa aparece una vez por tramo y cuando cambia la naturaleza del material', () => {
+test('la chapa: en fotos aparece una vez por tramo, en renders SIEMPRE', () => {
   // El Tramo 2 la dibujaba 17 veces, una por foto (auditoría §2.13).
   assert.deepEqual(chapasVisibles(['foto', 'foto', 'foto']), [true, false, false]);
   // Foto → render → foto: cada cambio de naturaleza la vuelve a mostrar.
-  assert.deepEqual(chapasVisibles(['foto', 'render', 'render', 'foto']), [true, true, false, true]);
+  assert.deepEqual(chapasVisibles(['foto', 'render', 'foto']), [true, true, true]);
+  // Varios renders seguidos (Tramo 3, amenities): la foto es la norma del
+  // recorrido y el render la excepción, así que NINGÚN render se deduplica
+  // contra el anterior — todos llevan chapa, sin excepción.
+  assert.deepEqual(chapasVisibles(['foto', 'render', 'render', 'render', 'foto']), [true, true, true, true, true]);
   // Una imagen sin chapa (la de IA, dentro de su deslizador) no corta la
   // secuencia ni se lleva una chapa propia.
   assert.deepEqual(chapasVisibles(['foto', null, 'foto']), [true, false, false]);
@@ -498,7 +505,7 @@ test('la bienvenida se saltea sólo cuando el link nombra un destino', () => {
 
 test('la bienvenida son dos fotos reales, nunca un render ni el video de IA', () => {
   const { hero, segunda } = welcomePhotos(TOUR);
-  assert.equal(hero?.id, '02_aerea_bloque2_oblicua_cercana');
+  assert.equal(hero?.id, '27_aerea_tres_bloques');
   assert.equal(segunda?.id, '11_vista_terraza_peninsula_skyline');
   assert.equal(hero?.procedencia.kind, 'foto');
   assert.equal(segunda?.procedencia.kind, 'foto');

@@ -93,6 +93,23 @@ export function whatsappUrl(whatsapp: string, message: string): string | null {
   return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(message)}` : null;
 }
 
+/**
+ * El mismo número, para quien NO usa WhatsApp (camino a la consulta, tramo
+ * 6): "+59895559230" → "+598 95 559 230". Uruguay agrupa código de país (3)
+ * + 2 + 3 + 3; para cualquier otro largo no se inventa un formato de un país
+ * que no conocemos y se cae a un agrupado genérico de a 3 desde la
+ * izquierda, siempre con el "+" adelante.
+ */
+export function formatWhatsappDisplay(raw: string): string | null {
+  const digits = normalizeWhatsapp(raw);
+  if (!digits) return null;
+  if (digits.startsWith('598') && digits.length === 11) {
+    const resto = digits.slice(3);
+    return `+598 ${resto.slice(0, 2)} ${resto.slice(2, 5)} ${resto.slice(5, 8)}`;
+  }
+  return `+${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`;
+}
+
 /** Texto del botón. Lleva el código adentro: el visitante ve por qué consulta. */
 export function ctaLabel(ctx: Pick<CtaContext, 'kind' | 'label' | 'numero'>): string {
   if (ctx.kind === 'visita') return 'Quiero visitarla';
