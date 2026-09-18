@@ -92,13 +92,40 @@ export interface Scene {
    *  - `poster`: el cuadro de apertura, para no mostrar un rectángulo negro
    *    mientras el archivo no cargó (mismo problema que resuelve el thumb
    *    del masterplan, ver `build_tour.py::convert_masterplan`).
-   *  - `mobileUrl`: versión liviana (menor bitrate/resolución) que el visor
-   *    sirve en pantallas angostas vía `<source media>`; `source.url` sigue
-   *    siendo la versión de escritorio. Sin `mobileUrl` el visor sirve
-   *    `source.url` en cualquier pantalla.
+   *  - `mobileUrl`: versión liviana (menor bitrate/resolución) del MISMO
+   *    corte que `source.url` — misma duración, mismo encuadre, sólo pesa
+   *    menos — que el visor sirve en pantallas angostas vía `<source
+   *    media>`; `source.url` sigue siendo la versión de escritorio. Sin
+   *    `mobileUrl` el visor sirve `source.url` en cualquier pantalla.
    */
   poster?: { url: string; width: number; height: number };
   mobileUrl?: string;
+  /**
+   * Variante vertical del mismo video, para celular (decisión 18,
+   * `build_tour.py::build_video_scene`). A propósito NO es un caso de
+   * `mobileUrl`: `mobileUrl` es "el mismo corte, más liviano" y el
+   * reproductor dimensiona su caja con `source.width`/`height` — meter ahí
+   * un archivo 1080x1920 lo encajona con bandas negras horizontales. Este
+   * campo declara un corte DISTINTO (otra edición, otra duración, con la
+   * marca del proyecto incrustada en los primeros segundos) con sus propias
+   * dimensiones y su propio póster, para que el visor pueda dimensionar la
+   * caja con las medidas reales de LA FUENTE QUE USA, no con las del
+   * horizontal. `duration` viaja aparte de la del `source` de escritorio
+   * porque es, literalmente, otro archivo de otra duración — no calculable
+   * a partir del horizontal. Campo OPCIONAL y aditivo: sin él, el visor
+   * sigue sirviendo sólo el horizontal en cualquier pantalla, como antes de
+   * esta decisión. `mobileUrl` adentro es la variante liviana de ESTE
+   * corte vertical (mismo criterio que el `mobileUrl` de arriba, un nivel
+   * más abajo), no una tercera opción.
+   */
+  portrait?: {
+    url: string;
+    width: number;
+    height: number;
+    duration: number;
+    mobileUrl?: string;
+    poster?: { url: string; width: number; height: number };
+  };
 }
 
 /**

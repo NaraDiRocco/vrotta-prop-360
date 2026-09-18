@@ -26,6 +26,31 @@ Se sirve la versión 720 en móvil y la 1080 en escritorio. Ambas con
 `+faststart`: arrancan sin bajar el archivo entero. El póster es el cuadro
 aéreo de apertura, para que el reproductor no muestre un rectángulo negro.
 
+## `video/baleia-recorrido-real.vertical.mp4` — el mismo recorrido, corte vertical (celular)
+
+La dueña pidió que las imágenes del recorrido fueran de altura completa en
+celular; el video era la única pieza donde eso pedía material nuevo (el
+horizontal de arriba, en 9:16, queda con bandas negras arriba/abajo o
+recortado feo a los costados). **Es OTRO CORTE, no el horizontal rotado**:
+dura 49,7 s contra los 82,8 s del horizontal, y tiene la marca "Baleia ·
+Punta Ballena · Uruguay" incrustada en los primeros segundos del video —el
+horizontal no la tiene.
+
+| Archivo | Resolución | Peso | Bitrate |
+|---|---|---|---|
+| `baleia-recorrido-real.vertical.mp4` | 1080x1920 | 18,1 MB | 3,0 Mbps |
+| `baleia-recorrido-real.vertical.720.mp4` | 720x1280 | 7,2 MB | 1,2 Mbps |
+| `baleia-recorrido-real.vertical.poster.jpg` | 720x1280 | — | — |
+
+Mismo criterio de compresión que el horizontal (720 en móvil, `+faststart`
+verificado). Se emite en el manifiesto como `Scene.portrait`
+(`packages/core/src/types.ts`), no como `mobileUrl`: `mobileUrl` es "mismo
+corte, más liviano" y el reproductor dimensiona la caja con las medidas del
+horizontal — un archivo 1080x1920 ahí queda encajonado. `portrait` trae sus
+propias dimensiones y su propio póster para que el visor arme la caja con
+las medidas reales de esta fuente (ver `build_tour.py::build_video_scene`,
+decisión 18, y `apps/viewer/src/tour-rail.ts::renderVideo`).
+
 ## `video/baleia-01-principal.mp4` y `-02-respiracion.mp4` — el conjunto materializándose
 
 Generados con **Higgsfield** a partir de la aérea real del Bloque 2 en obra
