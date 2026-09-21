@@ -1400,27 +1400,22 @@ export class TourRail {
     pie.append(caption, contador);
     card.appendChild(pie);
 
-    // Con mouse, una pista de scroll horizontal con la barra oculta era
-    // irrecorrible: 0 botones y `cursor: auto` (auditoría §2.17). Las flechas
-    // sólo se dibujan donde hay puntero fino (CSS); acá siempre existen para
-    // que el teclado también las alcance.
-    const flecha = (dir: 'prev' | 'next'): HTMLButtonElement => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `r360-rail__flecha r360-rail__flecha--${dir}`;
-      b.textContent = dir === 'prev' ? '‹' : '›';
-      b.setAttribute('aria-label', dir === 'prev' ? 'Foto anterior de la serie' : 'Foto siguiente de la serie');
-      return b;
-    };
-    const prev = flecha('prev');
-    const next = flecha('next');
-    card.append(prev, next);
+    // Sin flechas sobre la foto: tapaban la imagen y repetían lo que ya dicen
+    // el asomo de la foto siguiente y su empujón. Con teclado la serie se
+    // recorre igual, con las flechas del teclado sobre la tira (`keydown`,
+    // más abajo), que además es enfocable.
 
     const paint = () => {
       const i = serieIndex(this.state, id, items.length);
       const item = items[i];
       caption.textContent = item?.caption ?? '';
       contador.textContent = `${i + 1}/${items.length}`;
+      // La pista viaja con el dedo: la que se asoma es siempre la que sigue a
+      // la que se está mirando, y en la última no se asoma ninguna.
+      if (opts.editorial) {
+        const hijos = [...track.children] as HTMLElement[];
+        for (const [j, el] of hijos.entries()) el.classList.toggle('is-asomando', j === i + 1);
+      }
       if (tira) {
         for (const b of tira.querySelectorAll<HTMLElement>('.r360-rail__amb')) {
           const on = items[Number(b.dataset.index)]?.ambiente === item?.ambiente;
@@ -1431,8 +1426,6 @@ export class TourRail {
           if (on) b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
         }
       }
-      prev.disabled = i <= 0;
-      next.disabled = i >= items.length - 1;
     };
 
     // El índice sale del scroll real, que es la única verdad de dónde quedó el
@@ -1450,6 +1443,11 @@ export class TourRail {
       });
     };
     track.addEventListener('scroll', onScroll, { passive: true });
+    // El empujoncito se corta con el primer gesto del visitante: ya entendió
+    // que hay más y seguir moviéndole la tira sería ruido. Se escucha el
+    // gesto y no el `scroll`, porque el propio código desplaza la tira al
+    // montarla (restaura la foto donde estabas) y eso apagaba la pista antes
+    // de que llegara a verse.
     this.seriesCleanup.push(() => track.removeEventListener('scroll', onScroll));
 
     const goTo = (index: number) => {
@@ -1459,12 +1457,6 @@ export class TourRail {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-index]');
       if (b) goTo(Number(b.dataset.index));
     });
-    const paso = (delta: number) => () => {
-      const i = serieIndex(this.state, id, items.length);
-      goTo(Math.min(items.length - 1, Math.max(0, i + delta)));
-    };
-    prev.addEventListener('click', paso(-1));
-    next.addEventListener('click', paso(1));
     track.addEventListener('keydown', (e) => {
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
       e.preventDefault();

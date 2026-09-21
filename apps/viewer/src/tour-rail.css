@@ -403,34 +403,6 @@
   text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
 }
 
-/* Flechas de escritorio: con mouse, una pista con la barra oculta era
-   irrecorrible (auditoría §2.17). En táctil no aparecen: ahí está el dedo. */
-.r360-rail__flecha {
-  position: absolute;
-  top: 50%;
-  z-index: 5;
-  display: none;
-  place-items: center;
-  width: var(--r360-tap);
-  height: var(--r360-tap);
-  margin-top: calc(var(--r360-tap) / -2);
-  border-radius: 999px;
-  font: inherit;
-  font-size: 20px;
-  line-height: 1;
-  color: var(--r360-fg);
-  background: rgba(6, 10, 15, .72);
-  border: 1px solid var(--r360-border);
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-}
-.r360-rail__flecha--prev { left: 10px; }
-.r360-rail__flecha--next { right: 10px; }
-.r360-rail__flecha[disabled] { opacity: .28; pointer-events: none; }
-@media (hover: hover) and (pointer: fine) {
-  .r360-rail__flecha { display: grid; }
-}
-
 /* Tira de ambientes: dónde estoy en la casa (y salto directo). Va sobre la
    foto, arriba, y el degradado del borde derecho dice que sigue. */
 .r360-rail__tirawrap {
@@ -788,7 +760,7 @@
      el final de la frase. Se les restan los 6 px de relleno que cada botón
      tiene adentro para dibujar el círculo más chico que su área de toque —sin
      esa resta los círculos quedaban 6 px hacia adentro de los textos. */
-  padding: 130px 34px 24px 22px;
+  padding: 130px 22px 24px;
   pointer-events: none;
   background: linear-gradient(to top, rgba(6, 10, 15, .8), rgba(6, 10, 15, .34) 62%, rgba(6, 10, 15, 0));
 }
@@ -1470,7 +1442,14 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
   z-index: 2;
   pointer-events: none;
   background: linear-gradient(to top, rgba(6, 10, 15, .62), rgba(6, 10, 15, .18) 52%, rgba(6, 10, 15, 0) 78%);
+  opacity: 1;
+  transition: opacity .35s ease;
 }
+/* La que se está asomando no lleva velo: en una franja de 18 px el velo es
+   sólo oscuridad —se veía como una línea de sombra al costado de la foto, no
+   como la foto que viene—. Lo recupera, fundido, en cuanto pasa a ser la que
+   se está mirando. */
+.r360-rail__serie.is-editorial .r360-rail__slide.is-asomando::after { opacity: 0; }
 /* La leyenda del pie sobra: el texto ya está sobre la foto. El contador se
    queda, que es lo que dice cuántas fotos hay. */
 .r360-rail__serie.is-editorial .r360-rail__seriepie .r360-rail__caption { display: none; }
@@ -1664,4 +1643,28 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
   line-height: 1.55;
   /* Va sobre la parte más oscura de la foto: al 55 % de blanco se perdía. */
   color: rgba(255, 255, 255, .82);
+}
+
+/* El asomo de la foto siguiente, en movimiento: la que viene se corre unos
+   píxeles hacia adentro y vuelve, una y otra vez. La que se está
+   mirando no se mueve —es la que el visitante está leyendo—; lo que entra y
+   sale es la franja de la siguiente. La franja de 18 px dice que hay más; el
+   empujón dice que se pasa con el dedo.
+
+   Va en `transform` y no en scroll, así que no cambia el índice de la serie.
+   No se detiene: es tan leve que no molesta, y mientras se mueve sigue
+   diciendo que la tira se pasa con el dedo. */
+@keyframes r360-asomo {
+  0%, 46%, 100% { transform: translateX(0); }
+  /* 16 px sobre una franja de 18: la foto que viene casi DUPLICA lo que se ve
+     de ella. Menos que eso y lo que entra es un filo oscuro —se lee como una
+     sombra y no como la imagen asomándose—. */
+  68% { transform: translateX(-16px); }
+  90% { transform: translateX(0); }
+}
+.r360-rail__serie.is-editorial .r360-rail__slide.is-asomando {
+  animation: r360-asomo 2.6s cubic-bezier(.4, .1, .2, 1) .6s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .r360-rail__serie.is-editorial .r360-rail__slide.is-asomando { animation: none; }
 }
