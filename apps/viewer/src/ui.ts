@@ -160,6 +160,9 @@ async function rotatedImageUrl(src: string): Promise<string | null> {
   }
 }
 
+/** Estados en los que la ficha no ofrece consulta: no hay nada que preguntar. */
+const SIN_CONSULTA = new Set(['vendido', 'bloqueado', 'proximamente', 'no_disponible']);
+
 /**
  * El color del estado, corregido para que se lea sobre el papel de la ficha.
  * "Bloqueado" es blanco en la paleta de estados —pensado para el plano, sobre
@@ -665,6 +668,13 @@ export class ViewerUi {
     // 2). La ficha de un bloque sigue mostrando el resumen de siempre
     // (`blockSummary`, arriba).
     const lineaDecision = codes ? '' : this.lineaDecisionHtml({ titulo, attrs, areaTotalM2: unit.areaTotalM2 ?? null, price, chip });
+    // Sin botón de consulta en lo que no está a la venta: una unidad vendida,
+    // bloqueada o "próximamente" no tiene nada que consultar, y ofrecer el
+    // canal ahí hace perder el tiempo a las dos partes. La ficha sigue
+    // mostrando todo lo demás —plano, medidas, estado—, que es lo que el
+    // visitante vino a mirar.
+    const sinConsulta = !codes && SIN_CONSULTA.has(this.statusOf(code) ?? '');
+
     // Pedir la visita sólo si la unidad se puede comprar: en una bloqueada o
     // reservada el único botón tiene que ser la consulta, no "quiero
     // visitarla" — `puedeVisitarse` mira si el bloque está construido, que es
@@ -683,7 +693,7 @@ export class ViewerUi {
         priceRow +
         lineaDecision +
         this.recorrido360Html(attrs) +
-        this.ctaHtml(code, visitable) +
+        (sinConsulta ? '' : this.ctaHtml(code, visitable)) +
         this.accionesHtml(code, unit.groupCode ?? parent ?? null, attrs) +
         this.plano3dHtml(attrs) +
         (rows.length ? `<dl class="r360-facts">${rows.join('')}</dl>` : '') +

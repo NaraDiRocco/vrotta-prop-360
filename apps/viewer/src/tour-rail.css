@@ -1631,7 +1631,9 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
 }
 .r360-cierre__bajada {
   margin: 0 0 22px;
-  max-width: 30ch;
+  /* Sin tope de ancho: la frase usa toda la columna, como el botón de abajo.
+     Con un `max-width` en `ch` cortaba antes de llegar al margen y dejaba una
+     segunda línea de dos palabras. */
   font-size: 15px;
   line-height: 1.5;
   font-weight: 300;
