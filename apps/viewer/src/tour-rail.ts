@@ -580,18 +580,11 @@ export class TourRail {
     else if (def.id === 'video') this.renderVideo();
     else this.renderConsultar();
 
-    // El acceso al plano y a WhatsApp está en casi todos los tramos: el
-    // masterplan siempre a un toque (spec §1) y el canal de consulta siempre
-    // abierto (spec §6), sin obligar a llegar al final.
-    //
-    // Dos excepciones. `consultar` ES la pantalla de consulta, así que no se
-    // cierra a sí misma. Y `llegada` quedó reducido a una sola imagen con una
-    // frase: una tarjeta de cierre detrás de esa única foto agregaba una
-    // segunda pantalla y deshacía justamente lo que se buscaba. Se sigue al
-    // tramo siguiente con la flecha del pie, que está en todas las pantallas.
-    if (def.id !== 'consultar' && def.id !== 'llegada' && def.id !== 'bloque-2' && def.id !== 'amenities') {
-      this.add(this.tramoFooter());
-    }
+    // Ya no hay tarjeta de cierre por tramo. Cada tramo entra en una pantalla,
+    // y esa tarjeta agregaba una segunda —vacía salvo por un "Lo que sigue" y
+    // un botón—. Al tramo siguiente se pasa con la flecha del pie, que está
+    // en todas las pantallas; la consulta vive en el Tramo 5 y en la ficha de
+    // cada unidad.
     this.flush();
     this.paintDots();
     this.aplicarFoco();
@@ -1063,106 +1056,6 @@ export class TourRail {
    * dejaba la sensación de que la historia se cortaba: ninguna línea decía que
    * ese capítulo había terminado ni hacia dónde iba el siguiente.
    */
-  /**
-   * Camino a la consulta: UNA acción primaria por pantalla. En todos los
-   * tramos, "Seguir" es esa acción y WhatsApp queda como una línea discreta
-   * debajo ("¿Ya querés hablar? WhatsApp") — nunca un tercer botón, y "Ver el
-   * plano" se sacó del todo: el plano ya está siempre a un toque en la barra
-   * inferior, y repetirlo acá era el botón de más.
-   *
-   * La excepción es el Bloque 2 (Tramo 2): ahí el WhatsApp YA es la acción
-   * primaria de la pantalla anterior (`renderBloque`, justo después de las
-   * fotos de adentro y el 360 — el momento de más convicción del recorrido),
-   * así que este pie no repite el CTA: "Seguir" queda como el enlace
-   * discreto, para no competir con el botón que ya se mostró.
-   */
-  private tramoFooter(): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'r360-rail__card r360-rail__cierre';
-
-    const def = tramoDef(this.state.tramo);
-    // El tramo que sigue, por su nombre: `railNextLabel` sólo da el rótulo del
-    // botón ("Siguiente"), que acá no dice nada. `asNext` es cómo se anuncia
-    // cada tramo cuando lo nombra el anterior ("el Bloque 2, construido").
-    const siguiente = TRAMOS[tramoIndex(this.state.tramo) + 1] ?? null;
-    el.innerHTML =
-      `<p class="r360-rail__cierre-de">${escapeHtml(def.title)}</p>` +
-      (siguiente
-        ? `<h3>Lo que sigue: ${escapeHtml(siguiente.asNext)}.</h3>`
-        : `<h3>Hasta acá el recorrido.</h3>`);
-
-    const yaHuboWhatsappPrimario = this.state.tramo === 'bloque-2';
-
-    if (siguiente) {
-      if (yaHuboWhatsappPrimario) {
-        const seguir = document.createElement('button');
-        seguir.type = 'button';
-        seguir.className = 'r360-rail__seguir-discreto';
-        seguir.textContent = `Seguir: ${siguiente.asNext} →`;
-        seguir.addEventListener('click', () => this.dispatch({ type: 'siguiente' }));
-        el.appendChild(seguir);
-      } else {
-        const acciones = document.createElement('div');
-        acciones.className = 'r360-rail__acciones r360-rail__acciones--pie';
-        acciones.appendChild(
-          this.button('Seguir', 'is-primary', () => this.dispatch({ type: 'siguiente' })),
-        );
-        el.appendChild(acciones);
-      }
-    }
-
-    if (!yaHuboWhatsappPrimario) {
-      const discreta = this.waDiscreta();
-      if (discreta) el.appendChild(discreta);
-    }
-
-    return el;
-  }
-
-  /**
-   * La línea discreta de WhatsApp del cierre de tramo: "¿Ya querés hablar?
-   * WhatsApp", nunca un botón. Mismo mensaje que antes armaba `ctaLink`
-   * ('tramo'), sólo que dibujado como texto y no como pieza del mismo peso
-   * que "Seguir".
-   */
-  private waDiscreta(): HTMLAnchorElement | null {
-    const contact = this.opts.tour.contact;
-    if (!contact?.whatsapp) return null;
-    const ctx = {
-      project: this.opts.tour.project,
-      tramo: this.state.tramo,
-      bloqueLabel: this.content.bloque.bloque?.label ?? null,
-      url: `${location.href.split('#')[0]}#/scene/${this.state.tramo}`,
-    };
-    const message = railCtaMessage('tramo', ctx);
-    const href = whatsappUrl(contact.whatsapp, message);
-    if (!href) return null;
-    const a = document.createElement('a');
-    a.className = 'r360-rail__wa-discreta';
-    a.href = href;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.textContent = '¿Ya querés hablar? WhatsApp';
-    a.addEventListener('click', () => {
-      this.opts.container.dispatchEvent(
-        new CustomEvent('r360:cta', {
-          detail: { unitCode: null, kind: 'rail-tramo', tramo: this.state.tramo, message },
-          bubbles: true,
-        }),
-      );
-    });
-    return a;
-  }
-
-  private button(label: string, cls: string, onClick: () => void): HTMLButtonElement {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = `r360-rail__btn ${cls}`;
-    b.textContent = label;
-    b.addEventListener('click', onClick);
-    return b;
-  }
-
   /**
    * CTA de WhatsApp a nivel de TRAMO (sin unidad elegida). El mensaje lo arma
    * `tour-rail.model.ts` y el enlace lo normaliza `contact.ts`: acá no se

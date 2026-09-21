@@ -362,8 +362,8 @@ PHOTO_CAPTIONS = {
 # ambiente + caption, tal como están escritos uno por uno en la tabla del
 # plan — se usan textuales a propósito, están pensadas.
 UNIT_WALK = [
-    ("16_living_comedor_amplio", "Living", "Living-comedor de un dúplex. Piso de madera, ventanales corredizos a la terraza."),
-    ("14_living_ventanales_vista_verde", "Los ventanales", "Los ventanales dan al este: la vista, no el estacionamiento."),
+    ("16_living_comedor_amplio", "Living", "Living-comedor de un dúplex.\nPiso de madera, ventanales\ncorredizos a la terraza."),
+    ("14_living_ventanales_vista_verde", "Los ventanales", "Los ventanales dan al este:\nla vista, no el\nestacionamiento."),
     ("17_cocina_equipada_completa", "Cocina", "Cocina entregada así: mesada de cuarzo negro, horno y anafe instalados."),
     ("21_escalera_interna_duplex", "Escalera", "La escalera del dúplex: dos plantas."),
     ("20_dormitorio_placard_vacio", "Dormitorio", "Dormitorio con placard instalado. Sin\u00a0amueblar: así se entrega."),

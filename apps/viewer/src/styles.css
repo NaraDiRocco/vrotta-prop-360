@@ -308,7 +308,7 @@ body.r360-no-legend #legend { display: none; }
 
 .r360-facts {
   display: grid; grid-template-columns: auto 1fr; gap: 5px 12px;
-  margin: 12px 0 0; padding: 12px 0 0; border-top: 1px solid var(--r360-border);
+  margin: 12px 0 0; padding: 18px 0 0; border-top: 1px solid var(--r360-border);
 }
 .r360-facts dt { opacity: .65; }
 .r360-facts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
@@ -406,6 +406,11 @@ body.r360-no-legend #legend { display: none; }
        y quien abria una ficha se quedaba sin Inicio, Plano ni Unidades. */
     top: auto; left: 0; right: 0; bottom: calc(var(--r360-nav-h) + var(--r360-safe-b));
     width: auto; max-height: none;
+    /* De borde a borde, los costados y el pie no tienen nada que delimitar:
+       el contorno de la versión de escritorio dejaba una raya vertical a cada
+       lado de la pantalla. Queda sólo el de arriba, que sí es el canto de la
+       hoja. */
+    border-left: 0; border-right: 0; border-bottom: 0;
     border-radius: 16px 16px 0 0; box-shadow: 0 -4px 24px rgba(0, 0, 0, .35);
     transition: height .28s cubic-bezier(.2, .8, .2, 1);
   }
@@ -566,7 +571,11 @@ body.r360-rail-open .r360-bar > * { pointer-events: auto; }
  * criterio que las otras dos chapas del recorrido (plan §5.1). El plano
  * acotado real queda debajo, en `.r360-media`, para poder contrastarla.
  */
-.r360-panel__plano3d { margin: 0 0 12px; }
+/* El pie del plano respira igual arriba que abajo: eran 6 px contra la imagen
+   y 12 hasta la ficha de datos. Los dos márgenes se tocan (se colapsan), así
+   que hay que bajar los dos para que valga 6. */
+.r360-panel__plano3d { margin: 0 0 6px; }
+.r360-panel__plano3d + .r360-facts { margin-top: 6px; }
 .r360-panel__plano3d .r360-media__item { margin: 0; }
 .r360-chapa-ia {
   margin-top: 6px; font-size: 11px; line-height: 1.3; opacity: .75;
@@ -744,3 +753,121 @@ body.r360-rail-open .r360-bar > * { pointer-events: auto; }
 /* Con la hoja de unidades abierta, la marca flotante del riel sobra: la hoja
    tiene la suya adentro y las dos juntas se encimaban. */
 body.r360-units-open .r360-rail__marca { display: none; }
+
+/* ------------------------------------------ la ficha de unidad, rediseñada */
+
+/* La cabecera de la ficha: el estado como chapa, el precio solo y grande, y
+   el resto de los datos en una fila discreta. Antes era una sola línea en
+   negrita —"Dúplex · 160,5 m² · US$ 358.638 · Entrega dic 2026 ·
+   Disponible"— donde todo pesaba igual y el precio, que es lo que decide, no
+   se distinguía de la fecha de entrega. */
+.r360-ficha { margin: 10px 0 16px; }
+/* El estado arriba de todo, en su color, y debajo la unidad como chapa: quien
+   abre la ficha primero quiere saber si se puede comprar y recién después
+   cuál es. */
+.r360-ficha__disponible {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.r360-ficha__estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #171717;
+  background: transparent;
+  border: 1px solid #ad9a84;
+}
+.r360-ficha__estado i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #171717;
+}
+
+/* Con el título oculto no queda nada que empuje la cruz al borde: el margen
+   automático hace ese trabajo. */
+.r360-solo-lectores + .r360-close { margin-left: auto; }
+
+/* Queda en el árbol para los lectores de pantalla —es el encabezado de la
+   ficha— pero no se dibuja: en pantalla ese nombre ya lo dice la chapa. */
+.r360-solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.r360-ficha__precio {
+  margin: 0 0 6px;
+  font-size: clamp(26px, 8vw, 32px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  color: #171717;
+}
+.r360-ficha__datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: #55636f;
+}
+.r360-ficha__datos span { color: #abc1cb; }
+
+/* Los tres botones, en la paleta de Baleia y con una jerarquía que se ve:
+   arena sólido para la consulta, tinta delineada para la visita y una
+   tercera, apenas dibujada, para el plano. El verde de WhatsApp queda fuera
+   de la ficha: acá el color de marca ordena mejor que el del canal. */
+.r360-sheet .r360-cta {
+  /* 44 px es el piso: el área tocable mínima con el pulgar. */
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 0;
+  font-size: 15px;
+  letter-spacing: .01em;
+  color: #171717;
+  background: #dbd4cc;
+}
+.r360-sheet .r360-panel__acciones { gap: 8px; }
+.r360-sheet .r360-panel__accion,
+.r360-sheet .r360-panel__accion:not(.is-visita) {
+  min-height: 48px;
+  border-radius: 0;
+  font-size: 13.5px;
+  letter-spacing: .01em;
+}
+.r360-sheet .r360-panel__accion.is-visita {
+  color: #171717;
+  background: #ad9a84;
+  border: 1px solid #ad9a84;
+}
+.r360-sheet .r360-panel__accion:not(.is-visita) {
+  color: #55636f;
+  background: transparent;
+  border: 1px solid rgba(171, 193, 203, .9);
+}
+.r360-sheet .r360-panel__accion:hover { border-color: #ad9a84; }
+/* El aviso de precios respira igual arriba que abajo: queda entre los dos
+   botones y con 8/0 se veía pegado al de abajo. */
+.r360-sheet .r360-panel__note--muted {
+  margin: 10px 0;
+  color: #55636f;
+  opacity: 1;
+  font-size: 11px;
+}

@@ -49,7 +49,7 @@ import { Sheet, type SnapPoint } from './sheet.ts';
 // sin DOM, y ya vive testeada en `contact.ts` — es EL punto de integración
 // que ese módulo espera (ver su comentario de cabecera): esta ficha arma el
 // contexto y dibuja lo que `buildCta` le devuelve, sin reinventar el mensaje.
-import { buildCta, ctaContextFor, deepLink, messageFromWhatsappHref, type CtaKind } from './contact.ts';
+import { buildCta, ctaContextFor, deepLink, messageFromWhatsappHref } from './contact.ts';
 // El recorrido guiado de seis tramos es una pieza propia (`tour-rail.ts` +
 // su modelo puro `tour-rail.model.ts`): esta capa sólo lo monta y le presta
 // dos cosas que ya sabe hacer — abrir la ficha de una unidad y volver al
@@ -158,6 +158,19 @@ async function rotatedImageUrl(src: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * El color del estado, corregido para que se lea sobre el papel de la ficha.
+ * "Bloqueado" es blanco en la paleta de estados —pensado para el plano, sobre
+ * la foto— y escrito en blanco sobre blanco no se veía.
+ */
+function tintaLegible(hex: string): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const luz = (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  return luz > 0.62 ? '#55636f' : hex;
 }
 
 export class ViewerUi {
@@ -651,15 +664,26 @@ export class ViewerUi {
     // tipología, m², precio, entrega y estado (camino a la consulta, punto
     // 2). La ficha de un bloque sigue mostrando el resumen de siempre
     // (`blockSummary`, arriba).
-    const lineaDecision = codes ? '' : this.lineaDecisionHtml({ attrs, areaTotalM2: unit.areaTotalM2 ?? null, price, chip });
+    const lineaDecision = codes ? '' : this.lineaDecisionHtml({ titulo, attrs, areaTotalM2: unit.areaTotalM2 ?? null, price, chip });
+    // Pedir la visita sólo si la unidad se puede comprar: en una bloqueada o
+    // reservada el único botón tiene que ser la consulta, no "quiero
+    // visitarla" — `puedeVisitarse` mira si el bloque está construido, que es
+    // otra pregunta.
+    const visitable = !codes
+      && this.statusOf(code) === 'disponible'
+      && puedeVisitarse({
+        groupCode: unit.groupCode ?? parent ?? null,
+        bloqueConstruido: this.bloqueConstruido,
+        status: this.statusOf(code),
+      });
 
     this.renderPanel(
       back +
-        this.header(titulo, codes ? chip : null) +
+        this.header(titulo, codes ? chip : null, { tituloOculto: !codes }) +
         priceRow +
         lineaDecision +
         this.recorrido360Html(attrs) +
-        this.ctaHtml(code) +
+        this.ctaHtml(code, visitable) +
         this.accionesHtml(code, unit.groupCode ?? parent ?? null, attrs) +
         this.plano3dHtml(attrs) +
         (rows.length ? `<dl class="r360-facts">${rows.join('')}</dl>` : '') +
@@ -736,16 +760,32 @@ export class ViewerUi {
    *  `contact.ts`, que decide el texto según haya planta, sea bloque o falte
    *  el material — nada de eso se decide acá. `null` cuando el proyecto no
    *  tiene `contact` cargado: sin botón, no un botón que no lleva a nada. */
-  private ctaHtml(code: string): string {
-    const ctx = ctaContextFor(code, this.opts.tour, this.opts.availability(), this.opts.controller.slug, location.href);
+  private ctaHtml(code: string, visitable = false): string {
+    // "Consultar por la 201" y "Quiero visitarla" abrían los dos el mismo
+    // WhatsApp, uno debajo del otro: dos botones para una sola acción. Queda
+    // uno, y cuando la unidad se puede ir a ver pide la visita, que es el
+    // pedido más fuerte y el que sólo Baleia puede ofrecer.
+    const ctx = ctaContextFor(
+      code,
+      this.opts.tour,
+      this.opts.availability(),
+      this.opts.controller.slug,
+      location.href,
+      visitable ? 'visita' : undefined,
+    );
     const cta = buildCta(this.opts.tour.contact, ctx);
     if (!cta) return '';
     const disclaimer = ctx.price
       ? '<p class="r360-panel__note r360-panel__note--muted">Valores de lista, a confirmar por el vendedor.</p>'
       : '';
-    return `<a class="r360-cta" href="${escapeHtml(cta.href)}" target="_blank" rel="noopener"
+    // El contorno toma el color del estado: verde en las disponibles, rojo en
+    // las vendidas, gris en las próximamente. Era siempre el verde de
+    // WhatsApp, que decía el canal y no la unidad.
+    const chip = this.chipFor(code);
+    return `<a class="r360-cta" style="border-color:${tintaLegible(chip.base)}"
+        href="${escapeHtml(cta.href)}" target="_blank" rel="noopener"
         data-cta-unit="${escapeHtml(cta.unitCode)}" data-cta-kind="${escapeHtml(cta.kind)}">
-        &#128172; ${escapeHtml(cta.label)}
+        ${escapeHtml(cta.label)}
       </a>${disclaimer}`;
   }
 
@@ -757,17 +797,8 @@ export class ViewerUi {
    * publicado no hay descarga — un botón que no lleva a nada es peor que la
    * ausencia del botón.
    */
-  private accionesHtml(code: string, grupo: string | null, attrs: Record<string, unknown>): string {
+  private accionesHtml(_code: string, _grupo: string | null, attrs: Record<string, unknown>): string {
     const partes: string[] = [];
-
-    const visita = puedeVisitarse({
-      groupCode: grupo,
-      bloqueConstruido: this.bloqueConstruido,
-      status: this.statusOf(code),
-    })
-      ? this.ctaVariante(code, 'visita')
-      : '';
-    if (visita) partes.push(visita);
 
     const pdf = typeof attrs.planoPdf === 'string' ? attrs.planoPdf : null;
     if (pdf) {
@@ -778,23 +809,6 @@ export class ViewerUi {
     }
 
     return partes.length ? `<div class="r360-panel__acciones">${partes.join('')}</div>` : '';
-  }
-
-  /** Un CTA de WhatsApp con una variante de mensaje forzada ("Quiero visitarla"). */
-  private ctaVariante(code: string, kind: CtaKind): string {
-    const ctx = ctaContextFor(
-      code,
-      this.opts.tour,
-      this.opts.availability(),
-      this.opts.controller.slug,
-      location.href,
-      kind,
-    );
-    const cta = buildCta(this.opts.tour.contact, ctx);
-    if (!cta) return '';
-    return `<a class="r360-panel__accion is-visita" href="${escapeHtml(cta.href)}" target="_blank" rel="noopener"
-        data-cta-unit="${escapeHtml(cta.unitCode)}" data-cta-kind="${escapeHtml(cta.kind)}">
-        ${escapeHtml(cta.label)}</a>`;
   }
 
   /**
@@ -893,9 +907,13 @@ export class ViewerUi {
   }
 
   /** `chip: null` = no hay estado comercial que mostrar y no se inventa ninguno. */
-  private header(title: string, chip: { base: string; label: string } | null): string {
+  private header(
+    title: string,
+    chip: { base: string; label: string } | null,
+    opts: { tituloOculto?: boolean } = {},
+  ): string {
     return `<div class="r360-panel__head">
-        <h2>${escapeHtml(title)}</h2>
+        <h2${opts.tituloOculto ? ' class="r360-solo-lectores"' : ''}>${escapeHtml(title)}</h2>
         <button class="r360-close" aria-label="Cerrar">×</button>
       </div>` +
       (chip
@@ -917,18 +935,30 @@ export class ViewerUi {
    * `null`, nunca se rearma esa regla.
    */
   private lineaDecisionHtml(opts: {
+    titulo: string;
     attrs: Record<string, unknown>;
     areaTotalM2: number | null;
     price: string | null;
     chip: { base: string; label: string };
   }): string {
-    const partes: string[] = [];
-    if (opts.attrs.tipologia) partes.push(escapeHtml(String(opts.attrs.tipologia)));
-    if (opts.areaTotalM2 != null) partes.push(escapeHtml(`${num(opts.areaTotalM2)} m²`));
-    if (opts.price) partes.push(escapeHtml(opts.price));
-    partes.push(ENTREGA_LABEL);
-    return `<p class="r360-panel__linea">${partes.join(' &middot; ')} &middot; ` +
-      `<span class="r360-panel__linea-estado" style="color:${opts.chip.base}">${escapeHtml(opts.chip.label)}</span></p>`;
+    // El precio manda: va solo, grande. Lo demás lo acompaña en una fila de
+    // datos, y el estado es una chapa —no la última palabra de una enumeración,
+    // donde se perdía justo el dato que decide si la unidad se puede comprar.
+    const datos: string[] = [];
+    if (opts.attrs.tipologia) datos.push(escapeHtml(String(opts.attrs.tipologia)));
+    if (opts.areaTotalM2 != null) datos.push(escapeHtml(`${num(opts.areaTotalM2)} m²`));
+    datos.push(ENTREGA_LABEL);
+    const precio = opts.price
+      ? `<p class="r360-ficha__precio">${escapeHtml(opts.price)}</p>`
+      : '';
+    return `<div class="r360-ficha">` +
+      `<p class="r360-ficha__disponible" style="color:${tintaLegible(opts.chip.base)}">` +
+      `${escapeHtml(opts.chip.label)}</p>` +
+      `<p class="r360-ficha__estado"><i style="background:${opts.chip.base}"></i>` +
+      `${escapeHtml(opts.titulo)}</p>` +
+      precio +
+      `<p class="r360-ficha__datos">${datos.join(' <span>&middot;</span> ')}</p>` +
+      `</div>`;
   }
 
   private renderPanel(html: string): void {
@@ -950,16 +980,13 @@ export class ViewerUi {
     this.panel.onclick = (e) => {
       const el = e.target as HTMLElement;
       if (el.closest('.r360-close')) return this.requestClose('panel');
-      // `[data-cta-unit]` cubre el `.r360-cta` de la ficha Y el
-      // `.r360-panel__accion.is-visita` de `ctaVariante` (plan §6): antes
-      // este último no disparaba `r360:cta` porque el selector sólo miraba
-      // `.r360-cta`, así que un "Quiero visitarla" clickeado no quedaba
-      // registrado en ningún lado (I1).
+      // `[data-cta-unit]` y no `.r360-cta`: así cualquier CTA de la ficha
+      // queda registrado, sea el botón principal o uno que se agregue después.
       const cta = el.closest<HTMLElement>('[data-cta-unit]');
       if (cta) {
         // El mensaje ya quedó codificado en `?text=` del propio link a wa.me
-        // al armar la ficha (`buildCta`/`ctaVariante`): se relee de ahí en
-        // vez de recalcularlo, para no duplicar esa decisión acá.
+        // al armar la ficha (`buildCta`): se relee de ahí en vez de
+        // recalcularlo, para no duplicar esa decisión acá.
         const message = messageFromWhatsappHref(cta.getAttribute('href') ?? '');
         this.opts.container.dispatchEvent(
           new CustomEvent('r360:cta', {
