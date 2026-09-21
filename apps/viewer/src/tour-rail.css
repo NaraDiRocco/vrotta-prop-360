@@ -762,7 +762,23 @@
      esa resta los círculos quedaban 6 px hacia adentro de los textos. */
   padding: 130px 22px 24px;
   pointer-events: none;
+}
+/* El degradado va en una capa aparte, detrás de las flechas y los puntos, para
+   poder recortarlo sin tocarlos. */
+.r360-rail__foot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: linear-gradient(to top, rgba(6, 10, 15, .8), rgba(6, 10, 15, .34) 62%, rgba(6, 10, 15, 0));
+}
+/* En el paseo, el degradado se apaga antes de llegar a la franja de la foto
+   que se asoma: si la cruza, oscurece justo esa franja y lo que se ve al
+   costado de la foto es una sombra y no la imagen que viene. Se apaga
+   gradualmente, en 56 px, para no dejar un corte. */
+.r360-rail[data-tramo="bloque-2"] .r360-rail__foot::before {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 74px), transparent calc(100% - 18px));
+  mask-image: linear-gradient(to right, #000 calc(100% - 74px), transparent calc(100% - 18px));
 }
 .r360-rail__foot > * { pointer-events: auto; }
 .r360-rail__dots {
@@ -1459,13 +1475,24 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
    dedo. La última ocupa el ancho entero, así el recorrido termina a sangre y
    el desplazamiento cierra justo. */
 .r360-rail__serie.is-editorial .r360-rail__slide {
-  flex-basis: calc(100% - 18px);
-  width: calc(100% - 18px);
+  /* Un píxel más ancha de lo que ocupa, recuperado con el margen negativo: la
+     caja pintada se solapa con la de al lado sin mover ni el ancho real ni el
+     paso del desplazamiento. Sin ese solape, cuando el scroll queda en una
+     posición fraccionaria (pasa siempre en pantallas de 2x y 3x) el navegador
+     redondea cada diapositiva para su lado y entre las dos asoma una línea del
+     fondo del riel, que es casi negro: eso es la "sombra" que aparecía al
+     costado de la foto. */
+  flex-basis: calc(100% - 17px);
+  width: calc(100% - 17px);
+  margin-right: -1px;
   scroll-snap-align: start;
 }
+/* La última no necesita el píxel de más —no tiene vecina a la derecha— y sin
+   él el recorrido del scroll cierra justo en los pasos. */
 .r360-rail__serie.is-editorial .r360-rail__slide:last-child {
   flex-basis: 100%;
   width: 100%;
+  margin-right: 0;
 }
 
 /* En el Tramo 4 las imágenes son renders y llevan chapa. Baja para no
@@ -1664,6 +1691,24 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
 }
 .r360-rail__serie.is-editorial .r360-rail__slide.is-asomando {
   animation: r360-asomo 2.6s cubic-bezier(.4, .1, .2, 1) .6s infinite;
+}
+/* Todas las fotos en el mismo plano de composición, no sólo la que se anima:
+   al animar una sola, el navegador la sube a una capa propia y el borde de esa
+   capa se dibuja aparte del resto, con su propio redondeo. Ahí aparece una
+   línea al costado. Con todas promovidas, el borde entre dos fotos vuelve a
+   ser un borde dentro de la misma capa. */
+.r360-rail__serie.is-editorial .r360-rail__slide {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+.r360-rail__serie.is-editorial .r360-rail__slide.is-asomando { will-change: transform; }
+@keyframes r360-asomo-z {
+  0%, 46%, 100% { transform: translate3d(0, 0, 0); }
+  68% { transform: translate3d(-16px, 0, 0); }
+  90% { transform: translate3d(0, 0, 0); }
+}
+.r360-rail__serie.is-editorial .r360-rail__slide.is-asomando {
+  animation-name: r360-asomo-z;
 }
 @media (prefers-reduced-motion: reduce) {
   .r360-rail__serie.is-editorial .r360-rail__slide.is-asomando { animation: none; }
