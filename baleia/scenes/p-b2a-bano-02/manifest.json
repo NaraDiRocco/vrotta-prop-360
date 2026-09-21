@@ -1,0 +1,58 @@
+{
+  "slug": "p-b2a-bano-02",
+  "clave": "B2-A_BANO-02",
+  "source": "/Users/naradirocco/Desktop/WEB BALEIA/tools/baleia/material-360/B2-A_BANO-02_01.jpg",
+  "validation": {
+    "file": "material-360/B2-A_BANO-02_01.jpg",
+    "width": 8192,
+    "height": 4096,
+    "checks": [
+      {
+        "name": "aspect_ratio_2_1",
+        "passed": true,
+        "heuristic": false,
+        "details": {
+          "width": 8192,
+          "height": 4096,
+          "expected_height": 4096.0,
+          "diff_px": 0.0,
+          "tolerance_px": 2
+        }
+      },
+      {
+        "name": "min_resolution",
+        "passed": true,
+        "heuristic": false,
+        "details": {
+          "width": 8192,
+          "min_width": 8192
+        }
+      },
+      {
+        "name": "crooked_horizon",
+        "passed": true,
+        "heuristic": true,
+        "details": {
+          "left_edge_row": 2964.0,
+          "right_edge_row": 2894.0,
+          "delta_px": -70.0,
+          "tilt_deg": -0.49,
+          "warn_threshold_deg": 1.5,
+          "note": "Heuristica basada en el borde de mayor contraste en la banda central; no garantiza deteccion del horizonte real."
+        }
+      }
+    ],
+    "strict_horizon": false,
+    "verdict": "APROBADO",
+    "approved": true
+  },
+  "tiles": {
+    "base": "./scenes/p-b2a-bano-02/tiles",
+    "faceSize": 2048,
+    "tileSize": 512,
+    "levels": 3,
+    "format": "webp"
+  },
+  "tile_count": 126,
+  "generated_at": "2026-09-21T15:56:15+00:00"
+}

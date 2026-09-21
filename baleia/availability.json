@@ -1,0 +1,109 @@
+{
+  "v": 1,
+  "generated_at": "2026-09-21T16:46:03.405Z",
+  "units": {
+    "B2-A": {
+      "s": "disponible",
+      "p": {
+        "a": 364861.0,
+        "c": "USD"
+      }
+    },
+    "B2-B": {
+      "s": "disponible",
+      "p": {
+        "a": 358638.0,
+        "c": "USD"
+      }
+    },
+    "B2-C": {
+      "s": "disponible",
+      "p": {
+        "a": 358638.0,
+        "c": "USD"
+      }
+    },
+    "B2-D": {
+      "s": "disponible",
+      "p": {
+        "a": 358638.0,
+        "c": "USD"
+      }
+    },
+    "B2-E": {
+      "s": "disponible",
+      "p": {
+        "a": 358638.0,
+        "c": "USD"
+      }
+    },
+    "B2-F": {
+      "s": "bloqueado",
+      "p": null
+    },
+    "B2-G": {
+      "s": "bloqueado",
+      "p": null
+    },
+    "B2-H": {
+      "s": "vendido",
+      "p": null
+    },
+    "B2-I": {
+      "s": "vendido",
+      "p": null
+    },
+    "B3-A": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-B": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-C": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-D": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-E": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-F": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-G": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-H": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-I": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B3-J": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B1": {
+      "s": "proximamente",
+      "p": null
+    },
+    "B2": {
+      "s": "disponible",
+      "p": null
+    },
+    "B3": {
+      "s": "proximamente",
+      "p": null
+    }
+  }
+}

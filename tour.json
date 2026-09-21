@@ -1,0 +1,2467 @@
+{
+  "schema": 1,
+  "project": "Baleia",
+  "version": 1,
+  "tenant": "baleia",
+  "availabilityUrl": "./baleia/availability.json",
+  "brochurePages": [
+    "./baleia/media/brochure/pagina-01.webp?v=928353bc",
+    "./baleia/media/brochure/pagina-02.webp?v=e41d4e1f",
+    "./baleia/media/brochure/pagina-03.webp?v=7fa09bd2",
+    "./baleia/media/brochure/pagina-04.webp?v=bc1dad1e",
+    "./baleia/media/brochure/pagina-05.webp?v=c27046f8",
+    "./baleia/media/brochure/pagina-06.webp?v=9bf2d41a",
+    "./baleia/media/brochure/pagina-07.webp?v=4dd66321",
+    "./baleia/media/brochure/pagina-08.webp?v=5921a141",
+    "./baleia/media/brochure/pagina-09.webp?v=965c3d6f",
+    "./baleia/media/brochure/pagina-10.webp?v=a2fa8949",
+    "./baleia/media/brochure/pagina-11.webp?v=5adfed8e",
+    "./baleia/media/brochure/pagina-12.webp?v=2747e95f",
+    "./baleia/media/brochure/pagina-13.webp?v=34a6b1ad",
+    "./baleia/media/brochure/pagina-14.webp?v=34e6edb7",
+    "./baleia/media/brochure/pagina-15.webp?v=8c2324b5",
+    "./baleia/media/brochure/pagina-16.webp?v=50d0117b",
+    "./baleia/media/brochure/pagina-17.webp?v=273cc9c4",
+    "./baleia/media/brochure/pagina-18.webp?v=25ea9ea0",
+    "./baleia/media/brochure/pagina-19.webp?v=1e0813fb",
+    "./baleia/media/brochure/pagina-20.webp?v=ad5dae2c",
+    "./baleia/media/brochure/pagina-21.webp?v=93e383d4",
+    "./baleia/media/brochure/pagina-22.webp?v=153a48c1"
+  ],
+  "start": "masterplan",
+  "scenes": [
+    {
+      "id": "sc-masterplan",
+      "slug": "masterplan",
+      "kind": "floorplan",
+      "name": "Masterplan",
+      "source": {
+        "url": "./baleia/masterplan.webp",
+        "width": 7945,
+        "height": 1960
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 1
+    },
+    {
+      "id": "sc-acceso",
+      "slug": "acceso",
+      "kind": "floorplan",
+      "name": "Acceso al complejo",
+      "source": {
+        "url": "./baleia/media/renders/acceso.webp",
+        "width": 1600,
+        "height": 1067
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 10
+    },
+    {
+      "id": "sc-complejo-laguna",
+      "slug": "complejo-laguna",
+      "kind": "floorplan",
+      "name": "El complejo desde la laguna",
+      "source": {
+        "url": "./baleia/media/renders/complejo-laguna.webp",
+        "width": 1600,
+        "height": 888
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 11
+    },
+    {
+      "id": "sc-complejo-llegada",
+      "slug": "complejo-llegada",
+      "kind": "floorplan",
+      "name": "Llegada por el camino interior",
+      "source": {
+        "url": "./baleia/media/renders/complejo-llegada.webp",
+        "width": 1600,
+        "height": 900
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 12
+    },
+    {
+      "id": "sc-complejo-terrazas",
+      "slug": "complejo-terrazas",
+      "kind": "floorplan",
+      "name": "Terrazas y cubierta verde",
+      "source": {
+        "url": "./baleia/media/renders/complejo-terrazas.webp",
+        "width": 1600,
+        "height": 1231
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 13
+    },
+    {
+      "id": "sc-complejo-fachada",
+      "slug": "complejo-fachada",
+      "kind": "floorplan",
+      "name": "Fachada de un bloque al atardecer",
+      "source": {
+        "url": "./baleia/media/renders/complejo-fachada.webp",
+        "width": 1600,
+        "height": 900
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 14
+    },
+    {
+      "id": "sc-complejo-pergola",
+      "slug": "complejo-pergola",
+      "kind": "floorplan",
+      "name": "Pérgola junto a la piscina",
+      "source": {
+        "url": "./baleia/media/renders/complejo-pergola.webp",
+        "width": 1600,
+        "height": 1071
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 15
+    },
+    {
+      "id": "sc-amenities",
+      "slug": "amenities",
+      "kind": "floorplan",
+      "name": "Amenities: piscina, fuego y laguna",
+      "source": {
+        "url": "./baleia/media/renders/amenities.webp",
+        "width": 1600,
+        "height": 1238
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 16
+    },
+    {
+      "id": "sc-portada",
+      "slug": "portada",
+      "kind": "floorplan",
+      "name": "La portada del brochure",
+      "source": {
+        "url": "./baleia/media/renders/portada.webp",
+        "width": 1448,
+        "height": 1086
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 17
+    },
+    {
+      "id": "sc-p-b2a-llegada",
+      "slug": "p-b2a-llegada",
+      "kind": "panorama",
+      "name": "La llegada",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-llegada/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 95
+      },
+      "sort": 130
+    },
+    {
+      "id": "sc-p-b2a-galeria",
+      "slug": "p-b2a-galeria",
+      "kind": "panorama",
+      "name": "La galería",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-galeria/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 90
+      },
+      "sort": 131
+    },
+    {
+      "id": "sc-p-b2a-living",
+      "slug": "p-b2a-living",
+      "kind": "panorama",
+      "name": "El living",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-living/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 132
+    },
+    {
+      "id": "sc-p-b2a-cocina",
+      "slug": "p-b2a-cocina",
+      "kind": "panorama",
+      "name": "La cocina",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-cocina/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 133
+    },
+    {
+      "id": "sc-p-b2a-living-escalera",
+      "slug": "p-b2a-living-escalera",
+      "kind": "panorama",
+      "name": "El living y la escalera",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-living-escalera/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 134
+    },
+    {
+      "id": "sc-p-b2a-living-terraza",
+      "slug": "p-b2a-living-terraza",
+      "kind": "panorama",
+      "name": "Hacia la terraza",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-living-terraza/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 135
+    },
+    {
+      "id": "sc-p-b2a-terraza",
+      "slug": "p-b2a-terraza",
+      "kind": "panorama",
+      "name": "La terraza",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-terraza/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 90
+      },
+      "sort": 136
+    },
+    {
+      "id": "sc-p-b2a-escalera",
+      "slug": "p-b2a-escalera",
+      "kind": "panorama",
+      "name": "Bajando",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-escalera/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 137
+    },
+    {
+      "id": "sc-p-b2a-dorm-01",
+      "slug": "p-b2a-dorm-01",
+      "kind": "panorama",
+      "name": "Dormitorio principal",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-dorm-01/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 138
+    },
+    {
+      "id": "sc-p-b2a-dorm-02",
+      "slug": "p-b2a-dorm-02",
+      "kind": "panorama",
+      "name": "Segundo dormitorio",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-dorm-02/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 139
+    },
+    {
+      "id": "sc-p-b2a-dorm-03",
+      "slug": "p-b2a-dorm-03",
+      "kind": "panorama",
+      "name": "El tercer ambiente",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-dorm-03/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 85
+      },
+      "sort": 140
+    },
+    {
+      "id": "sc-p-b2a-vestidor",
+      "slug": "p-b2a-vestidor",
+      "kind": "panorama",
+      "name": "El vestidor",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-vestidor/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 80
+      },
+      "sort": 141
+    },
+    {
+      "id": "sc-p-b2a-bano-01",
+      "slug": "p-b2a-bano-01",
+      "kind": "panorama",
+      "name": "Baño principal",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-bano-01/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 80
+      },
+      "sort": 142
+    },
+    {
+      "id": "sc-p-b2a-bano-02",
+      "slug": "p-b2a-bano-02",
+      "kind": "panorama",
+      "name": "Baño",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-bano-02/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 80
+      },
+      "sort": 143
+    },
+    {
+      "id": "sc-p-b2a-bano-03",
+      "slug": "p-b2a-bano-03",
+      "kind": "panorama",
+      "name": "Toilette",
+      "source": {
+        "base": "./baleia/scenes/p-b2a-bano-03/tiles",
+        "faceSize": 2048,
+        "tileSize": 512,
+        "levels": 3,
+        "format": "webp"
+      },
+      "initialView": {
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "fov": 80
+      },
+      "sort": 144
+    },
+    {
+      "id": "sc-video",
+      "slug": "video",
+      "kind": "video",
+      "name": "El recorrido real",
+      "source": {
+        "url": "./baleia/media/video/baleia-recorrido-real.mp4",
+        "width": 1920,
+        "height": 1080
+      },
+      "procedencia": {
+        "kind": "foto",
+        "capturedAt": "2026-09-02"
+      },
+      "sort": 900,
+      "mobileUrl": "./baleia/media/video/baleia-recorrido-real.720.mp4",
+      "poster": {
+        "url": "./baleia/media/video/baleia-recorrido-real.poster.jpg",
+        "width": 1280,
+        "height": 720
+      },
+      "portrait": {
+        "url": "./baleia/media/video/baleia-recorrido-real.vertical.mp4",
+        "width": 1080,
+        "height": 1920,
+        "duration": 49.7,
+        "mobileUrl": "./baleia/media/video/baleia-recorrido-real.vertical.720.mp4",
+        "poster": {
+          "url": "./baleia/media/video/baleia-recorrido-real.vertical.poster.jpg",
+          "width": 720,
+          "height": 1280
+        }
+      }
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "h-TERRENO",
+      "sceneId": "sc-masterplan",
+      "unitCode": null,
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.9849,
+          0.93673
+        ],
+        [
+          0.91302,
+          0.06683
+        ],
+        [
+          0.85047,
+          0.04592
+        ],
+        [
+          0.05802,
+          0.06123
+        ],
+        [
+          0.01511,
+          0.93827
+        ],
+        [
+          0.072,
+          0.95409
+        ]
+      ],
+      "zIndex": 0,
+      "label": "Perímetro del terreno"
+    },
+    {
+      "id": "h-B1",
+      "sceneId": "sc-masterplan",
+      "unitCode": "B1",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.18968,
+          0.24846
+        ],
+        [
+          0.19194,
+          0.26633
+        ],
+        [
+          0.18666,
+          0.34388
+        ],
+        [
+          0.1742,
+          0.3352
+        ],
+        [
+          0.16514,
+          0.46786
+        ],
+        [
+          0.17709,
+          0.48419
+        ],
+        [
+          0.16941,
+          0.60153
+        ],
+        [
+          0.15242,
+          0.58776
+        ],
+        [
+          0.1513,
+          0.60458
+        ],
+        [
+          0.16753,
+          0.62603
+        ],
+        [
+          0.16262,
+          0.70255
+        ],
+        [
+          0.14563,
+          0.68878
+        ],
+        [
+          0.14437,
+          0.70664
+        ],
+        [
+          0.16023,
+          0.7245
+        ],
+        [
+          0.15872,
+          0.76378
+        ],
+        [
+          0.14122,
+          0.75611
+        ],
+        [
+          0.14009,
+          0.77347
+        ],
+        [
+          0.15607,
+          0.79234
+        ],
+        [
+          0.15444,
+          0.83571
+        ],
+        [
+          0.18729,
+          0.87041
+        ],
+        [
+          0.19018,
+          0.85918
+        ],
+        [
+          0.18955,
+          0.87346
+        ],
+        [
+          0.19748,
+          0.88062
+        ],
+        [
+          0.21649,
+          0.60254
+        ],
+        [
+          0.24392,
+          0.60052
+        ],
+        [
+          0.24405,
+          0.52042
+        ],
+        [
+          0.22227,
+          0.51582
+        ],
+        [
+          0.23675,
+          0.30001
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 2,
+      "label": "Bloque 1"
+    },
+    {
+      "id": "h-B2",
+      "sceneId": "sc-masterplan",
+      "unitCode": "B2",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.30497,
+          0.21481
+        ],
+        [
+          0.2949,
+          0.26887
+        ],
+        [
+          0.30937,
+          0.2801
+        ],
+        [
+          0.31227,
+          0.26428
+        ],
+        [
+          0.31529,
+          0.30001
+        ],
+        [
+          0.31026,
+          0.30407
+        ],
+        [
+          0.30699,
+          0.3699
+        ],
+        [
+          0.28911,
+          0.35153
+        ],
+        [
+          0.28824,
+          0.3699
+        ],
+        [
+          0.30296,
+          0.38826
+        ],
+        [
+          0.30019,
+          0.43113
+        ],
+        [
+          0.28458,
+          0.41786
+        ],
+        [
+          0.28332,
+          0.43572
+        ],
+        [
+          0.30158,
+          0.45969
+        ],
+        [
+          0.29742,
+          0.5347
+        ],
+        [
+          0.27778,
+          0.51888
+        ],
+        [
+          0.27678,
+          0.53724
+        ],
+        [
+          0.29289,
+          0.55715
+        ],
+        [
+          0.29025,
+          0.59848
+        ],
+        [
+          0.27325,
+          0.58521
+        ],
+        [
+          0.27199,
+          0.60307
+        ],
+        [
+          0.29101,
+          0.62959
+        ],
+        [
+          0.28396,
+          0.7051
+        ],
+        [
+          0.26633,
+          0.68673
+        ],
+        [
+          0.26495,
+          0.70459
+        ],
+        [
+          0.28005,
+          0.72296
+        ],
+        [
+          0.27728,
+          0.76583
+        ],
+        [
+          0.26243,
+          0.75407
+        ],
+        [
+          0.2608,
+          0.77092
+        ],
+        [
+          0.28005,
+          0.79439
+        ],
+        [
+          0.27489,
+          0.82143
+        ],
+        [
+          0.31781,
+          0.87805
+        ],
+        [
+          0.33694,
+          0.60357
+        ],
+        [
+          0.36652,
+          0.60052
+        ],
+        [
+          0.36677,
+          0.51989
+        ],
+        [
+          0.3431,
+          0.51582
+        ],
+        [
+          0.35797,
+          0.29897
+        ],
+        [
+          0.34286,
+          0.29796
+        ],
+        [
+          0.345,
+          0.28368
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 2,
+      "label": "Bloque 2"
+    },
+    {
+      "id": "h-B3",
+      "sceneId": "sc-masterplan",
+      "unitCode": "B3",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.44091,
+          0.2495
+        ],
+        [
+          0.43537,
+          0.34234
+        ],
+        [
+          0.42315,
+          0.33316
+        ],
+        [
+          0.41422,
+          0.46327
+        ],
+        [
+          0.42593,
+          0.48265
+        ],
+        [
+          0.41825,
+          0.59999
+        ],
+        [
+          0.40126,
+          0.58571
+        ],
+        [
+          0.40026,
+          0.60052
+        ],
+        [
+          0.41649,
+          0.62398
+        ],
+        [
+          0.41145,
+          0.70101
+        ],
+        [
+          0.39559,
+          0.68777
+        ],
+        [
+          0.39321,
+          0.70409
+        ],
+        [
+          0.40944,
+          0.72347
+        ],
+        [
+          0.40704,
+          0.76684
+        ],
+        [
+          0.39056,
+          0.7546
+        ],
+        [
+          0.38892,
+          0.77143
+        ],
+        [
+          0.40466,
+          0.78929
+        ],
+        [
+          0.40441,
+          0.83418
+        ],
+        [
+          0.43486,
+          0.86786
+        ],
+        [
+          0.43902,
+          0.85663
+        ],
+        [
+          0.43876,
+          0.87144
+        ],
+        [
+          0.44631,
+          0.87858
+        ],
+        [
+          0.46507,
+          0.60357
+        ],
+        [
+          0.49452,
+          0.60052
+        ],
+        [
+          0.49465,
+          0.51989
+        ],
+        [
+          0.47111,
+          0.51582
+        ],
+        [
+          0.48558,
+          0.29796
+        ],
+        [
+          0.47816,
+          0.2903
+        ],
+        [
+          0.47551,
+          0.31429
+        ],
+        [
+          0.47551,
+          0.28623
+        ],
+        [
+          0.46595,
+          0.28724
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 2,
+      "label": "Bloque 3"
+    },
+    {
+      "id": "h-B4",
+      "sceneId": "sc-masterplan",
+      "unitCode": "B4",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.5596,
+          0.21377
+        ],
+        [
+          0.55091,
+          0.26991
+        ],
+        [
+          0.55707,
+          0.25356
+        ],
+        [
+          0.56702,
+          0.29234
+        ],
+        [
+          0.56224,
+          0.36581
+        ],
+        [
+          0.54525,
+          0.35153
+        ],
+        [
+          0.54412,
+          0.36836
+        ],
+        [
+          0.55897,
+          0.38826
+        ],
+        [
+          0.55645,
+          0.43062
+        ],
+        [
+          0.54096,
+          0.41887
+        ],
+        [
+          0.53958,
+          0.43469
+        ],
+        [
+          0.55556,
+          0.4556
+        ],
+        [
+          0.55494,
+          0.50205
+        ],
+        [
+          0.54991,
+          0.53724
+        ],
+        [
+          0.53379,
+          0.51938
+        ],
+        [
+          0.53279,
+          0.53775
+        ],
+        [
+          0.5489,
+          0.55715
+        ],
+        [
+          0.54676,
+          0.59593
+        ],
+        [
+          0.52926,
+          0.58776
+        ],
+        [
+          0.52814,
+          0.60357
+        ],
+        [
+          0.54437,
+          0.62348
+        ],
+        [
+          0.53858,
+          0.7051
+        ],
+        [
+          0.52234,
+          0.68878
+        ],
+        [
+          0.52159,
+          0.7056
+        ],
+        [
+          0.53606,
+          0.72347
+        ],
+        [
+          0.53329,
+          0.76684
+        ],
+        [
+          0.51807,
+          0.75357
+        ],
+        [
+          0.5168,
+          0.77143
+        ],
+        [
+          0.5343,
+          0.79643
+        ],
+        [
+          0.5314,
+          0.83317
+        ],
+        [
+          0.56023,
+          0.85103
+        ],
+        [
+          0.55796,
+          0.86226
+        ],
+        [
+          0.56665,
+          0.85817
+        ],
+        [
+          0.57419,
+          0.88009
+        ],
+        [
+          0.5932,
+          0.60357
+        ],
+        [
+          0.62303,
+          0.59999
+        ],
+        [
+          0.62328,
+          0.52193
+        ],
+        [
+          0.59924,
+          0.51582
+        ],
+        [
+          0.61372,
+          0.30102
+        ],
+        [
+          0.58112,
+          0.26327
+        ],
+        [
+          0.57936,
+          0.23469
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 2,
+      "label": "Bloque 4"
+    },
+    {
+      "id": "h-B5",
+      "sceneId": "sc-masterplan",
+      "unitCode": "B5",
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.69025,
+          0.21887
+        ],
+        [
+          0.67841,
+          0.27142
+        ],
+        [
+          0.68421,
+          0.25154
+        ],
+        [
+          0.68371,
+          0.27041
+        ],
+        [
+          0.69452,
+          0.28775
+        ],
+        [
+          0.69188,
+          0.36581
+        ],
+        [
+          0.67263,
+          0.35357
+        ],
+        [
+          0.67136,
+          0.37093
+        ],
+        [
+          0.68673,
+          0.39389
+        ],
+        [
+          0.68294,
+          0.43673
+        ],
+        [
+          0.66822,
+          0.42091
+        ],
+        [
+          0.66696,
+          0.43776
+        ],
+        [
+          0.68332,
+          0.45868
+        ],
+        [
+          0.67829,
+          0.53623
+        ],
+        [
+          0.66129,
+          0.52143
+        ],
+        [
+          0.66016,
+          0.53775
+        ],
+        [
+          0.6764,
+          0.55919
+        ],
+        [
+          0.67388,
+          0.60103
+        ],
+        [
+          0.65689,
+          0.58776
+        ],
+        [
+          0.65563,
+          0.60511
+        ],
+        [
+          0.67199,
+          0.62653
+        ],
+        [
+          0.66696,
+          0.70306
+        ],
+        [
+          0.65009,
+          0.68878
+        ],
+        [
+          0.64947,
+          0.70765
+        ],
+        [
+          0.66357,
+          0.7245
+        ],
+        [
+          0.66117,
+          0.7653
+        ],
+        [
+          0.64544,
+          0.75561
+        ],
+        [
+          0.64417,
+          0.77297
+        ],
+        [
+          0.66028,
+          0.79285
+        ],
+        [
+          0.65916,
+          0.83418
+        ],
+        [
+          0.69402,
+          0.85766
+        ],
+        [
+          0.7012,
+          0.88113
+        ],
+        [
+          0.7207,
+          0.60357
+        ],
+        [
+          0.75016,
+          0.60052
+        ],
+        [
+          0.7504,
+          0.51989
+        ],
+        [
+          0.72674,
+          0.51582
+        ],
+        [
+          0.74134,
+          0.30051
+        ],
+        [
+          0.73317,
+          0.29183
+        ],
+        [
+          0.72838,
+          0.35663
+        ],
+        [
+          0.73266,
+          0.29082
+        ],
+        [
+          0.70586,
+          0.27041
+        ],
+        [
+          0.70522,
+          0.23572
+        ]
+      ],
+      "action": {
+        "kind": "unit"
+      },
+      "zIndex": 2,
+      "label": "Bloque 5"
+    },
+    {
+      "id": "h-A",
+      "sceneId": "sc-masterplan",
+      "unitCode": null,
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.12762,
+          0.08826
+        ],
+        [
+          0.11429,
+          0.08826
+        ],
+        [
+          0.11429,
+          0.15663
+        ],
+        [
+          0.10485,
+          0.1699
+        ],
+        [
+          0.0866,
+          0.27041
+        ],
+        [
+          0.08018,
+          0.39644
+        ],
+        [
+          0.07187,
+          0.3949
+        ],
+        [
+          0.04418,
+          0.93368
+        ],
+        [
+          0.06495,
+          0.93368
+        ],
+        [
+          0.09792,
+          0.29082
+        ],
+        [
+          0.11353,
+          0.29133
+        ],
+        [
+          0.11416,
+          0.19235
+        ],
+        [
+          0.12762,
+          0.18827
+        ]
+      ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "acceso"
+      },
+      "zIndex": 1,
+      "label": "Acceso"
+    },
+    {
+      "id": "h-D",
+      "sceneId": "sc-masterplan",
+      "unitCode": null,
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.79245,
+          0.61531
+        ],
+        [
+          0.79081,
+          0.62398
+        ],
+        [
+          0.79106,
+          0.6449
+        ],
+        [
+          0.79031,
+          0.64541
+        ],
+        [
+          0.79031,
+          0.65255
+        ],
+        [
+          0.7888,
+          0.66223
+        ],
+        [
+          0.78716,
+          0.70815
+        ],
+        [
+          0.78502,
+          0.72806
+        ],
+        [
+          0.78502,
+          0.74746
+        ],
+        [
+          0.78188,
+          0.7898
+        ],
+        [
+          0.782,
+          0.80816
+        ],
+        [
+          0.79672,
+          0.82093
+        ],
+        [
+          0.79862,
+          0.8153
+        ],
+        [
+          0.79874,
+          0.79948
+        ],
+        [
+          0.80051,
+          0.78061
+        ],
+        [
+          0.80038,
+          0.76378
+        ],
+        [
+          0.80164,
+          0.7546
+        ],
+        [
+          0.80125,
+          0.74489
+        ],
+        [
+          0.80214,
+          0.74438
+        ],
+        [
+          0.80226,
+          0.72909
+        ],
+        [
+          0.80365,
+          0.72347
+        ],
+        [
+          0.80365,
+          0.70409
+        ],
+        [
+          0.80605,
+          0.675
+        ],
+        [
+          0.80642,
+          0.64286
+        ],
+        [
+          0.80806,
+          0.63673
+        ],
+        [
+          0.80692,
+          0.62807
+        ],
+        [
+          0.80491,
+          0.62398
+        ]
+      ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "amenities"
+      },
+      "zIndex": 1,
+      "label": "Piscina"
+    },
+    {
+      "id": "h-E",
+      "sceneId": "sc-masterplan",
+      "unitCode": null,
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.79862,
+          0.49642
+        ],
+        [
+          0.79823,
+          0.50001
+        ],
+        [
+          0.79711,
+          0.50255
+        ],
+        [
+          0.79711,
+          0.52347
+        ],
+        [
+          0.7966,
+          0.52397
+        ],
+        [
+          0.7966,
+          0.53623
+        ],
+        [
+          0.79559,
+          0.53929
+        ],
+        [
+          0.79559,
+          0.55561
+        ],
+        [
+          0.79509,
+          0.55612
+        ],
+        [
+          0.79509,
+          0.56429
+        ],
+        [
+          0.79447,
+          0.56684
+        ],
+        [
+          0.79447,
+          0.5704
+        ],
+        [
+          0.79547,
+          0.57093
+        ],
+        [
+          0.79559,
+          0.57448
+        ],
+        [
+          0.79962,
+          0.57602
+        ],
+        [
+          0.79974,
+          0.57857
+        ],
+        [
+          0.80202,
+          0.57807
+        ],
+        [
+          0.80239,
+          0.58061
+        ],
+        [
+          0.80403,
+          0.57857
+        ],
+        [
+          0.80692,
+          0.58316
+        ],
+        [
+          0.80705,
+          0.58521
+        ],
+        [
+          0.80919,
+          0.5847
+        ],
+        [
+          0.80957,
+          0.58112
+        ],
+        [
+          0.8112,
+          0.57653
+        ],
+        [
+          0.8112,
+          0.56429
+        ],
+        [
+          0.81171,
+          0.56379
+        ],
+        [
+          0.81158,
+          0.55919
+        ],
+        [
+          0.81221,
+          0.55766
+        ],
+        [
+          0.81221,
+          0.53878
+        ],
+        [
+          0.81271,
+          0.53826
+        ],
+        [
+          0.81322,
+          0.5301
+        ],
+        [
+          0.81384,
+          0.5296
+        ],
+        [
+          0.81384,
+          0.52602
+        ],
+        [
+          0.81434,
+          0.52551
+        ],
+        [
+          0.81422,
+          0.50765
+        ],
+        [
+          0.81384,
+          0.5046
+        ],
+        [
+          0.80818,
+          0.50255
+        ],
+        [
+          0.80806,
+          0.50051
+        ],
+        [
+          0.8039,
+          0.49847
+        ],
+        [
+          0.80377,
+          0.49642
+        ]
+      ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "amenities"
+      },
+      "zIndex": 1,
+      "label": "Piscina infantil"
+    },
+    {
+      "id": "h-F",
+      "sceneId": "sc-masterplan",
+      "unitCode": null,
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.78678,
+          0.5301
+        ],
+        [
+          0.78678,
+          0.68724
+        ],
+        [
+          0.79132,
+          0.61276
+        ],
+        [
+          0.80793,
+          0.6255
+        ],
+        [
+          0.80931,
+          0.60612
+        ],
+        [
+          0.79559,
+          0.85918
+        ],
+        [
+          0.83109,
+          0.86786
+        ],
+        [
+          0.84896,
+          0.84081
+        ],
+        [
+          0.85613,
+          0.80203
+        ],
+        [
+          0.85828,
+          0.74592
+        ],
+        [
+          0.84418,
+          0.6398
+        ],
+        [
+          0.84052,
+          0.53164
+        ],
+        [
+          0.81447,
+          0.5301
+        ],
+        [
+          0.80944,
+          0.60357
+        ],
+        [
+          0.80692,
+          0.5898
+        ],
+        [
+          0.81007,
+          0.58776
+        ],
+        [
+          0.79283,
+          0.57244
+        ],
+        [
+          0.79648,
+          0.53316
+        ]
+      ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "amenities"
+      },
+      "zIndex": 1,
+      "label": "Rincón de fuego"
+    },
+    {
+      "id": "h-G",
+      "sceneId": "sc-masterplan",
+      "unitCode": null,
+      "geometryKind": "polygon_px",
+      "geometry": [
+        [
+          0.88748,
+          0.52705
+        ],
+        [
+          0.88068,
+          0.5403
+        ],
+        [
+          0.87577,
+          0.5597
+        ],
+        [
+          0.87363,
+          0.57807
+        ],
+        [
+          0.87351,
+          0.60307
+        ],
+        [
+          0.87627,
+          0.63163
+        ],
+        [
+          0.8842,
+          0.67399
+        ],
+        [
+          0.88773,
+          0.70664
+        ],
+        [
+          0.88974,
+          0.75561
+        ],
+        [
+          0.88924,
+          0.80408
+        ],
+        [
+          0.8915,
+          0.83163
+        ],
+        [
+          0.8978,
+          0.85459
+        ],
+        [
+          0.90736,
+          0.86021
+        ],
+        [
+          0.91189,
+          0.84949
+        ],
+        [
+          0.91466,
+          0.83011
+        ],
+        [
+          0.91655,
+          0.79234
+        ],
+        [
+          0.91655,
+          0.75102
+        ],
+        [
+          0.90624,
+          0.70356
+        ],
+        [
+          0.90195,
+          0.6694
+        ],
+        [
+          0.90082,
+          0.64541
+        ],
+        [
+          0.90183,
+          0.56785
+        ],
+        [
+          0.90031,
+          0.54542
+        ],
+        [
+          0.8954,
+          0.52806
+        ]
+      ],
+      "action": {
+        "kind": "goto",
+        "sceneSlug": "amenities"
+      },
+      "zIndex": 1,
+      "label": "Laguna"
+    }
+  ],
+  "units": {
+    "B2-A": {
+      "label": "B2-A",
+      "groupCode": "B2",
+      "typeCode": "duplex",
+      "areaTotalM2": 163.42,
+      "attrs": {
+        "tipologia": "Dúplex",
+        "superficieCubiertaM2": 109.68,
+        "numeroComercial": "201",
+        "plano3d": "./baleia/media/planos-3d/unidad-A-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-A.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-a-vf.webp",
+        "./baleia/media/planos/B2-A.webp"
+      ]
+    },
+    "B2-B": {
+      "label": "B2-B",
+      "groupCode": "B2",
+      "typeCode": "duplex",
+      "areaTotalM2": 160.5,
+      "attrs": {
+        "tipologia": "Dúplex",
+        "superficieCubiertaM2": 107.76,
+        "plano3d": "./baleia/media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-B.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-b-vf.webp",
+        "./baleia/media/planos/B2-B.webp"
+      ]
+    },
+    "B2-C": {
+      "label": "B2-C",
+      "groupCode": "B2",
+      "typeCode": "duplex",
+      "areaTotalM2": 160.5,
+      "attrs": {
+        "tipologia": "Dúplex",
+        "superficieCubiertaM2": 107.76,
+        "plano3d": "./baleia/media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-C.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-c-vf.webp",
+        "./baleia/media/planos/B2-C.webp"
+      ]
+    },
+    "B2-D": {
+      "label": "B2-D",
+      "groupCode": "B2",
+      "typeCode": "duplex",
+      "areaTotalM2": 160.5,
+      "attrs": {
+        "tipologia": "Dúplex",
+        "superficieCubiertaM2": 107.76,
+        "plano3d": "./baleia/media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-D.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-d-vf.webp",
+        "./baleia/media/planos/B2-D.webp"
+      ]
+    },
+    "B2-E": {
+      "label": "B2-E",
+      "groupCode": "B2",
+      "typeCode": "duplex",
+      "areaTotalM2": 160.5,
+      "attrs": {
+        "tipologia": "Dúplex",
+        "superficieCubiertaM2": 107.76,
+        "plano3d": "./baleia/media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-E.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidad-e-vf.webp",
+        "./baleia/media/planos/B2-E.webp"
+      ]
+    },
+    "B2-F": {
+      "label": "B2-F",
+      "groupCode": "B2",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 84.45,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 54.15,
+        "numeroComercial": "206",
+        "plano3d": "./baleia/media/planos-3d/unidad-F-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-F_B2-G.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidades-fyg-vf.webp",
+        "./baleia/media/planos/B2-F_B2-G.webp"
+      ]
+    },
+    "B2-G": {
+      "label": "B2-G",
+      "groupCode": "B2",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 82.5,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 60.05,
+        "numeroComercial": "207",
+        "plano3d": "./baleia/media/planos-3d/unidad-G-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-F_B2-G.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidades-fyg-vf.webp",
+        "./baleia/media/planos/B2-F_B2-G.webp"
+      ]
+    },
+    "B2-H": {
+      "label": "B2-H",
+      "groupCode": "B2",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 94.4,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 52.62,
+        "plano3d": "./baleia/media/planos-3d/unidad-H-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-H_B2-I.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidades-hei-vf.webp",
+        "./baleia/media/planos/B2-H_B2-I.webp"
+      ]
+    },
+    "B2-I": {
+      "label": "B2-I",
+      "groupCode": "B2",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 86.85,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 52.62,
+        "plano3d": "./baleia/media/planos-3d/unidad-I-plano-3D-minimalista.webp",
+        "planoPdf": "./baleia/media/planos-pdf/B2-H_B2-I.pdf"
+      },
+      "media": [
+        "./baleia/media/plantas/unidades-hei-vf.webp",
+        "./baleia/media/planos/B2-H_B2-I.webp"
+      ]
+    },
+    "B3-A": {
+      "label": "B3-A",
+      "groupCode": "B3",
+      "typeCode": "duplex",
+      "areaTotalM2": 175.92,
+      "attrs": {
+        "tipologia": "Dúplex",
+        "superficieCubiertaM2": 109.68
+      }
+    },
+    "B3-B": {
+      "label": "B3-B",
+      "groupCode": "B3",
+      "typeCode": "duplex",
+      "areaTotalM2": 173.0,
+      "attrs": {
+        "tipologia": "Dúplex",
+        "superficieCubiertaM2": 107.76
+      }
+    },
+    "B3-C": {
+      "label": "B3-C",
+      "groupCode": "B3",
+      "typeCode": "duplex",
+      "areaTotalM2": 173.0,
+      "attrs": {
+        "tipologia": "Dúplex",
+        "superficieCubiertaM2": 107.76
+      }
+    },
+    "B3-D": {
+      "label": "B3-D",
+      "groupCode": "B3",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 95.92,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 56.9
+      },
+      "media": [
+        "./baleia/media/plantas/b3-udye.webp"
+      ]
+    },
+    "B3-E": {
+      "label": "B3-E",
+      "groupCode": "B3",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 106.9,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 67.6
+      },
+      "media": [
+        "./baleia/media/plantas/b3-udye.webp"
+      ]
+    },
+    "B3-F": {
+      "label": "B3-F",
+      "groupCode": "B3",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 95.92,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 56.9
+      },
+      "media": [
+        "./baleia/media/plantas/b3-ufyg.webp"
+      ]
+    },
+    "B3-G": {
+      "label": "B3-G",
+      "groupCode": "B3",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 89.94,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 55.0
+      },
+      "media": [
+        "./baleia/media/plantas/b3-ufyg.webp"
+      ]
+    },
+    "B3-H": {
+      "label": "B3-H",
+      "groupCode": "B3",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 95.92,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 56.9
+      }
+    },
+    "B3-I": {
+      "label": "B3-I",
+      "groupCode": "B3",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 89.94,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 55.0
+      }
+    },
+    "B3-J": {
+      "label": "B3-J",
+      "groupCode": "B3",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 95.92,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 56.9
+      }
+    },
+    "B3-K": {
+      "label": "B3-K",
+      "groupCode": "B3",
+      "typeCode": "1-dormitorio",
+      "areaTotalM2": 106.9,
+      "attrs": {
+        "tipologia": "1 dormitorio",
+        "superficieCubiertaM2": 67.6
+      }
+    },
+    "B1": {
+      "label": "Bloque 1",
+      "groupCode": null,
+      "typeCode": "bloque",
+      "attrs": {
+        "unitCount": 0,
+        "unitCodes": [],
+        "superficieTotalUnidadesM2": null
+      }
+    },
+    "B2": {
+      "label": "Bloque 2",
+      "groupCode": null,
+      "typeCode": "bloque",
+      "attrs": {
+        "unitCount": 9,
+        "unitCodes": [
+          "B2-A",
+          "B2-B",
+          "B2-C",
+          "B2-D",
+          "B2-E",
+          "B2-F",
+          "B2-G",
+          "B2-H",
+          "B2-I"
+        ],
+        "superficieTotalUnidadesM2": 1153.62
+      }
+    },
+    "B3": {
+      "label": "Bloque 3",
+      "groupCode": null,
+      "typeCode": "bloque",
+      "attrs": {
+        "unitCount": 11,
+        "unitCodes": [
+          "B3-A",
+          "B3-B",
+          "B3-C",
+          "B3-D",
+          "B3-E",
+          "B3-F",
+          "B3-G",
+          "B3-H",
+          "B3-I",
+          "B3-J",
+          "B3-K"
+        ],
+        "superficieTotalUnidadesM2": 1299.28
+      }
+    },
+    "B4": {
+      "label": "Bloque 4",
+      "groupCode": null,
+      "typeCode": "bloque",
+      "attrs": {
+        "unitCount": 0,
+        "unitCodes": [],
+        "superficieTotalUnidadesM2": null
+      }
+    },
+    "B5": {
+      "label": "Bloque 5",
+      "groupCode": null,
+      "typeCode": "bloque",
+      "attrs": {
+        "unitCount": 0,
+        "unitCodes": [],
+        "superficieTotalUnidadesM2": null
+      }
+    }
+  },
+  "brandLogo": "./baleia/marca/baleia-logo-blanco.svg",
+  "contact": {
+    "whatsapp": "+59895559230",
+    "name": "Caetano Negocios Inmobiliarios"
+  },
+  "photoTour": {
+    "items": [
+      {
+        "id": "27_aerea_tres_bloques",
+        "url": "./baleia/media/fotos/27_aerea_tres_bloques.webp",
+        "thumbUrl": "./baleia/media/fotos/27_aerea_tres_bloques.thumb.webp",
+        "width": 1024,
+        "height": 1352,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "El conjunto: tres bloques sobre el bosque."
+      },
+      {
+        "id": "01_aerea_contexto_costa_lejos",
+        "url": "./baleia/media/fotos/01_aerea_contexto_costa_lejos.webp",
+        "thumbUrl": "./baleia/media/fotos/01_aerea_contexto_costa_lejos.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "El terreno,\nentre el bosque y la Ruta 10. Foto real, 2 sep 2026."
+      },
+      {
+        "id": "04_aerea_skyline_punta_del_este",
+        "url": "./baleia/media/fotos/04_aerea_skyline_punta_del_este.webp",
+        "thumbUrl": "./baleia/media/fotos/04_aerea_skyline_punta_del_este.thumb.webp",
+        "width": 2000,
+        "height": 1499,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        }
+      },
+      {
+        "id": "02_aerea_bloque2_oblicua_cercana",
+        "url": "./baleia/media/fotos/02_aerea_bloque2_oblicua_cercana.webp",
+        "thumbUrl": "./baleia/media/fotos/02_aerea_bloque2_oblicua_cercana.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Bloque 2. Tres niveles, nueve unidades. Foto real."
+      },
+      {
+        "id": "07_fachada_bloque2_dia_completa",
+        "url": "./baleia/media/fotos/07_fachada_bloque2_dia_completa.webp",
+        "thumbUrl": "./baleia/media/fotos/07_fachada_bloque2_dia_completa.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        }
+      },
+      {
+        "id": "08_fachada_bloque2_angulo",
+        "url": "./baleia/media/fotos/08_fachada_bloque2_angulo.webp",
+        "thumbUrl": "./baleia/media/fotos/08_fachada_bloque2_angulo.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        }
+      },
+      {
+        "id": "09_fachada_bloque2_vertical",
+        "url": "./baleia/media/fotos/09_fachada_bloque2_vertical.webp",
+        "thumbUrl": "./baleia/media/fotos/09_fachada_bloque2_vertical.thumb.webp",
+        "width": 2000,
+        "height": 3000,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        }
+      },
+      {
+        "id": "24_fachada_bloque2_atardecer_angulo",
+        "url": "./baleia/media/fotos/24_fachada_bloque2_atardecer_angulo.webp",
+        "thumbUrl": "./baleia/media/fotos/24_fachada_bloque2_atardecer_angulo.thumb.webp",
+        "width": 2000,
+        "height": 2994,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        }
+      },
+      {
+        "id": "16_living_comedor_amplio",
+        "url": "./baleia/media/fotos/16_living_comedor_amplio.webp",
+        "thumbUrl": "./baleia/media/fotos/16_living_comedor_amplio.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Living-comedor de un dúplex.\nPiso de madera, ventanales\ncorredizos a la terraza.",
+        "ambiente": "Living"
+      },
+      {
+        "id": "14_living_ventanales_vista_verde",
+        "url": "./baleia/media/fotos/14_living_ventanales_vista_verde.webp",
+        "thumbUrl": "./baleia/media/fotos/14_living_ventanales_vista_verde.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Los ventanales dan al este:\nla vista, no el\nestacionamiento.",
+        "ambiente": "Los ventanales"
+      },
+      {
+        "id": "17_cocina_equipada_completa",
+        "url": "./baleia/media/fotos/17_cocina_equipada_completa.webp",
+        "thumbUrl": "./baleia/media/fotos/17_cocina_equipada_completa.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Cocina entregada así: mesada de cuarzo negro, horno y anafe instalados.",
+        "ambiente": "Cocina"
+      },
+      {
+        "id": "21_escalera_interna_duplex",
+        "url": "./baleia/media/fotos/21_escalera_interna_duplex.webp",
+        "thumbUrl": "./baleia/media/fotos/21_escalera_interna_duplex.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "La escalera del dúplex: dos plantas.",
+        "ambiente": "Escalera"
+      },
+      {
+        "id": "20_dormitorio_placard_vacio",
+        "url": "./baleia/media/fotos/20_dormitorio_placard_vacio.webp",
+        "thumbUrl": "./baleia/media/fotos/20_dormitorio_placard_vacio.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Dormitorio con placard instalado. Sin amueblar: así se entrega.",
+        "ambiente": "Dormitorio"
+      },
+      {
+        "id": "19_bano_completo_ducha",
+        "url": "./baleia/media/fotos/19_bano_completo_ducha.webp",
+        "thumbUrl": "./baleia/media/fotos/19_bano_completo_ducha.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Baño completo, mampara de vidrio, sanitarios colocados.",
+        "ambiente": "Baño"
+      },
+      {
+        "id": "12_terraza_pergolotecho_parrillero",
+        "url": "./baleia/media/fotos/12_terraza_pergolotecho_parrillero.webp",
+        "thumbUrl": "./baleia/media/fotos/12_terraza_pergolotecho_parrillero.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Techada, con luces embutidas\ny baranda de vidrio.",
+        "ambiente": "Bajo techo"
+      },
+      {
+        "id": "22_parrillero_empotrado_detalle",
+        "url": "./baleia/media/fotos/22_parrillero_empotrado_detalle.webp",
+        "thumbUrl": "./baleia/media/fotos/22_parrillero_empotrado_detalle.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "El parrillero, de cerca.",
+        "ambiente": "Terraza"
+      },
+      {
+        "id": "13_terraza_sillon_vista_verde",
+        "url": "./baleia/media/fotos/13_terraza_sillon_vista_verde.webp",
+        "thumbUrl": "./baleia/media/fotos/13_terraza_sillon_vista_verde.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Los ventanales corren enteros:\nel living se abre a la terraza.",
+        "ambiente": "El paso afuera"
+      },
+      {
+        "id": "11_vista_terraza_peninsula_skyline",
+        "url": "./baleia/media/fotos/11_vista_terraza_peninsula_skyline.webp",
+        "thumbUrl": "./baleia/media/fotos/11_vista_terraza_peninsula_skyline.thumb.webp",
+        "width": 2000,
+        "height": 1333,
+        "procedencia": {
+          "kind": "foto",
+          "capturedAt": "2026-09-02"
+        },
+        "caption": "Desde esta terraza: Punta del Este sobre el mar. Sin retoque.",
+        "ambiente": "La vista"
+      }
+    ],
+    "pairs": [
+      {
+        "id": "slider-paisajismo",
+        "label": "Lo que falta es el paisajismo, no el edificio",
+        "before": {
+          "id": "24_fachada_bloque2_atardecer_angulo",
+          "url": "./baleia/media/fotos/24_fachada_bloque2_atardecer_angulo.webp",
+          "thumbUrl": "./baleia/media/fotos/24_fachada_bloque2_atardecer_angulo.thumb.webp",
+          "width": 2000,
+          "height": 2994,
+          "procedencia": {
+            "kind": "foto",
+            "capturedAt": "2026-09-02"
+          }
+        },
+        "after": {
+          "id": "DSC05104-render-atardecer",
+          "url": "./baleia/media/paisajismo/DSC05104-render-atardecer.webp",
+          "thumbUrl": "./baleia/media/paisajismo/DSC05104-render-atardecer.thumb.webp",
+          "width": 2000,
+          "height": 2981,
+          "procedencia": {
+            "kind": "render"
+          }
+        }
+      }
+    ]
+  }
+}
