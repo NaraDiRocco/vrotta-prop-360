@@ -2030,7 +2030,7 @@
           "capturedAt": "2026-09-02"
         },
         "caption": "Los ventanales dan al este: la vista, no el estacionamiento.",
-        "ambiente": "Living"
+        "ambiente": "Los ventanales"
       },
       {
         "id": "17_cocina_equipada_completa",
@@ -2044,19 +2044,6 @@
         },
         "caption": "Cocina entregada así: mesada de cuarzo negro, horno y anafe instalados.",
         "ambiente": "Cocina"
-      },
-      {
-        "id": "18_cocina_vista_horizonte_mar",
-        "url": "./baleia/media/fotos/18_cocina_vista_horizonte_mar.webp",
-        "thumbUrl": "./baleia/media/fotos/18_cocina_vista_horizonte_mar.thumb.webp",
-        "width": 2000,
-        "height": 1333,
-        "procedencia": {
-          "kind": "foto",
-          "capturedAt": "2026-09-02"
-        },
-        "caption": "El bosque y, al fondo, Punta del Este sobre el mar.",
-        "ambiente": "La vista"
       },
       {
         "id": "21_escalera_interna_duplex",
@@ -2107,8 +2094,8 @@
           "kind": "foto",
           "capturedAt": "2026-09-02"
         },
-        "caption": "Terraza con parrillero de obra.",
-        "ambiente": "Terraza"
+        "caption": "Techada, con luces embutidas\ny baranda de vidrio.",
+        "ambiente": "Bajo techo"
       },
       {
         "id": "22_parrillero_empotrado_detalle",
@@ -2133,8 +2120,8 @@
           "kind": "foto",
           "capturedAt": "2026-09-02"
         },
-        "caption": "Y la terraza mira al verde.",
-        "ambiente": "Terraza"
+        "caption": "Los ventanales corren enteros:\nel living se abre a la terraza.",
+        "ambiente": "El paso afuera"
       },
       {
         "id": "11_vista_terraza_peninsula_skyline",

@@ -358,20 +358,19 @@ PHOTO_CAPTIONS = {
     "27_aerea_tres_bloques": "El conjunto: tres bloques sobre el bosque.",
 }
 
-# Tramo 2, Mitad B (§1): el paseo de 11 fotos con orden de casa. Rótulo de
+# Tramo 2, Mitad B (§1): el paseo de 10 fotos con orden de casa. Rótulo de
 # ambiente + caption, tal como están escritos uno por uno en la tabla del
 # plan — se usan textuales a propósito, están pensadas.
 UNIT_WALK = [
     ("16_living_comedor_amplio", "Living", "Living-comedor de un dúplex. Piso de madera, ventanales corredizos a la terraza."),
-    ("14_living_ventanales_vista_verde", "Living", "Los ventanales dan al este: la vista, no el estacionamiento."),
+    ("14_living_ventanales_vista_verde", "Los ventanales", "Los ventanales dan al este: la vista, no el estacionamiento."),
     ("17_cocina_equipada_completa", "Cocina", "Cocina entregada así: mesada de cuarzo negro, horno y anafe instalados."),
-    ("18_cocina_vista_horizonte_mar", "La vista", "El bosque y, al fondo, Punta del Este sobre el mar."),
     ("21_escalera_interna_duplex", "Escalera", "La escalera del dúplex: dos plantas."),
     ("20_dormitorio_placard_vacio", "Dormitorio", "Dormitorio con placard instalado. Sin\u00a0amueblar: así se entrega."),
     ("19_bano_completo_ducha", "Baño", "Baño completo, mampara de vidrio, sanitarios colocados."),
-    ("12_terraza_pergolotecho_parrillero", "Terraza", "Terraza con parrillero de obra."),
+    ("12_terraza_pergolotecho_parrillero", "Bajo techo", "Techada, con luces embutidas\ny baranda de vidrio."),
     ("22_parrillero_empotrado_detalle", "Terraza", "El parrillero, de cerca."),
-    ("13_terraza_sillon_vista_verde", "Terraza", "Y la terraza mira al verde."),
+    ("13_terraza_sillon_vista_verde", "El paso afuera", "Los ventanales corren enteros:\nel living se abre a la terraza."),
     ("11_vista_terraza_peninsula_skyline", "La vista", "Desde esta terraza: Punta del Este sobre el mar. Sin retoque."),
 ]
 
@@ -1099,7 +1098,7 @@ def build_photo_tour(tour_dir: str) -> tuple[dict, list[dict]]:
     for name in ("07_fachada_bloque2_dia_completa", "08_fachada_bloque2_angulo", "09_fachada_bloque2_vertical", "24_fachada_bloque2_atardecer_angulo"):
         add_photo(name)
 
-    # Tramo 2, Mitad B (§1): el paseo de 11 fotos, con caption y ambiente
+    # Tramo 2, Mitad B (§1): el paseo de 10 fotos, con caption y ambiente
     # TEXTUALES (ver UNIT_WALK más arriba — se usan tal como están escritos).
     for name, ambiente, caption in UNIT_WALK:
         add_photo(name, caption=caption, ambiente=ambiente)

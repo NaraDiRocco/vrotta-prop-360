@@ -1294,7 +1294,7 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
 /* Más ancho que el resto: el párrafo arranca 100 px adentro para alinearse con
    el título, así que con el 74 % de siempre le quedaban 177 px y la frase caía
    en tres líneas con "mar." solo. */
-.r360-editorial.is-ar-der-b { right: 24px; top: 24%;  text-align: right; max-width: min(92%, 400px); }
+.r360-editorial.is-ar-der-b { right: 96px; top: 22%;  text-align: right; max-width: min(92%, 400px); }
 
 /* Sólo la PRIMERA imagen se espeja en vertical: la descripción arriba de todo,
    después el título, y la guía colgando abajo con el punto mirando hacia él.
@@ -1371,49 +1371,40 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
    después de su última letra). */
 .r360-editorial.is-ar-der .r360-editorial__texto { margin-right: 39px; }
 
-/* La vista al horizonte (cuarta imagen): arriba a la derecha, con la línea
-   dada vuelta —baja en su extremo izquierdo, donde cae el punto, y se extiende
-   hacia la derecha—. El nombre de la posición dice "ar-der-b" porque es la
-   segunda que vive arriba a la derecha, con el gesto espejado. */
+/* Cuarta posición: arriba a la derecha y espejada en vertical —el párrafo
+   arriba, el título debajo y la guía colgando, que entra por la izquierda,
+   corre por abajo y sube en su extremo derecho hasta el punto—.
+
+   Título y párrafo se pegan los dos al borde derecho del bloque, así quedan
+   alineados solos mida lo que mida el rótulo, y la guía va posicionada, con
+   su extremo derecho clavado en el centro de la cabeza (o sea, del título).
+   Antes el párrafo llevaba un margen en píxeles medido para "LA VISTA" y se
+   descolocaba apenas cambiaba el rótulo. */
+.r360-editorial.is-ar-der-b { flex-direction: column-reverse; }
 .r360-editorial.is-ar-der-b .r360-editorial__cabeza {
   align-self: flex-end;
-  /* El doble del largo de la guía, con el título centrado adentro: así el
-     centro del título cae exactamente donde baja la línea, sin tener que
-     conocer cuánto mide la palabra. */
-  width: 280px;
-  text-align: center;
+  position: relative;
+  width: auto;
 }
 .r360-editorial.is-ar-der-b .r360-editorial__guia {
-  /* Larga hacia adentro: el extremo derecho queda fijo contra el margen del
-     bloque y el punto se corre hacia el centro de la foto. */
+  position: absolute;
+  right: 50%;
+  top: calc(100% + 14px);
   width: 140px;
-  margin-right: 0;
-  margin-left: auto;
-  border-right: 0;
-  border-left: 1px solid rgba(255, 255, 255, .85);
-}
-.r360-editorial.is-ar-der-b .r360-editorial__guia::after { right: auto; left: -5px; }
-/* El párrafo termina donde termina "LA VISTA": el título quedó centrado bajo
-   el punto, a 100 px del borde derecho del bloque, así que el párrafo se corre
-   otro tanto. Es una medida atada a ese rótulo; si cambia el texto del título,
-   hay que volver a medir. */
-.r360-editorial.is-ar-der-b .r360-editorial__texto { margin-right: 100px; }
-
-/* Y espejado en vertical: el párrafo arriba, después el título y la guía
-   colgando abajo, con el punto mirando hacia arriba —la línea sube desde el
-   pie hasta el texto en vez de bajar hacia él—. */
-.r360-editorial.is-ar-der-b,
-.r360-editorial.is-ar-der-b .r360-editorial__cabeza { flex-direction: column-reverse; }
-.r360-editorial.is-ar-der-b .r360-editorial__cabeza { display: flex; }
-.r360-editorial.is-ar-der-b .r360-editorial__guia {
-  margin-bottom: 0;
-  margin-top: 14px;
+  margin: 0;
   border-top: 0;
   border-bottom: 1px solid rgba(255, 255, 255, .85);
 }
 .r360-editorial.is-ar-der-b .r360-editorial__guia::after { top: -5px; bottom: auto; }
 .r360-editorial.is-ar-der-b .r360-editorial__titulo { margin: 0; }
-.r360-editorial.is-ar-der-b .r360-editorial__texto { margin-bottom: 10px; }
+.r360-editorial.is-ar-der-b .r360-editorial__texto {
+  align-self: flex-end;
+  margin: 0 0 10px;
+  /* Sin esto el ancho disponible daba exactamente lo que mide la línea más
+     larga y, por redondeo, igual la partía en dos. */
+  width: max-content;
+  max-width: 100%;
+}
 
 /* La guía: una línea que entra de costado, dobla y baja hasta un punto, en el
    centro del título. */
@@ -1449,7 +1440,8 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
    y el título salía corrido 16 px respecto del párrafo y de la guía. Esa misma
    regla le imponía además su `font-size: 15px`; al ganarle la especificidad
    creció de golpe, así que acá se declara el tamaño que venía teniendo. */
-.r360-editorial .r360-editorial__titulo {
+.r360-editorial .r360-editorial__titulo,
+.r360-diagonal__rotulo .r360-editorial__titulo {
   margin: 0 0 10px;
   font-size: 15px;
   font-weight: 700;
@@ -1479,3 +1471,192 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
 /* La leyenda del pie sobra: el texto ya está sobre la foto. El contador se
    queda, que es lo que dice cuántas fotos hay. */
 .r360-rail__serie.is-editorial .r360-rail__seriepie .r360-rail__caption { display: none; }
+
+/* El paseo deja asomar 18 px de la foto siguiente contra el borde derecho: es
+   lo que avisa, sin texto ni flechas, que hay varias y que se pasan con el
+   dedo. La última ocupa el ancho entero, así el recorrido termina a sangre y
+   el desplazamiento cierra justo. */
+.r360-rail__serie.is-editorial .r360-rail__slide {
+  flex-basis: calc(100% - 18px);
+  width: calc(100% - 18px);
+  scroll-snap-align: start;
+}
+.r360-rail__serie.is-editorial .r360-rail__slide:last-child {
+  flex-basis: 100%;
+  width: 100%;
+}
+
+/* En el Tramo 4 las imágenes son renders y llevan chapa. Baja para no
+   montarse a la marca, y anula el corrimiento que la regla de la lámina clara
+   —pensada para los renders sobre papel, que acá ya no existen— le aplicaba. */
+.r360-rail__serie.is-editorial .r360-rail__chapa.is-render {
+  top: 96px;
+  bottom: auto;
+  left: 16px;
+  transform: none;
+}
+
+/* ----------------------------------------- Tramo 4: la imagen partida en dos */
+
+/* Una sola imagen, quieta, cortada por una diagonal: el render del sector a
+   la izquierda y la misma esquina del terreno hoy a la derecha. El corte es
+   un `clip-path` sobre la capa de arriba; la línea blanca es una tercera capa
+   con el MISMO polígono corrido, así no hay que hacer coincidir a mano una
+   raya rotada con el borde del recorte. */
+.r360-rail__pantalla--media .r360-rail__diagonal .r360-rail__chapa.is-render {
+  top: 96px;
+  bottom: auto;
+  left: 16px;
+  transform: none;
+}
+.r360-rail__diagonal {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #060a0f;
+}
+.r360-diagonal__capa {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+}
+.r360-diagonal__capa img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .35s ease;
+}
+.r360-diagonal__capa img.is-on { opacity: 1; }
+.r360-diagonal__capa.is-hoy { clip-path: polygon(96% 0, 100% 0, 100% 100%, 2% 100%); }
+.r360-diagonal__borde {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: #fff;
+  clip-path: polygon(calc(96% - 1.5px) 0, 100% 0, 100% 100%, calc(2% - 1.5px) 100%);
+}
+.r360-diagonal__capa.is-hoy { z-index: 3; }
+
+/* Los dos rótulos, uno por época, en el mismo lenguaje que el resto del
+   recorrido: título en versales y la frase debajo. Cada uno vive del lado
+   que nombra y no cruza la diagonal. */
+.r360-diagonal__rotulo {
+  position: absolute;
+  z-index: 4;
+  /* Del ancho de su línea más larga, para que el salto que trae el texto sea
+     el único que haya, y con techo para no cruzar la diagonal. */
+  width: max-content;
+  max-width: min(62%, 240px);
+  pointer-events: none;
+}
+/* El corte va de 96 % arriba a 2 % abajo: el lado del render es ancho
+   ARRIBA y angosto abajo, y el de hoy al revés. Cada rótulo va donde su lado
+   tiene lugar, para no cruzar la diagonal. */
+.r360-diagonal__rotulo.is-proyecto { left: 22px; top: 19%; text-align: left; max-width: min(74%, 278px); }
+.r360-diagonal__rotulo.is-hoy { right: 22px; bottom: 33%; text-align: right; }
+.r360-diagonal__rotulo .r360-editorial__titulo { margin: 0 0 8px; }
+
+/* Un velo desde abajo y desde arriba: las dos imágenes tienen cielo claro y
+   el texto blanco se perdía. */
+.r360-rail__diagonal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(6, 10, 15, .5), rgba(6, 10, 15, 0) 34%),
+    linear-gradient(to top, rgba(6, 10, 15, .66), rgba(6, 10, 15, 0) 44%);
+}
+
+/* ------------------------------------------------- Tramo 5: el cierre */
+
+/* Una sola pantalla y una sola cosa para hacer: la foto de la terraza de
+   fondo, el pedido, el botón, y al pie el inventario honesto en letra chica.
+   El encabezado del tramo no se dibuja acá —el título de la pantalla ya dice
+   dónde estás— y así el texto no termina pisado. */
+.r360-rail[data-tramo="consultar"] .r360-rail__head { display: none; }
+
+.r360-rail__cierre-final {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  /* La tarjeta hereda `flex-direction: column`, así que lo que pega el texto
+     abajo es `justify-content`, no `align-items`. */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  overflow: hidden;
+  background: #060a0f;
+}
+.r360-cierre__fondo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .35s ease;
+}
+.r360-cierre__fondo.is-on { opacity: 1; }
+.r360-rail__cierre-final::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(4, 8, 12, .94) 30%, rgba(4, 8, 12, .72) 62%, rgba(4, 8, 12, .3));
+}
+.r360-cierre__texto {
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 100%;
+  /* El pie del riel —flechas y puntos— ocupa los últimos 130 px: el texto
+     termina arriba de eso, con aire, y no pegado. */
+  padding: 0 22px 154px;
+}
+.r360-cierre__titulo {
+  margin: 0 0 10px;
+  font-size: clamp(26px, 7vw, 34px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -.01em;
+  color: #fff;
+}
+.r360-cierre__bajada {
+  margin: 0 0 22px;
+  max-width: 30ch;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 300;
+  color: rgba(255, 255, 255, .88);
+}
+/* En el cierre el botón es la única acción de la pantalla: va sólido y en el
+   arena de la marca, no en el verde de WhatsApp ni delineado como los botones
+   discretos del resto del recorrido. */
+.r360-cierre__texto .r360-rail__btn.is-grande {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #171717;
+  background: #ad9a84;
+  border: 0;
+}
+.r360-cierre__contacto {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, .8);
+}
+.r360-cierre__pie {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  /* Va sobre la parte más oscura de la foto: al 55 % de blanco se perdía. */
+  color: rgba(255, 255, 255, .82);
+}
