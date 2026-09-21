@@ -69,6 +69,21 @@
   padding: 0 24px;
 }
 
+/* El logo de Baleia, que es lo que se ve mientras carga. El nombre escrito
+   queda debajo por si el archivo no está: se esconde recién cuando la imagen
+   confirma que cargó. */
+.r360-boot__logo {
+  width: min(52vw, 220px);
+  height: auto;
+  opacity: 0;
+  animation: r360-boot-logo .6s ease forwards;
+}
+@keyframes r360-boot-logo {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.r360-boot.is-con-logo .r360-boot__name { display: none; }
+
 .r360-boot__name {
   font-size: 26px;
   font-weight: 700;

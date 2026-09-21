@@ -22,6 +22,11 @@ Con `--publish` además copia todo a `apps/viewer/public/baleia/` y deja el
 manifiesto con las URLs prefijadas en `apps/viewer/public/tour.json`, que es
 lo que abre el visor en dev sin ningún parámetro.
 
+Las escenas 360 no se arman acá —las agrega `integrate_panoramas.py`, que es
+otro paso con otro entorno— pero este script ya NO las pierde: al reescribir
+el manifiesto repone las que estaban, siempre que sus tiles sigan en
+`out/tour/scenes/` (ver `reintegrar_panoramas`).
+
 ------------------------------------------------------------------------
 DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
 ------------------------------------------------------------------------
@@ -244,6 +249,7 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import os
 import re
@@ -963,10 +969,17 @@ def build_media(tour_dir: str) -> dict:
         for filename in sorted(os.listdir(brochure_dir)):
             if not filename.endswith(".webp"):
                 continue
+            src = os.path.join(brochure_dir, filename)
             dst = os.path.join(tour_dir, "media", "brochure", filename)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copyfile(os.path.join(brochure_dir, filename), dst)
-            brochure_pages.append(f"./media/brochure/{filename}")
+            shutil.copyfile(src, dst)
+            # La URL lleva un sello del contenido. Las páginas se llaman
+            # siempre igual (`pagina-01.webp`), así que al cambiar el brochure
+            # el teléfono seguía mostrando las viejas de su caché: misma
+            # dirección, archivo distinto. Con el sello, un brochure nuevo es
+            # una dirección nueva y no hay nada que vaciar a mano.
+            sello = hashlib.md5(open(src, "rb").read()).hexdigest()[:8]
+            brochure_pages.append(f"./media/brochure/{filename}?v={sello}")
 
     # Los PDF originales, renombrados al código de unidad: son un archivo para
     # bajar, no una imagen, así que no pasan por Pillow ni tienen miniatura.
@@ -1117,6 +1130,60 @@ def build_photo_tour(tour_dir: str) -> tuple[dict, list[dict]]:
         pairs.append({"id": spec["id"], "label": spec["label"], "before": before_item, "after": after_item})
 
     return {"items": items, "pairs": pairs}, media_info
+
+
+def reintegrar_panoramas(tour: dict) -> int:
+    """Devuelve al manifiesto las panorámicas que ya estaban integradas.
+
+    Este script arma el `tour.json` desde cero cada vez, y las escenas 360 no
+    salen de acá: las agrega después `integrate_panoramas.py`, que es otro
+    paso con otro entorno. Resultado: cualquier corrida de rutina —cambiar un
+    texto, cambiar el brochure— dejaba el recorrido publicado sin las 15
+    panorámicas, con los tiles ahí en el disco pero sin nadie que los nombrara.
+    Pasó, y nadie se entera hasta que alguien abre una ficha y el botón de
+    "Recorrer en 360°" no está.
+
+    Así que se reponen desde el `tour.json` anterior, y sólo las que todavía
+    tienen sus tiles en `out/tour/scenes/`: si el material se fue, la escena no
+    vuelve. Volver a correr `integrate_panoramas.py` sigue siendo la forma de
+    agregar tomas nuevas o cambiar las que hay; esto sólo evita perderlas.
+    """
+    previo_path = os.path.join(TOUR_DIR, "tour.json")
+    if not os.path.isfile(previo_path):
+        return 0
+    with open(previo_path, encoding="utf-8") as f:
+        previo = json.load(f)
+
+    vivas = [
+        sc
+        for sc in previo.get("scenes", [])
+        if sc.get("kind") == "panorama"
+        and os.path.isfile(
+            os.path.join(TOUR_DIR, "scenes", sc.get("slug", ""), "tiles", "tiles.json")
+        )
+    ]
+    if not vivas:
+        return 0
+
+    ya = {sc["slug"] for sc in tour["scenes"]}
+    for sc in vivas:
+        if sc["slug"] not in ya:
+            tour["scenes"].append(sc)
+    tour["scenes"].sort(key=lambda sc: sc.get("sort", 0))
+
+    # Y los hotspots del masterplan que saltaban a una panorámica vuelven a
+    # saltar ahí: sin esto la escena existe pero no hay cómo llegar.
+    slugs = {sc["slug"] for sc in vivas}
+    acciones = {
+        h["id"]: h["action"]
+        for h in previo.get("hotspots", [])
+        if (h.get("action") or {}).get("sceneSlug") in slugs
+    }
+    for h in tour.get("hotspots", []):
+        if h["id"] in acciones:
+            h["action"] = acciones[h["id"]]
+
+    return len(vivas)
 
 
 def publish(tour_dir: str) -> dict:
@@ -1437,6 +1504,7 @@ def build(argv: list[str] | None = None) -> int:
     }
 
     os.makedirs(TOUR_DIR, exist_ok=True)
+    panoramas = reintegrar_panoramas(tour)
     with open(os.path.join(TOUR_DIR, "tour.json"), "w", encoding="utf-8") as f:
         json.dump(tour, f, indent=2, ensure_ascii=False)
     with open(os.path.join(TOUR_DIR, "availability.json"), "w", encoding="utf-8") as f:
@@ -1464,6 +1532,7 @@ def build(argv: list[str] | None = None) -> int:
         json.dumps(
             {
                 "tour": os.path.join(TOUR_DIR, "tour.json"),
+                "panoramas_repuestas": panoramas,
                 "availability": os.path.join(TOUR_DIR, "availability.json"),
                 "masterplan": masterplan,
                 "media": media,

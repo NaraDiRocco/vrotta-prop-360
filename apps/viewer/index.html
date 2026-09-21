@@ -4,8 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Vrotta Prop 360</title>
+  <!--
+    El logo, pintado en el primer cuadro. Va acá y no en el JS a propósito:
+    hasta que el bundle no llega y arranca, la pantalla queda negra —en un
+    teléfono con red lenta, varios segundos—. Con esto, lo primero que se ve es
+    la marca. El estilo va en línea por lo mismo: una hoja aparte sería otra
+    descarga antes de poder dibujar nada.
+  -->
+  <style>
+    #r360-pre {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: grid;
+      place-items: center;
+      background: #0d1117;
+      transition: opacity .4s ease;
+    }
+    #r360-pre img {
+      width: min(52vw, 220px);
+      height: auto;
+      opacity: 0;
+      animation: r360-pre-in .6s ease forwards;
+    }
+    @keyframes r360-pre-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: none; }
+    }
+    #r360-pre.is-done { opacity: 0; pointer-events: none; }
+  </style>
 </head>
 <body>
+  <div id="r360-pre"><img src="baleia/marca/baleia-logo-blanco.svg" alt="" /></div>
   <div id="app"></div>
   <div id="legend" hidden></div>
   <script type="module" src="/src/main.ts"></script>

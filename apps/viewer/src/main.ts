@@ -52,7 +52,12 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
   container.classList.add('r360-root');
   const boot = showBoot(container);
 
-  const tourRes = await fetch(tourUrl, { cache: 'default' });
+  // `no-cache` y no `default`: el manifiesto es el dato vivo del recorrido
+  // —precios, estados, páginas del brochure— y con la caché del navegador de
+  // por medio un teléfono podía seguir mostrando el brochure anterior o una
+  // lista de precios vieja durante horas. `no-cache` no lo baja de nuevo cada
+  // vez: revalida contra el servidor y usa la copia local si no cambió.
+  const tourRes = await fetch(tourUrl, { cache: 'no-cache' });
   if (!tourRes.ok) throw new Error(`tour.json ${tourRes.status}`);
   const tourPeek = (await tourRes.json()) as TourManifest;
   const availabilityUrl =
@@ -213,6 +218,16 @@ function showBoot(container: HTMLElement): BootHandle {
     `<div class="r360-boot__bar"><i></i></div>` +
     `<img class="r360-boot__thumb" alt="" />` +
     `<div class="r360-boot__brand">` +
+    // El logo, no el nombre escrito: es lo primero que se ve del proyecto y
+    // aparece antes de que llegue el manifiesto, así que la ruta sale de la
+    // convención de publicación y no de `brandLogo`. Si falla, queda el
+    // nombre —abajo se muestra solo cuando la imagen no carga—.
+    // `alt` vacío a propósito: mientras el SVG no llegó, el navegador dibuja
+    // el texto alternativo, y acá eso era un "Baleia" escrito que aparecía
+    // antes del logo. El nombre para lectores de pantalla ya lo da el span de
+    // abajo, que además es la caída si el archivo falla.
+    `<img class="r360-boot__logo" alt="" ` +
+    `src="${import.meta.env.BASE_URL}baleia/marca/baleia-logo-blanco.svg">` +
     `<span class="r360-boot__name">Recorrido</span>` +
     `<span class="r360-boot__sub">Cargando el plano…</span>` +
     `</div>`;
@@ -221,6 +236,17 @@ function showBoot(container: HTMLElement): BootHandle {
   const fill = el.querySelector<HTMLElement>('.r360-boot__bar i')!;
   const img = el.querySelector<HTMLImageElement>('.r360-boot__thumb')!;
   const name = el.querySelector<HTMLElement>('.r360-boot__name')!;
+  const logo = el.querySelector<HTMLImageElement>('.r360-boot__logo')!;
+  // El logo del `index.html` ya está en pantalla desde el primer cuadro: esta
+  // pantalla de carga lo repite en el mismo lugar y tamaño, así que se retira
+  // el de atrás sin que se note el relevo.
+  const previo = document.getElementById('r360-pre');
+  if (previo) {
+    previo.classList.add('is-done');
+    setTimeout(() => previo.remove(), 450);
+  }
+  logo.addEventListener('load', () => el.classList.add('is-con-logo'), { once: true });
+  logo.addEventListener('error', () => logo.remove(), { once: true });
   let creep: ReturnType<typeof setInterval> | null = null;
   let value = 0;
 
