@@ -65,14 +65,30 @@ export async function withinRateLimit(
 }
 
 /**
- * IP del cliente tal como la ve el edge de Cloudflare. `X-Forwarded-For` es
- * sólo un fallback para tests/dev local, donde `CF-Connecting-IP` no existe
- * — en producción, detrás del edge real, siempre viene `CF-Connecting-IP` y
- * ese header de request nunca lo puede falsificar el cliente.
+ * IP del cliente tal como la ve el proxy que tenemos delante.
+ *
+ * Este Worker ya no corre detrás del edge de Cloudflare (ver src/server.ts):
+ * corre en un VPS propio, detrás de nginx como reverse proxy. `CF-Connecting-IP`
+ * se deja como primer chequeo sólo por compatibilidad hacia atrás/por si
+ * algún día se vuelve a poner Cloudflare delante - hoy en producción nunca va
+ * a venir. La señal real es `X-Real-IP`, que es justo para esto: nginx la
+ * setea con `proxy_set_header X-Real-IP $remote_addr;` a un único valor, sin
+ * la ambigüedad de una lista. `X-Forwarded-For` (primer valor) queda como
+ * segundo fallback, para el caso de un nginx configurado con
+ * `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` en vez de
+ * X-Real-IP.
+ *
+ * IMPORTANTE, operativo y no exigible desde acá: esto sólo es confiable si
+ * nginx SETEA (sobreescribe) estos headers en vez de agregarlos a lo que
+ * mande el cliente, y si Node NUNCA queda expuesto a Internet directamente
+ * (sólo nginx). Si un cliente le puede hablar directo al proceso de Node, o
+ * si nginx reenvía el X-Real-IP/X-Forwarded-For que el cliente mandó sin
+ * pisarlo, cualquiera puede falsificar su IP y saltarse el rate limit.
  */
 function clientIp(c: Context<{ Bindings: Env }>): string {
   return (
     c.req.header('CF-Connecting-IP') ??
+    c.req.header('X-Real-IP') ??
     c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() ??
     'unknown'
   );

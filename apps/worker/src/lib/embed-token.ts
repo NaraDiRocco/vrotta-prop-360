@@ -63,7 +63,13 @@ function fromBase64Url(s: string): Uint8Array {
   return bytes;
 }
 
-async function hmacKey(secret: string): Promise<CryptoKey> {
+// `CryptoKey` no es un tipo global sin `lib: "dom"` (que este Worker no usa,
+// ver tsconfig.json) ni @cloudflare/workers-types (que ya no se usa desde que
+// corre en Node - ver env.ts). @types/node expone el mismo tipo, pero
+// namespaced bajo `webcrypto`: el `crypto` global de Node es justo
+// `webcrypto.Crypto`, así que esto sigue siendo el resultado real de
+// `crypto.subtle.importKey`, no un tipo distinto.
+async function hmacKey(secret: string): Promise<import('node:crypto').webcrypto.CryptoKey> {
   return crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
