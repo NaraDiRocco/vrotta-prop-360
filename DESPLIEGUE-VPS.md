@@ -70,21 +70,33 @@ a Traefik **tres routers por host**: el general hacia el worker, el de media
 hacia nginx (con `PathRegexp` y prioridad explícita) y el de redirección a
 https. Traefik pide y renueva el certificado solo.
 
-Hoy el dominio base es `179.199.142.5.nip.io`, que funciona como wildcard sin
-tocar DNS. **Falta comprar el dominio del SaaS.** El día que esté:
+El dominio de la plataforma es **`vrottaprop360.com`** (desde 2026-09-22).
+En Hostinger tiene un registro A wildcard `*` y el apex, ambos a
+`179.199.142.5`, más el CNAME de `www`. Gracias al wildcard, un proyecto nuevo
+queda publicado en `{subdominio}.vrottaprop360.com` apenas se crea, sin que
+nadie vuelva a tocar el DNS.
 
-1. Cargar un registro **A wildcard** `*.algo.eldominio.com` → `179.199.142.5`.
-2. Cambiar `R360_PAGES_DOMAIN` y `R360_BASE_DOMAIN` en `/root/.r360/worker.env`.
-3. Reiniciar `r360-worker` y `r360-reconciliador`.
+- La plataforma (API) atiende en `app.vrottaprop360.com`.
+- Baleia vive en `baleia.vrottaprop360.com`.
+- Las direcciones provisorias `*.179.199.142.5.nip.io` redirigen al dominio
+  con 301, conservando la ruta (`r360-provisorios.yml`). Ese archivo se puede
+  borrar cuando ya nadie use esos links.
+
+Si alguna vez hay que mudar de dominio otra vez:
+`bash tools/deploy/cambiar-dominio-plataforma.sh eldominio.com`. Comprueba que
+el DNS resuelva —incluido el wildcard— antes de tocar nada, porque pedir un
+certificado antes de tiempo gasta intentos contra el cupo de Let's Encrypt.
 
 Para el dominio propio de un cliente está la tabla `project_domains`, con
 token de posesión y estados. El reconciliador sólo enruta los `verified`.
 
 ### Lo que sigue pendiente
 
-- **Comprar el dominio del SaaS** (ver arriba). Es lo único que bloquea.
-- **Sin `og:image`**: el link compartido por WhatsApp sale sin imagen. Necesita
-  URL absoluta, o sea dominio.
+- **Sin `og:image`**: el link compartido por WhatsApp sale sin imagen. Ahora
+  que hay dominio ya se puede hacer, pero no alcanza con ponerlo fijo en el
+  `index.html`: ese shell es el mismo para todos los proyectos. Lo correcto es
+  que el worker inyecte las etiquetas al servir, que para eso ya conoce el
+  tenant, el proyecto y su manifiesto.
 - **Los leads del proyecto en la plataforma** los recibe `/api/leads` del
   worker y van a la tabla `leads` de Supabase. Los que junte el sitio suelto
   quedaron en `/srv/baleia/leads/leads.jsonl`.

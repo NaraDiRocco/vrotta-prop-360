@@ -24,7 +24,7 @@ PROYECTO="${2:?falta el proyecto, por ejemplo: baleia}"
 
 VPS_HOST="${VPS_HOST:-root@179.199.142.5}"
 ALMACEN="${ALMACEN:-/srv/r360/storage}"
-PLATAFORMA="${PLATAFORMA:-https://r360.179.199.142.5.nip.io}"
+PLATAFORMA="${PLATAFORMA:-https://app.vrottaprop360.com}"
 
 cd "$(dirname "$0")/../.."
 DIST="$PWD/apps/viewer/dist"
