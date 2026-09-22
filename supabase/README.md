@@ -15,7 +15,7 @@ supabase db push
 ```
 
 Esto aplica en orden todos los archivos de `supabase/migrations/`
-(`0001_...sql` a `0014_...sql`). Son idempotentes: usan
+(`0001_...sql` a `0027_...sql`). Son idempotentes: usan
 `create table if not exists`, `create or replace function`,
 `drop policy if exists` + `create policy`, `create index if not exists`,
 etc., así que correr `db push` de nuevo sobre un esquema ya aplicado no
@@ -48,7 +48,21 @@ done
 | `0012_project_health_view.sql` | Vista `project_health` |
 | `0013_availability_json.sql` | Función `generate_availability_json(p_project_id uuid)` |
 | `0014_indexes.sql` | Índices de consulta (project+status, project+group, prefijo de código) |
+| `0015_fix_insert_returning_rls.sql` | Arregla el alta de filas vía `INSERT ... RETURNING`, que fallaba contra RLS aunque el usuario tuviera permiso |
 | `0016_material.sql` | Material requerido: `project_material`, `material_files`, `material_share_links`, RPCs del link público (`material_link_*`) y bucket privado `material` |
+| `0017_unit_status_proximamente.sql` | Da de alta `'proximamente'` como valor real del enum `unit_status` (antes sólo existía en `packages/core/src/status.ts`) |
+| `0018_views_security_invoker.sql` | Cierra fuga de datos entre tenants: las vistas (`project_health`, 0012) pasan a correr con los permisos de quien consulta, no de quien las creó |
+| `0019_platform_roles.sql` | Roles de PLATAFORMA (equipo de Vrotta) por encima de los roles de cliente (`memberships.role`) |
+| `0020_invitations.sql` | Sistema de invitaciones al panel, tanto de una inmobiliaria (`scope='tenant'`) como del equipo de Vrotta (`scope='platform'`) |
+| `0022_project_domains.sql` | `projects.subdomain` (subdominio de plataforma) + tabla `project_domains` (dominio propio del cliente, verificado por TXT) + `reserved_subdomains` |
+| `0023_hotspots_sort.sql` | Orden explícito de `hotspots` (`sort`), como ya tenían `scenes` y `groups` |
+| `0024_scenes_extras.sql` | Columnas de `scenes` para el resto del contrato `Scene` de `packages/core/src/types.ts` (`procedencia`, etc.) que no tenían lugar en 0006 |
+| `0025_availability_groups.sql` | Reemplaza `generate_availability_json` (0013) para que los GRUPOS (bloques) también tengan estado propio en `availability.json`, no sólo las unidades |
+| `0026_groups_status.sql` | Un grupo puede declarar su propio estado comercial (`groups.status`) en vez de que siempre se derive de sus unidades |
+| `0027_availability_group_status.sql` | Reemplaza `generate_availability_json` (0025) para que el estado DECLARADO de un grupo (0026) tenga precedencia sobre el derivado |
+
+No hay `0021`: el número se saltó (no corresponde a ninguna migración borrada
+ni renombrada, según el historial de git).
 
 ## Cómo correr el seed
 
@@ -158,6 +172,13 @@ invocarla con `service_role` desde el backend para ver todas las unidades
 del proyecto sin restricciones.
 
 ## Qué se verificó y cómo
+
+> Esta verificación se corrió contra las primeras 14 migraciones (hasta
+> `0014_indexes.sql`). Las 13 que se agregaron después (`0015` a `0027`, ver
+> la tabla de arriba) no pasaron por esta misma corrida de punta a punta —
+> cada una tiene sus propios tests donde corresponde (`apps/admin`,
+> `apps/worker`), pero no este chequeo específico de RLS end-to-end con los
+> tres roles sobre un Postgres descartable.
 
 No hay Postgres accesible por defecto en este entorno, pero **sí** se pudo
 verificar de punta a punta: se levantó un contenedor Docker descartable con

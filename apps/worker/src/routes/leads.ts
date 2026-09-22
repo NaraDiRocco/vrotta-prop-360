@@ -95,10 +95,11 @@ leads.post('/api/leads', async (c) => {
       },
     ]);
   } catch (err) {
-    return c.json(
-      { error: 'supabase_error', message: err instanceof Error ? err.message : String(err) },
-      502,
-    );
+    // El detalle va al log, no a la respuesta: este endpoint es publico y sin
+    // token, y el mensaje crudo de Supabase puede describir tablas, columnas o
+    // la forma de la consulta a cualquiera que sepa provocarlo.
+    console.error('leads: fallo al insertar en Supabase:', err);
+    return c.json({ error: 'supabase_error', message: 'No se pudo registrar el contacto.' }, 502);
   }
 
   // 2) Recién ahora armamos el destino según el canal.
@@ -137,12 +138,16 @@ leads.post('/api/leads', async (c) => {
       return c.json({ ok: true, channel: 'crm_webhook', registered: true, forwarded: true });
     } catch (err) {
       // El lead ya está en Supabase aunque el webhook del cliente haya fallado.
+      console.error('leads: fallo al reenviar al CRM del cliente:', err);
       return c.json({
         ok: true,
         channel: 'crm_webhook',
         registered: true,
         forwarded: false,
-        warning: `Fallo al reenviar al CRM del cliente: ${err instanceof Error ? err.message : String(err)}`,
+        // Sin el detalle: el error del webhook es de la integracion interna de
+        // la inmobiliaria -su URL, su DNS, su servidor- y quien esta del otro
+        // lado es un visitante anonimo que solo queria dejar su contacto.
+        warning: 'El contacto quedo registrado pero no se pudo reenviar al CRM del cliente.',
       });
     }
   }

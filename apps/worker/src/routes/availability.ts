@@ -46,10 +46,11 @@ availability.post('/api/availability/:tenant/:project/regenerate', async (c) => 
     });
     file = { ...generated, v: pointer.version };
   } catch (err) {
-    return c.json(
-      { error: 'supabase_error', message: err instanceof Error ? err.message : String(err) },
-      502,
-    );
+    // Aca el llamador es de confianza -pasa el secreto de publicacion- pero el
+    // detalle igual va al log y no a la respuesta: el dia que alguien exponga
+    // esta ruta, el habito ya esta tomado.
+    console.error('availability: fallo al regenerar:', err);
+    return c.json({ error: 'supabase_error', message: 'No se pudo regenerar la disponibilidad.' }, 502);
   }
 
   await c.env.R2.put(r2Paths.availabilityJson(tenant, project, pointer.version), JSON.stringify(file), {

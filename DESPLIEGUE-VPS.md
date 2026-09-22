@@ -1,4 +1,4 @@
-# Recorrido 360 — Despliegue en el VPS de Hostinger
+# Vrotta Prop 360 — Despliegue en el VPS de Hostinger
 
 > Documento para arrancar el despliegue desde otra sesión de trabajo.
 > Escrito el 2026-09-06. Todo lo que dice acá está verificado contra el servidor
@@ -92,11 +92,10 @@ token de posesión y estados. El reconciliador sólo enruta los `verified`.
 
 ### Lo que sigue pendiente
 
-- **Sin `og:image`**: el link compartido por WhatsApp sale sin imagen. Ahora
-  que hay dominio ya se puede hacer, pero no alcanza con ponerlo fijo en el
-  `index.html`: ese shell es el mismo para todos los proyectos. Lo correcto es
-  que el worker inyecte las etiquetas al servir, que para eso ya conoce el
-  tenant, el proyecto y su manifiesto.
+- ~~Sin `og:image`~~ — **resuelto**: el worker ya arma `og:title` /
+  `og:description` / `og:image` / `og:url` por proyecto al servir el shell
+  (`src/lib/og-tags.ts`, ver `apps/worker/README.md`), con el `Host` real de
+  la visita. El link compartido por WhatsApp sale con tarjeta.
 - **Los leads del proyecto en la plataforma** los recibe `/api/leads` del
   worker y van a la tabla `leads` de Supabase. Los que junte el sitio suelto
   quedaron en `/srv/baleia/leads/leads.jsonl`.
@@ -111,10 +110,27 @@ token de posesión y estados. El reconciliador sólo enruta los `verified`.
 
 ## 1. Antes de escribir una línea: tres decisiones que hay que tomar
 
+> **SUPERADO — las tres ya se decidieron, y no todas como se recomendaba
+> acá.** Se dejan las secciones §4/§5/§6 completas porque el razonamiento de
+> cada opción sigue siendo válido para la próxima vez que se re-evalúe algo
+> parecido, pero **lo que sigue abajo describe el análisis previo, no lo que
+> terminó pasando.** Lo que pasó de verdad está en la sección 0. Resumen:
+>
+> - **D1** — no se quedó en Cloudflare ni se reescribió la capa de
+>   almacenamiento: se le agregaron adaptadores de filesystem
+>   (`apps/worker/src/lib/kv-fs.ts`, `storage-fs.ts`) que cumplen la misma
+>   interfaz mínima que KV/R2, y el worker corre como proceso Node en el VPS.
+>   Ver `apps/worker/README.md`.
+> - **D2** — tampoco R2: los tiles se sirven desde el propio VPS, por
+>   `r360-media` (nginx con soporte de rangos), leyendo el mismo árbol de
+>   disco que usa el worker.
+> - **D3** — `vrottaprop360.com`, comprado y cargado. Ver
+>   `DNS-VROTTAPROP360.md`.
+
 No las tomo yo porque cambian la arquitectura. Están explicadas abajo con una
 recomendación de cada una, pero **la dueña decide**.
 
-| # | Decisión | Recomendación |
+| # | Decisión | Recomendación (histórica — ver nota de arriba) |
 |---|---|---|
 | **D1** | El worker está hecho para Cloudflare (KV + R2). ¿Se queda ahí o se reescribe para el VPS? | **Se queda en Cloudflare** — ver §4 |
 | **D2** | ¿Dónde viven los tiles de las panorámicas? | **R2 con dominio propio**, no el VPS — ver §5 |
@@ -157,7 +173,7 @@ autoalojado + API + web). Deja libre:
 - Puertos ocupados: 22, 53, 80, 443, 2377, 3000, 7946, 65529.
 
 **Regla que la dueña pidió explícitamente y que hay que respetar: base de datos
-propia, sin tocar el ecosistema de ningún otro proyecto.** Recorrido 360 necesita
+propia, sin tocar el ecosistema de ningún otro proyecto.** Vrotta Prop 360 necesita
 **su propia instancia de Supabase**, no la de Arquiify. Nada de compartir la base
 "para ahorrar", ni de correr migraciones sobre la de Arquiify.
 
@@ -165,20 +181,44 @@ propia, sin tocar el ecosistema de ningún otro proyecto.** Recorrido 360 necesi
 
 ## 3. Qué es este proyecto (para saber qué se despliega)
 
+> Esta tabla es la foto de cuando se escribió el documento (2026-09-06), antes
+> de decidir D1/D2/D3. Cómo se despliega CADA PIEZA hoy en la práctica está en
+> la sección 0 — en particular, `apps/worker` sí terminó corriendo en el VPS
+> (ver §4 más abajo para el porqué de la recomendación original, que no fue
+> lo que se hizo).
+
 Monorepo con **pnpm** (`pnpm@10.33.2`), workspaces en `apps/*` y `packages/*`.
 
 | App | Qué es | Cómo se despliega |
 |---|---|---|
-| `apps/viewer` | El visor 360 público. Vite + photo-sphere-viewer + leaflet | Build estático → se sirve como sitio estático |
+| `apps/viewer` | El visor 360 público. Vite + photo-sphere-viewer + leaflet | Build estático, publicado como shell versionado por `apps/worker` (ver sección 0) |
 | `apps/admin` | Panel de administración. **Next.js + Supabase** | Aplicación Node en Dokploy, igual que la web de Arquiify |
-| `apps/embed` | El incrustable para poner el recorrido en la web del cliente | Build estático |
-| `apps/worker` | La API. **Hono sobre Cloudflare Workers** | **Ver §4 — no se muda al VPS sin reescribir** |
+| `apps/embed` | El incrustable para poner el recorrido en la web del cliente | Build estático, servido aparte (ver `apps/embed/README.md`) |
+| `apps/worker` | La API. Hono, escrita contra Cloudflare (KV + R2) | Corre en el VPS como proceso Node con adaptadores de filesystem — ver sección 0 y `apps/worker/README.md`, no §4 |
 | `packages/core`, `packages/pipeline` | Librerías internas | No se despliegan solas |
 | `supabase/` | Migraciones y seed de la base | Se aplican contra la instancia nueva |
 
+`apps/site` (landing propia de Baleia, con el recorrido embebido en un
+iframe) no está en esta tabla porque no forma parte del despliegue de la
+plataforma: no lo toca ningún script de `tools/deploy/`. Ver el README de esa
+app para su estado.
+
 ---
 
-## 4. D1 — El worker no se muda al VPS tal como está
+## 4. D1 — El worker no se muda al VPS tal como está (SUPERADO)
+
+> **Esto es lo que se pensaba el 2026-09-06 y NO es lo que pasó.** El worker
+> sí terminó sirviendo desde el VPS (sección 0), pero tampoco por el camino
+> "reescribir contra Postgres/Redis/MinIO" que este análisis daba como única
+> alternativa a quedarse en Cloudflare: se le agregaron adaptadores de
+> filesystem que implementan la misma interfaz mínima que el código ya
+> esperaba de KV/R2 (`apps/worker/src/lib/kv-fs.ts`, `storage-fs.ts`), sin
+> tocar ni una línea de las rutas Hono. La razón por la que valía la pena
+> entender esto ANTES de prometer una fecha sigue siendo válida — es sólo que
+> la tercera opción (adaptador de filesystem, no reescritura ni Cloudflare)
+> no estaba contemplada acá. El resto de esta sección queda como quedó
+> escrita, por el razonamiento de costos/beneficios que sigue siendo correcto
+> si algún día se evalúa volver a Cloudflare.
 
 Esto es lo más importante de este documento, y conviene entenderlo antes de
 prometer una fecha.
@@ -218,7 +258,13 @@ cosas) con uno de arquitectura.
 
 ---
 
-## 5. D2 — Dónde viven los tiles (y el material pesado)
+## 5. D2 — Dónde viven los tiles (y el material pesado) (SUPERADO)
+
+> **No se siguió la recomendación de abajo.** Los tiles no terminaron en R2:
+> viven en el mismo VPS, dentro de `R360_STORAGE_ROOT`, y los sirve
+> `r360-media` (nginx con soporte de rangos) — ver sección 0. El análisis de
+> "no subir el material pesado a git" sigue siendo válido tal cual, y por eso
+> queda; sólo cambió DÓNDE vive lo que no está en git.
 
 Hoy el material del cliente **no está en git**, a propósito, y está bien que así sea:
 
@@ -243,7 +289,12 @@ permanente, y el `.gitignore` actual ya los excluye por diseño.
 
 ---
 
-## 6. D3 — Dominio
+## 6. D3 — Dominio (RESUELTO)
+
+> **Ya está decidido: `vrottaprop360.com`** (comprado y cargado en Hostinger
+> el 2026-09-22, ver sección 0 y `DNS-VROTTAPROP360.md`). Se optó por la
+> opción 1 de abajo, dominio propio, con wildcard. Queda el resto de la
+> sección para el razonamiento de por qué se descartaron las otras dos.
 
 Hoy **no hay dominio definido** para este proyecto. Arquiify usa `arquiify.com`
 y no corresponde colgar de ahí un producto distinto.
@@ -265,31 +316,33 @@ cambiar el dominio en Dokploy y volver a pedir el certificado.
 
 ## 7. Lo que falta antes de poder desplegar
 
-### 7.1 No hay repositorio remoto
+### 7.1 Repositorio remoto (RESUELTO — ya existe)
+
+> Esta sección decía "no hay repositorio remoto" el 2026-09-06. Ya no es así:
 
 ```
 $ git remote -v
-(vacío)
+origin  https://github.com/NaraDiRocco/vrotta-prop-360.git (fetch)
+origin  https://github.com/NaraDiRocco/vrotta-prop-360.git (push)
 ```
 
-Dokploy despliega **desde un repositorio git**, así que hay que crear uno
-privado, igual que se hizo con Arquiify (`github.com/NaraDiRocco/arquiify`, con
-una clave de despliegue de solo lectura).
+Dokploy despliega **desde un repositorio git**, y éste es el que usa
+(`github.com/NaraDiRocco/vrotta-prop-360`), igual que se hizo con Arquiify.
 
-El repositorio local ya tiene historia (`main`, con commits reales), así que es
-solo crear el remoto y empujar.
-
-**La historia ya está auditada y está limpia** (verificado el 2026-09-06):
-ningún `.env` fue commiteado nunca, y no hay claves reales versionadas — las
-coincidencias de `SUPABASE_SERVICE_KEY` o `EMBED_HMAC_SECRET` en el código son
-solo el *nombre* de la variable, leída desde el entorno. El `.env.local` del
-panel existe en el disco pero está ignorado.
+**La historia ya está auditada y está limpia** (verificado el 2026-09-06,
+antes de crear el remoto): ningún `.env` fue commiteado nunca, y no hay
+claves reales versionadas — las coincidencias de `SUPABASE_SERVICE_KEY` o
+`EMBED_HMAC_SECRET` en el código son solo el *nombre* de la variable, leída
+desde el entorno. El `.env.local` del panel existe en el disco pero está
+ignorado.
 
 Si volvés a tocar la historia (rebase, filter-branch, importar ramas viejas),
-conviene repetir el chequeo:
+conviene repetir el chequeo (la ruta local del repo es
+`~/Desktop/"WEB BALEIA"`, no `~/Desktop/"Recorrido 360"` — el proyecto se
+renombró en el camino):
 
 ```bash
-cd ~/Desktop/"Recorrido 360"
+cd ~/Desktop/"WEB BALEIA"
 git log --all --diff-filter=A --name-only --format="" -- '*.env' '*.env.local' | grep -v example
 git grep -nIE "eyJhbGciOi[A-Za-z0-9_-]{10,}"   # tokens JWT reales
 ```
@@ -297,7 +350,8 @@ git grep -nIE "eyJhbGciOi[A-Za-z0-9_-]{10,}"   # tokens JWT reales
 ### 7.2 Supabase propio
 
 El panel usa Supabase (`apps/admin/.env.example`), y hay migraciones en
-`supabase/migrations/` (al menos 5 archivos numerados) más un `seed.sql`.
+`supabase/migrations/` (27 archivos numerados a esta fecha, ver
+`supabase/README.md` para el contenido de cada una) más un `seed.sql`.
 
 Hay que levantar **una instancia nueva** en Dokploy, con la plantilla de
 Supabase, como se hizo con Arquiify — pero **con sus propias credenciales y su
@@ -338,7 +392,7 @@ app arquiify-web          RANsHL7ALEb-uZIg_BBl8
 compose supabase          hQMGpOedXwj9pgUDHu42W
 ```
 
-Para Recorrido 360 hay que crear un **proyecto nuevo**, no colgarse del de
+Para Vrotta Prop 360 hay que crear un **proyecto nuevo**, no colgarse del de
 Arquiify.
 
 Endpoints de la API de Dokploy que se usaron y funcionan:
@@ -364,7 +418,7 @@ Orden sugerido:
 5. Desplegar el panel (Next.js), primero con `NEXT_PUBLIC_R360_MOCK=1`.
 6. Dominios y certificados.
 7. Conectar el panel a Supabase (`MOCK=0`) y verificar el login de verdad.
-8. Decidir D1 y D2 para el worker y los tiles.
+8. ~~Decidir D1 y D2 para el worker y los tiles.~~ Ya decidido — ver sección 0.
 
 **Después de cada despliegue, verificá de verdad**: que responda 200, que el
 recorrido cargue una panorámica, y que el panel entre con un usuario real. Un
@@ -392,7 +446,7 @@ ssh root@179.199.142.5 "free -h; df -h /"
 
 - **No pegues contraseñas ni tokens en el chat.** Van a archivos con permisos
   600 fuera del repo (`~/.arquiify/`, `~/.r360/`).
-- **No compartas base de datos entre proyectos.** Recorrido 360 tiene la suya.
+- **No compartas base de datos entre proyectos.** Vrotta Prop 360 tiene la suya.
 - **No subas el material del cliente a git.** Son gigas y el `.gitignore` ya lo
   contempla.
 - **No expongas la clave de servicio de Supabase en el front.** El panel usa la
@@ -406,12 +460,19 @@ ssh root@179.199.142.5 "free -h; df -h /"
 
 Para que no se asuma resuelto lo que no lo está:
 
-- **La reescritura del worker** para el VPS, si se decide esa opción (D1).
+- ~~La reescritura del worker para el VPS, si se decide esa opción (D1).~~ Ya
+  no aplica: no se reescribió, se le agregaron adaptadores de filesystem (ver
+  sección 0 y `apps/worker/README.md`).
 - **El pipeline de generación de tiles** en producción: hoy se corre a mano en
   la computadora (`packages/pipeline`, `tools/baleia/`). Quién lo corre y dónde
   cuando entre un cliente nuevo, no está definido.
 - **Copias de seguridad** de la base nueva. Arquiify tampoco las tiene
   configuradas; vale la pena resolverlo para los dos de una vez.
-- **Multi-tenant en producción**: el modelo existe en las migraciones, pero cómo
-  se da de alta una inmobiliaria nueva de punta a punta no está probado en un
-  servidor real.
+- **Multi-tenant en producción, más allá del primer caso real**: el circuito
+  completo (alta de tenant/proyecto → subdominio → publicación → leads) ya se
+  probó de punta a punta con Dacal/Baleia en el servidor real (sección 0), así
+  que ya no es sólo un modelo en las migraciones. Lo que sigue sin probarse es
+  darlo de alta con MÁS de una inmobiliaria activa a la vez: aislamiento de
+  RLS entre tenants bajo uso concurrente real, y si el flujo de
+  `ingestar_a_plataforma.py` sigue siendo cómodo cuando no es el único
+  proyecto en la base.

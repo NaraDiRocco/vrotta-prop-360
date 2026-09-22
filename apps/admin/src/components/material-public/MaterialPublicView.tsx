@@ -48,8 +48,10 @@ export function MaterialPublicView({
   }
 
   function handleFilesAdded(itemId: string, files: MaterialUploadedFile[]) {
-    // TODO API: POST /api/m/[token]/items/[itemId]/upload (multipart) por cada
-    // archivo, y usar la respuesta del servidor en vez de este eco optimista.
+    // TODO: el endpoint ya existe — POST /api/material/[token]/files?item=[itemId]
+    // (multipart, uno por archivo, ver esa route) — pero este componente
+    // todavía no lo llama: sigue mostrando el eco optimista de abajo en vez
+    // de la respuesta real del servidor (id/filename/sizeBytes/createdAt).
     setState((prev) =>
       prev.map((s) =>
         s.item.id === itemId
@@ -65,7 +67,12 @@ export function MaterialPublicView({
   }
 
   function handleMarkNoTengo(itemId: string, comentario: string) {
-    // TODO API: POST /api/m/[token]/items/[itemId]/no-tengo { comentario }
+    // TODO: no existe todavía ni la RPC ni la route (a diferencia de la de
+    // arriba, que ya tiene ambas) — seguir el mismo patrón que
+    // /api/material/[token]/files: una route bajo
+    // /api/material/[token]/items/[itemId], con su propia RPC
+    // security-definer que revalide el token adentro, como
+    // material_link_register_file.
     update(itemId, { estado: 'no_aplica', marcadoSinMaterial: true, comentario: comentario || null });
   }
 
@@ -76,7 +83,8 @@ export function MaterialPublicView({
   }
 
   function handleSaveComment(itemId: string, comentario: string) {
-    // TODO API: POST /api/m/[token]/items/[itemId]/comentario { comentario }
+    // TODO: mismo caso que handleMarkNoTengo — falta la route y la RPC,
+    // siguiendo el patrón de /api/material/[token]/files.
     update(itemId, { comentario: comentario || null });
   }
 

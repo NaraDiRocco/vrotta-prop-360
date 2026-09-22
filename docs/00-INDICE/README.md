@@ -32,6 +32,22 @@ Set de documentos operativos para el arranque de cualquier proyecto de recorrido
 3. Si el cliente ya tiene renderista, se reenvía `01-CLIENTE/3` a ese estudio.
 4. A medida que llega material, se corre `02-INTERNO/1` antes de aceptarlo en producción.
 
+## Fuera de este índice
+
+Este índice cubre sólo el set operativo `01-CLIENTE` a `03-PLANTILLAS-CSV`
+(el brief genérico, reusable con cualquier cliente nuevo). El resto de
+`docs/` son carpetas posteriores, cada una con su propio alcance y su propio
+`README.md` cuando corresponde:
+
+- `04-PRODUCCION/` — costos, niveles de material y el caso práctico de
+  Baleia.
+- `05-DISENO/` — plan de rediseño del panel.
+- `06-BENCHMARK/` — comparación contra la competencia y plan de experiencia.
+- `07-BALEIA-360/` — el paquete concreto para conseguir las panorámicas de
+  Baleia (específico de este cliente, no genérico como `01`-`03`).
+- `08-MATERIAL-REAL/`, `09-MODELO-3D/` — material de obra y del modelo 3D,
+  también específicos de Baleia.
+
 ## Pendiente de definir (marcado explícitamente, no asumido)
 
 - Estado comercial intermedio más allá de disponible/reservado/vendido: no está contemplado por defecto; si un cliente lo pide, definirlo antes de cargar su planilla (ver nota en `01-CLIENTE/4`).
