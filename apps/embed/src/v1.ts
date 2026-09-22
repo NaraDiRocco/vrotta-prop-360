@@ -249,7 +249,7 @@ function clearWatchdog(instance: TourInstance): void {
 function loadIframe(instance: TourInstance): void {
   if (instance.iframe) return; // already loading/loaded
   const deepLink = readDeepLinkParams(location.search, instance.deepLinkPrefix);
-  const src = buildIframeSrc(VIEWER_ORIGIN, instance.config, deepLink, instance.id);
+  const src = buildIframeSrc(VIEWER_ORIGIN, instance.config, deepLink, instance.id, location.origin);
 
   const iframe = document.createElement("iframe");
   iframe.className = "tm-tour-iframe";
@@ -261,6 +261,18 @@ function loadIframe(instance: TourInstance): void {
     "accelerometer; gyroscope; fullscreen; xr-spatial-tracking",
   );
   iframe.setAttribute("allowfullscreen", "true");
+  // Red de seguridad para el camino del referrer: el visor ya recibe el
+  // origen del padre explícito por `?parentOrigin=` (ver `buildIframeSrc` en
+  // `./config.ts`), pero además dejamos `document.referrer` en el mejor
+  // estado posible por si algún loader viejo en producción todavía no manda
+  // ese parámetro. `strict-origin-when-cross-origin` es el default de los
+  // navegadores modernos, pero fijarlo acá evita que una página del cliente
+  // con una política MÁS estricta a nivel documento (una cabecera
+  // `Referrer-Policy: no-referrer`, por ejemplo) se lo pise: el atributo del
+  // propio iframe manda sobre la política heredada del documento que lo
+  // contiene. Sigue sin mandar el path ni la query del cliente, sólo
+  // esquema+host+puerto — nada sensible.
+  iframe.referrerPolicy = "strict-origin-when-cross-origin";
   iframe.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:0;";
   instance.frameWrap.appendChild(iframe);
   instance.iframe = iframe;

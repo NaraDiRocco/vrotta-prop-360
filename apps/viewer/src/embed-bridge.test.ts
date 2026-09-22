@@ -88,14 +88,46 @@ test('isEmbedContext: hace falta estar en un iframe Y traer ?instance=', () => {
 
 // ------------------------------------------------------ resolveExpectedParentOrigin
 
-test('resolveExpectedParentOrigin: se queda sólo con esquema+host+puerto', () => {
-  assert.equal(resolveExpectedParentOrigin('https://dacal.com.uy/baleia?x=1'), 'https://dacal.com.uy');
-  assert.equal(resolveExpectedParentOrigin('https://dacal.com.uy:8443/baleia'), 'https://dacal.com.uy:8443');
+test('resolveExpectedParentOrigin: sin parámetro, usa el referrer y se queda sólo con esquema+host+puerto', () => {
+  assert.equal(resolveExpectedParentOrigin(null, 'https://dacal.com.uy/baleia?x=1'), 'https://dacal.com.uy');
+  assert.equal(resolveExpectedParentOrigin(null, 'https://dacal.com.uy:8443/baleia'), 'https://dacal.com.uy:8443');
 });
 
-test('resolveExpectedParentOrigin: sin referrer no hay origen de confianza', () => {
-  assert.equal(resolveExpectedParentOrigin(''), null);
-  assert.equal(resolveExpectedParentOrigin('no-es-una-url'), null);
+test('resolveExpectedParentOrigin: sin parámetro ni referrer, no hay origen de confianza', () => {
+  assert.equal(resolveExpectedParentOrigin(null, ''), null);
+  assert.equal(resolveExpectedParentOrigin(null, 'no-es-una-url'), null);
+});
+
+test('resolveExpectedParentOrigin: el parámetro ?parentOrigin= tiene prioridad sobre el referrer', () => {
+  assert.equal(
+    resolveExpectedParentOrigin('https://www.cliente.com', 'https://otro-origen.com/pagina'),
+    'https://www.cliente.com',
+  );
+  // También normaliza a esquema+host+puerto si viniera con path/query.
+  assert.equal(resolveExpectedParentOrigin('https://www.cliente.com/embed?x=1', ''), 'https://www.cliente.com');
+});
+
+test('resolveExpectedParentOrigin: parámetro ausente cae al referrer (loaders viejos que no lo mandan)', () => {
+  assert.equal(resolveExpectedParentOrigin(null, 'https://dacal.com.uy/baleia'), 'https://dacal.com.uy');
+  assert.equal(resolveExpectedParentOrigin('', 'https://dacal.com.uy/baleia'), 'https://dacal.com.uy');
+});
+
+test('resolveExpectedParentOrigin: un parámetro inválido o con esquema raro se descarta y cae al referrer', () => {
+  // No parsea como URL en absoluto.
+  assert.equal(resolveExpectedParentOrigin('no-es-una-url', 'https://dacal.com.uy/baleia'), 'https://dacal.com.uy');
+  // Esquemas que sí parsean como URL pero no son sitios http(s).
+  assert.equal(
+    resolveExpectedParentOrigin('javascript:alert(1)', 'https://dacal.com.uy/baleia'),
+    'https://dacal.com.uy',
+  );
+  assert.equal(
+    resolveExpectedParentOrigin('data:text/html,<script>1</script>', 'https://dacal.com.uy/baleia'),
+    'https://dacal.com.uy',
+  );
+});
+
+test('resolveExpectedParentOrigin: parámetro inválido y referrer también ausente, sin origen de confianza', () => {
+  assert.equal(resolveExpectedParentOrigin('javascript:alert(1)', ''), null);
 });
 
 // --------------------------------------------------------- parseIncomingParentMessage
@@ -221,6 +253,41 @@ test('createEmbedBridge: sin ?instance= en la URL, tampoco', () => {
 
 test('createEmbedBridge: sin referrer no manda nada y avisa por qué', () => {
   const env = fakeEnv({ referrer: '' });
+  const bridge = createEmbedBridge(env);
+  assert.equal(bridge, null);
+  assert.deepEqual(env.sent, []);
+  assert.equal(env.warnings.length, 1);
+});
+
+test('createEmbedBridge: con ?parentOrigin= en la URL, lo usa aunque el referrer venga vacío', () => {
+  const env = fakeEnv({ search: '?instance=tm1&parentOrigin=https://www.cliente.com', referrer: '' });
+  const bridge = createEmbedBridge(env);
+  assert.notEqual(bridge, null);
+  assert.equal(env.sent.length, 1);
+  assert.equal(env.sent[0]!.targetOrigin, 'https://www.cliente.com');
+  assert.deepEqual(env.warnings, []);
+});
+
+test('createEmbedBridge: ?parentOrigin= manda sobre el referrer cuando difieren', () => {
+  const env = fakeEnv({
+    search: '?instance=tm1&parentOrigin=https://www.cliente.com',
+    referrer: `${PARENT_ORIGIN}/baleia`,
+  });
+  const bridge = createEmbedBridge(env);
+  assert.notEqual(bridge, null);
+  assert.equal(env.sent[0]!.targetOrigin, 'https://www.cliente.com');
+});
+
+test('createEmbedBridge: un ?parentOrigin= inválido (esquema javascript:) se descarta y cae al referrer', () => {
+  const env = fakeEnv({ search: '?instance=tm1&parentOrigin=javascript:alert(1)' });
+  const bridge = createEmbedBridge(env);
+  assert.notEqual(bridge, null);
+  // env por defecto trae `referrer: PARENT_ORIGIN + '/baleia'`.
+  assert.equal(env.sent[0]!.targetOrigin, PARENT_ORIGIN);
+});
+
+test('createEmbedBridge: sin ?parentOrigin= y sin referrer, no manda nada y avisa por qué', () => {
+  const env = fakeEnv({ search: '?instance=tm1', referrer: '' });
   const bridge = createEmbedBridge(env);
   assert.equal(bridge, null);
   assert.deepEqual(env.sent, []);

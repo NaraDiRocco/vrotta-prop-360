@@ -19,19 +19,62 @@
  * el protocolo prohíbe `'*'` como target de `postMessage` (spoofing: cualquier
  * script de la página, o de un iframe hermano, podría hacerse pasar por el
  * padre), hace falta averiguar el origen ANTES de mandar el primer
- * `tour:hello`. La señal que da el navegador para esto es `document.referrer`:
- * cuando el loader crea el iframe con `iframe.src = ...` es una navegación
- * cross-origin de verdad, y con la política de referrer por defecto de los
- * navegadores modernos (`strict-origin-when-cross-origin`, y ninguna de las
- * plataformas del README —WordPress, Wix, Webflow, GTM— pide otra cosa) el
- * documento cargado adentro recibe el ORIGEN del padre (sin path) como
- * `document.referrer`. Es el mismo mecanismo, mirado desde el otro lado, que
- * usa `isTrustedOrigin` para todo lo demás: comparación exacta, nunca
- * substring. Si el referrer viniera vacío (política de referrer más estricta
- * del lado del cliente, modo privado, o un navegador que lo recorta) este
- * módulo se queda callado a propósito — es preferible un embed que nunca
- * conecta (y dispara el watchdog de 8s del loader, con su mensaje de consola
- * bien explícito) a uno que le habla a un origen que no verificó.
+ * `tour:hello`.
+ *
+ * Dos señales, en orden de prioridad:
+ *
+ *  1. El parámetro `?parentOrigin=` que `buildIframeSrc` graba en la URL del
+ *     iframe (`apps/embed/src/config.ts`), tomado de `location.origin` del
+ *     loader. Es explícito: no depende de que el navegador decida mandar
+ *     nada. Existe porque `document.referrer` NO es confiable — se vacía si
+ *     la página del cliente pone `referrerpolicy="no-referrer"` en el
+ *     iframe, manda una cabecera `Referrer-Policy` estricta a nivel
+ *     documento, o el navegador está en un modo de privacidad que lo
+ *     recorta. Nada de eso lo controlamos nosotros, y hasta ahora un embed
+ *     podía fallar en silencio por una configuración así del lado del
+ *     cliente.
+ *  2. `document.referrer`, sólo si el parámetro no vino — compatibilidad
+ *     con loaders viejos ya pegados en sitios de terceros que todavía no lo
+ *     mandan. Cuando el loader crea el iframe con `iframe.src = ...` es una
+ *     navegación cross-origin de verdad, y con la política de referrer que
+ *     v1.ts fija explícitamente en el iframe (`strict-origin-when-cross-origin`,
+ *     ver el comentario de `loadIframe` ahí) el documento cargado adentro
+ *     recibe el ORIGEN del padre (sin path) como `document.referrer`.
+ *
+ * ¿ES SEGURO confiar en un parámetro que arma la propia página que incrusta
+ * el iframe, y que por lo tanto podría mentir? Sí, y la razón no es que
+ * validemos el formato (aunque también lo hacemos, ver
+ * `resolveExpectedParentOrigin`): es que un `origen` mentiroso no logra que
+ * el mensaje llegue a ningún lado indebido. El contrato de
+ * `postMessage(mensaje, targetOrigin)` es que el navegador SÓLO entrega el
+ * mensaje si `targetOrigin` coincide con el origen REAL de la ventana a la
+ * que se apunta (acá, `window.parent`) en el momento de la entrega — un
+ * chequeo que hace el navegador mirando la ventana de verdad, no un dato que
+ * nuestro código le pueda mentir. `window.parent` es siempre la ventana que
+ * de verdad incrusta este iframe; no hay forma de que un string en la URL
+ * redirija el mensaje hacia otra ventana. Entonces, si alguien arma un
+ * iframe con un `parentOrigin` falso:
+ *   - si no coincide con el origen real del padre, el navegador simplemente
+ *     NO entrega el `tour:hello` (ni ningún otro mensaje saliente) — el
+ *     mismo desenlace que ya teníamos cuando el referrer venía vacío: un
+ *     embed que no conecta, nunca una fuga de datos;
+ *   - si coincide, es porque es el origen real del padre (una mentira que
+ *     "acierta" es, por definición, la verdad), así que no hay nada raro en
+ *     hablarle.
+ * Mismo argumento vale para el sentido inverso (mensajes que llegan del
+ * padre): `isTrustedOrigin` compara `event.origin` —que pone el navegador,
+ * no la página— contra `expectedOrigin` con igualdad exacta, nunca
+ * substring; esa validación no cambia con este parámetro y sigue siendo la
+ * única puerta para mensajes entrantes.
+ * Una aclaración aparte: el visor no restringe QUÉ sitios pueden incrustarlo
+ * (no hay una lista blanca de clientes) — eso ya era así antes de este
+ * cambio, con el referrer, y sigue siendo así ahora; es una decisión de
+ * producto (el embed es multi-tenant, cualquier cliente lo pega en su web),
+ * no algo que este parámetro empeore.
+ * Si ninguna de las dos señales da un origen de confianza, este módulo se
+ * queda callado a propósito — es preferible un embed que nunca conecta (y
+ * dispara el watchdog de 8s del loader, con su mensaje de consola bien
+ * explícito) a uno que le habla a un origen que no verificó.
  */
 import {
   isKnownProtocolVersion,
@@ -87,21 +130,40 @@ export function isEmbedContext(hasParentWindow: boolean, search: string): boolea
 }
 
 /**
- * El origen del padre, deducido de `document.referrer` (ver comentario de
- * cabecera). `null` cuando no se puede confiar en nada: referrer vacío, o
- * algo que ni siquiera es una URL parseable.
+ * Parsea un candidato a "origen del padre" con criterio estricto: tiene que
+ * ser una URL válida y de esquema `http`/`https`. Cualquier otra cosa —un
+ * string que no parsea, un esquema `javascript:`/`data:` (los clásicos
+ * vectores de "URL" que no son sitios), o un origen "opaco" (documento
+ * sandboxeado, que `new URL(...).origin` representa como el string literal
+ * `"null"`, no como esquema `http`/`https` así que ya cae acá)— se
+ * descarta. Usado tanto para el parámetro `?parentOrigin=` como para
+ * `document.referrer`: son la misma clase de dato (una URL de la que sólo
+ * nos importa esquema+host+puerto) aunque vengan de fuentes distintas.
  */
-export function resolveExpectedParentOrigin(referrer: string): string | null {
-  if (!referrer) return null;
+function parseHttpOrigin(candidate: string | null | undefined): string | null {
+  if (!candidate) return null;
   try {
-    const origin = new URL(referrer).origin;
-    // Un origen "opaco" (documento sandboxeado, `data:`, etc.) parsea como
-    // el string literal "null" — no es un origen contra el que se pueda
-    // comparar con `isTrustedOrigin`.
-    return origin && origin !== 'null' ? origin : null;
+    const url = new URL(candidate);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.origin : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * El origen esperado del padre. Prioridad: primero el parámetro
+ * `?parentOrigin=` que manda el loader (explícito, no depende de que el
+ * navegador coopere); si no vino, `document.referrer` (compatibilidad con
+ * loaders viejos). `null` cuando ninguna de las dos señales da un origen de
+ * confianza — ver el comentario de cabecera del archivo para el porqué de
+ * este orden y por qué es seguro confiar en un parámetro que arma la propia
+ * página que incrusta el iframe.
+ */
+export function resolveExpectedParentOrigin(
+  parentOriginParam: string | null,
+  referrer: string,
+): string | null {
+  return parseHttpOrigin(parentOriginParam) ?? parseHttpOrigin(referrer);
 }
 
 const PARENT_MESSAGE_TYPES: ReadonlySet<ParentToIframeMessage['type']> = new Set([
@@ -234,12 +296,13 @@ export function createEmbedBridge(env: EmbedBridgeEnv): EmbedBridgeHandle | null
   const instance = new URLSearchParams(env.search).get('instance');
   if (!instance) return null; // cubierto arriba por isEmbedContext; guarda explícita para TS
 
-  const expectedOrigin = resolveExpectedParentOrigin(env.referrer);
+  const parentOriginParam = new URLSearchParams(env.search).get('parentOrigin');
+  const expectedOrigin = resolveExpectedParentOrigin(parentOriginParam, env.referrer);
   if (!expectedOrigin) {
     (env.warn ?? console.warn)(
-      '[r360] embed: no se pudo determinar el origen del padre (document.referrer vacío o no ' +
-        'parseable); no se establece el puente de postMessage. El watchdog del loader va a ' +
-        'disparar tm:loadError a los 8s.',
+      '[r360] embed: no se pudo determinar el origen del padre (falta o es inválido el parámetro ' +
+        '?parentOrigin=, y document.referrer vacío o no parseable); no se establece el puente de ' +
+        'postMessage. El watchdog del loader va a disparar tm:loadError a los 8s.',
     );
     return null;
   }

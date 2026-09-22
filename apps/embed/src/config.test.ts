@@ -99,7 +99,13 @@ test("buildIframeSrc: bakes tenant/project/unit/scene into the query string, pre
     scene: null,
     aspect: { w: 16, h: 9 },
   };
-  const src = buildIframeSrc("https://viewer.tumarca.com", config, { unit: "C4-B", scene: "pool" }, "tm1");
+  const src = buildIframeSrc(
+    "https://viewer.tumarca.com",
+    config,
+    { unit: "C4-B", scene: "pool" },
+    "tm1",
+    "https://dacal.com.uy",
+  );
   const url = new URL(src);
   assert.equal(url.origin, "https://viewer.tumarca.com");
   assert.equal(url.searchParams.get("instance"), "tm1");
@@ -108,4 +114,24 @@ test("buildIframeSrc: bakes tenant/project/unit/scene into the query string, pre
   // deep link (from the mother page URL) wins over the element's static data-unit
   assert.equal(url.searchParams.get("unit"), "C4-B");
   assert.equal(url.searchParams.get("scene"), "pool");
+});
+
+test("buildIframeSrc: bakes the embedding page's origin as ?parentOrigin=, so the viewer doesn't have to rely on document.referrer", () => {
+  const config = {
+    tenant: "dacal",
+    project: "baleia",
+    poster: null,
+    unit: null,
+    scene: null,
+    aspect: { w: 16, h: 9 },
+  };
+  const src = buildIframeSrc(
+    "https://viewer.tumarca.com",
+    config,
+    { unit: null, scene: null },
+    "tm1",
+    "https://www.cliente.com",
+  );
+  const url = new URL(src);
+  assert.equal(url.searchParams.get("parentOrigin"), "https://www.cliente.com");
 });

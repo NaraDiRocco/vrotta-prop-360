@@ -61,4 +61,18 @@ export interface Env {
   SUPABASE_SERVICE_KEY: string;
   /** Secreto compartido con apps/admin para autorizar publish/rollback/regenerate. */
   PUBLISH_SECRET: string;
+  /**
+   * Host fijo del panel/API de la plataforma (ej. `app.r360.io`). Ver
+   * lib/host-routing.ts: cuando el `Host:` entrante es EXACTAMENTE este
+   * valor, el request no es un proyecto — sigue sirviendo las rutas de
+   * siempre (`/api/*`, `/t/...`). Cualquier otro host se intenta resolver a
+   * un proyecto por subdominio o dominio propio.
+   */
+  R360_PLATFORM_HOST: string;
+  /**
+   * Dominio base de los subdominios de proyecto (ej. `pages.r360.io`, para
+   * que un proyecto con `projects.subdomain = 'torres-del-lago'` responda en
+   * `torres-del-lago.pages.r360.io`). Ver lib/host-routing.ts.
+   */
+  R360_PAGES_DOMAIN: string;
 }

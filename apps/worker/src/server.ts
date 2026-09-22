@@ -37,6 +37,14 @@ const REQUIRED_ENV: Array<{ name: string; hint: string }> = [
     name: 'R360_KV_ROOT',
     hint: 'directorio en disco donde persistir punteros de versión, config de tenant y contadores de rate limit (reemplaza a TENANTS_KV)',
   },
+  {
+    name: 'R360_PLATFORM_HOST',
+    hint: 'host fijo del panel/API (ej. app.r360.io) — el Host que NO se trata como proyecto, ver lib/host-routing.ts',
+  },
+  {
+    name: 'R360_PAGES_DOMAIN',
+    hint: 'dominio base de los subdominios de proyecto (ej. pages.r360.io, para {subdominio}.pages.r360.io), ver lib/host-routing.ts',
+  },
 ];
 
 function checkRequiredEnv(): void {
@@ -97,6 +105,8 @@ const env: Env = {
   SUPABASE_URL: requiredEnv('SUPABASE_URL'),
   SUPABASE_SERVICE_KEY: requiredEnv('SUPABASE_SERVICE_KEY'),
   PUBLISH_SECRET: requiredEnv('PUBLISH_SECRET'),
+  R360_PLATFORM_HOST: requiredEnv('R360_PLATFORM_HOST'),
+  R360_PAGES_DOMAIN: requiredEnv('R360_PAGES_DOMAIN'),
 };
 
 const port = Number(process.env.PORT ?? 8787);

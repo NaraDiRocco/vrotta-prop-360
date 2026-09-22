@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from './env.ts';
 import { health } from './routes/health.ts';
-import { serve } from './routes/serve.ts';
+import { serve, serveByHost } from './routes/serve.ts';
 import { publish } from './routes/publish.ts';
 import { rollback } from './routes/rollback.ts';
 import { availability } from './routes/availability.ts';
@@ -30,7 +30,14 @@ app.route('/', rollback);
 app.route('/', availability);
 app.route('/', leads);
 
-app.notFound((c) => c.json({ error: 'not_found' }, 404));
+// Fallback para cualquier path que no matcheó ninguna ruta explícita: acá
+// es donde caen los pedidos a un hostname propio de un proyecto (subdominio
+// de plataforma o dominio del cliente, ver lib/host-routing.ts y el
+// docstring de `serveByHost`), porque llegan con paths "pelados" (`/`,
+// `/tour.json`, `/assets/x.js`) que ninguna ruta de arriba matchea. Para el
+// host de la plataforma, o para un host que no resuelve a ningún proyecto,
+// `serveByHost` devuelve el mismo 404 seco de siempre.
+app.notFound(serveByHost);
 app.onError((err, c) => {
   console.error(err);
   return c.json({ error: 'internal_error', message: err.message }, 500);

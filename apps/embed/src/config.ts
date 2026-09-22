@@ -116,6 +116,7 @@ export function buildIframeSrc(
   config: ParsedTourElementConfig,
   deepLink: DeepLinkParams,
   instanceId: string,
+  parentOrigin: string,
 ): string {
   const params = new URLSearchParams();
   // The iframe needs to know its own instance id BEFORE the postMessage
@@ -128,6 +129,23 @@ export function buildIframeSrc(
   const scene = deepLink.scene ?? config.scene;
   if (unit) params.set("unit", unit);
   if (scene) params.set("scene", scene);
+  // El visor necesita el origen del padre para su primer postMessage
+  // (`tour:hello`) y no puede esperar a que el navegador se lo cuente por su
+  // cuenta: `document.referrer` se vacía si el cliente pone
+  // `referrerpolicy="no-referrer"` en su página, manda una cabecera
+  // `Referrer-Policy` estricta, o el navegador está en un modo de privacidad
+  // que lo recorta — nada de eso lo controlamos nosotros. Mandarlo explícito
+  // en la querystring, tomado de `location.origin` del loader (que sí sabe
+  // en qué página está corriendo), saca ese dato de la lista de cosas que
+  // pueden fallar en silencio. Que este parámetro lo arme quien incrusta el
+  // iframe no es un problema de seguridad: `resolveExpectedParentOrigin`
+  // (en `apps/viewer/src/embed-bridge.ts`) lo valida y, aunque no lo hiciera,
+  // el propio `postMessage(msg, targetOrigin)` del navegador jamás entrega
+  // un mensaje a un origen que no sea el de la ventana real a la que se
+  // apunta — un `parentOrigin` mentiroso solo logra que el mensaje no se
+  // entregue, nunca que se entregue en otro lado (ver el razonamiento
+  // completo en el comentario de cabecera de `embed-bridge.ts`).
+  params.set("parentOrigin", parentOrigin);
   return `${viewerOrigin}/t?${params.toString()}`;
 }
 
