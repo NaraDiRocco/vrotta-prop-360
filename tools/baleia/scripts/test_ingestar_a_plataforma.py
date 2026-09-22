@@ -37,6 +37,9 @@ from ingestar_a_plataforma import (  # noqa: E402
     campos_editoriales,
     despegar_prefijo,
     esquema_de_atributos,
+    ESTADO_SIN_DATO_POR_BLOQUE,
+    ORIGEN_BLOQUES_DECLARADOS,
+    extras_de,
     extras_de_escena,
     fila_precio,
     fila_unidad,
@@ -45,6 +48,7 @@ from ingestar_a_plataforma import (  # noqa: E402
     filas_hotspots,
     filas_tipos,
     fusionar_settings,
+    leer_bloques_declarados,
     mapear_estado,
     slug,
     validar,
@@ -412,6 +416,25 @@ class CamposEditoriales(unittest.TestCase):
         self.assertEqual(sorted(extras["video"]), ["mobileUrl", "poster", "procedencia"])
         self.assertNotIn("amenities", extras)  # sin extras, no ocupa lugar
 
+    def test_una_escena_sin_extras_da_objeto_vacio_no_none(self):
+        """`scenes.extras` es `not null default '{}'`: un solo caso a
+        contemplar del lado del código, no dos."""
+        self.assertEqual(extras_de({"slug": "amenities", "kind": "floorplan"}), {})
+
+    def test_no_entra_a_extras_nada_fuera_de_la_lista_blanca(self):
+        """Misma lista blanca que `pickSceneExtras` en el publicador: si acá se
+        colara `source` o `sort`, del otro lado se descartaría igual, pero la
+        columna quedaría con basura que nadie sabe de dónde salió."""
+        escena = {
+            "slug": "x",
+            "kind": "floorplan",
+            "name": "X",
+            "source": {"url": "./x.webp"},
+            "sort": 3,
+            "procedencia": {"kind": "render"},
+        }
+        self.assertEqual(extras_de(escena), {"procedencia": {"kind": "render"}})
+
 
 class FusionDeSettings(unittest.TestCase):
     def test_no_le_borra_al_panel_lo_que_la_ingesta_no_conoce(self):
@@ -429,6 +452,26 @@ class FusionDeSettings(unittest.TestCase):
         existente = {"initial_scene_id": "sc-masterplan"}
         fusionar_settings(existente, {"brandLogo": "x"})
         self.assertEqual(existente, {"initial_scene_id": "sc-masterplan"})
+
+    def test_retira_el_scene_extras_viejo_sin_tocar_lo_demas(self):
+        """Desde la 0024 los extras viven en `scenes.extras`. Mientras la clave
+        vieja siga en `settings`, el publicador tiene un puente que la usa para
+        las escenas con la columna vacía: dos fuentes de verdad para el mismo
+        dato y ninguna forma de saber cuál se publicó."""
+        existente = {
+            "sceneExtras": {"video": {"mobileUrl": "./viejo.mp4"}},
+            "initial_scene_id": "sc-masterplan",
+            "allowed_domains": ["dacal.com.uy"],
+        }
+        fusionado = fusionar_settings(existente, {"brandLogo": "./marca/logo.svg"})
+        self.assertNotIn("sceneExtras", fusionado)
+        self.assertEqual(fusionado["initial_scene_id"], "sc-masterplan")
+        self.assertEqual(fusionado["allowed_domains"], ["dacal.com.uy"])
+
+    def test_no_retira_nada_que_este_script_no_haya_puesto(self):
+        """`retirar` es una lista corta y explícita, no una limpieza general."""
+        existente = {"una_clave_rara_del_panel": 1, "theme_interno": {"x": 2}}
+        self.assertEqual(fusionar_settings(existente, {}), existente)
 
 
 # ── normalización de rutas ──────────────────────────────────────────────────
@@ -486,6 +529,32 @@ class Grupos(unittest.TestCase):
         self.assertEqual(grupos[0]["name"], "Bloque 2")
         self.assertEqual([g["sort"] for g in grupos], [1, 2])
 
+    def test_solo_declara_status_el_bloque_que_lo_declara(self):
+        """`null` no es un estado: es "derivalo de las unidades" (0026/0027)."""
+        grupos = {g["code"]: g for g in filas_grupos(FEATURES, {"B3": "proximamente"})}
+        self.assertEqual(grupos["B3"]["status"], "proximamente")
+        self.assertIsNone(grupos["B2"]["status"])
+
+    def test_el_status_va_siempre_como_clave_explicita(self):
+        """Tiene que viajar como `None` y no omitirse: es lo que permite que una
+        corrida posterior BORRE un estado declarado que dejó de corresponder,
+        el día que el bloque se lance y pase a tener unidades de verdad."""
+        for grupo in filas_grupos(FEATURES):
+            self.assertIn("status", grupo)
+            self.assertIsNone(grupo["status"])
+
+    def test_la_lista_de_declarados_sale_de_build_tour(self):
+        """Tenerla escrita en dos scripts era pedir que se desincronizaran. Si
+        esto falla, o se movió la constante o se rompió el parseo — y el script
+        tiene que avisarlo, no caer a una copia vieja en silencio."""
+        self.assertEqual(ORIGEN_BLOQUES_DECLARADOS, "build_tour.py")
+        self.assertEqual(ESTADO_SIN_DATO_POR_BLOQUE, {"B1": "proximamente", "B3": "proximamente"})
+
+    def test_si_no_se_puede_leer_build_tour_cae_a_la_copia_y_lo_dice(self):
+        mapa, origen = leer_bloques_declarados("/no/existe/build_tour.py")
+        self.assertEqual(mapa, {"B1": "proximamente", "B3": "proximamente"})
+        self.assertTrue(origen.startswith("copia local"), origen)
+
 
 class Escenas(unittest.TestCase):
     def test_el_id_del_manifiesto_no_viaja(self):
@@ -496,6 +565,13 @@ class Escenas(unittest.TestCase):
         self.assertEqual(filas[0]["slug"], "masterplan")
         self.assertEqual(filas[0]["source"]["width"], 7945)
         self.assertEqual(filas[0]["sort"], 1)
+
+    def test_cada_escena_lleva_sus_extras_en_su_propia_columna(self):
+        filas = {f["slug"]: f for f in filas_escenas(manifiesto_de_prueba())}
+        self.assertEqual(filas["masterplan"]["extras"], {"procedencia": {"kind": "render"}})
+        self.assertEqual(filas["amenities"]["extras"], {})
+        self.assertEqual(filas["video"]["extras"]["mobileUrl"], "./media/video/real.720.mp4")
+        self.assertEqual(filas["video"]["extras"]["poster"]["width"], 1280)
 
 
 class Hotspots(unittest.TestCase):
@@ -538,6 +614,21 @@ class Hotspots(unittest.TestCase):
     def test_la_escena_se_re_referencia_por_slug(self):
         self.assertEqual(self.filas["h-B2"]["_escena"], "masterplan")
 
+    def test_el_sort_transcribe_el_orden_del_manifiesto(self):
+        """Leaflet apila por orden de inserción e ignora `zIndex`: el perímetro
+        va primero para quedar DEBAJO de los bloques. Ese orden ya está resuelto
+        en el manifiesto; acá sólo se numera."""
+        filas = filas_hotspots(manifiesto_de_prueba(), FEATURES)
+        self.assertEqual([f["sort"] for f in filas], [1, 2, 3])
+        self.assertEqual(filas[0]["_clave"], "h-TERRENO")
+        self.assertEqual(self.filas["h-TERRENO"]["sort"], 1)
+        self.assertEqual(self.filas["h-B2"]["sort"], 2)
+
+    def test_la_numeracion_arranca_en_uno_no_en_cero(self):
+        """0 es el default de la columna, o sea "sin orden". Si el primer
+        hotspot quedara en 0 no se podría distinguir de uno sin cargar."""
+        self.assertTrue(all(f["sort"] >= 1 for f in self.filas.values()))
+
     def test_un_amenity_sin_goto_cae_a_informativo(self):
         """El check `hotspots_target_kind_matches` exige el target: sin `goto` no
         puede ser `target_kind='scene'`."""
@@ -561,12 +652,20 @@ class PlanCompleto(unittest.TestCase):
         self.assertEqual(len(plan.hotspots), 3)
         self.assertEqual([u["status"] for u in plan.unidades], ["disponible", "bloqueado", "proximamente"])
 
-    def test_el_settings_lleva_los_editoriales_y_los_extras(self):
+    def test_el_settings_lleva_los_editoriales_y_nada_mas(self):
+        """Desde la 0024, `sceneExtras` YA NO va acá: cada escena lleva los
+        suyos en `scenes.extras`."""
         plan = plan_de_prueba()
         self.assertEqual(
-            sorted(plan.settings),
-            ["brandLogo", "brochurePages", "contact", "photoTour", "sceneExtras"],
+            sorted(plan.settings), ["brandLogo", "brochurePages", "contact", "photoTour"]
         )
+        self.assertNotIn("sceneExtras", plan.settings)
+
+    def test_los_bloques_declarados_llegan_al_plan(self):
+        plan = plan_de_prueba()
+        grupos = {g["code"]: g["status"] for g in plan.grupos}
+        self.assertEqual(grupos["B3"], "proximamente")  # declarado en build_tour.py
+        self.assertIsNone(grupos["B2"])  # deriva de sus unidades
 
 
 # ── validaciones ────────────────────────────────────────────────────────────
@@ -639,6 +738,25 @@ class Validaciones(unittest.TestCase):
         errores = errores_de(plan, manifiesto=manifiesto)
         self.assertTrue(any("no-existe" in e for e in errores), errores)
 
+    def test_hotspot_sin_sort_no_pasa(self):
+        """Con todos empatados en 0, el orden de apilado del plano pasa a ser el
+        que Postgres quiera y el perímetro puede tapar los bloques (0023)."""
+        plan = plan_de_prueba()
+        plan.hotspots[0]["sort"] = 0
+        self.assertTrue(any("sin `sort`" in e for e in errores_de(plan)))
+
+    def test_status_de_grupo_fuera_del_enum(self):
+        plan = plan_de_prueba()
+        plan.grupos[0]["status"] = "en preventa"
+        self.assertTrue(any("B2" in e and "unit_status" in e for e in errores_de(plan)))
+
+    def test_status_de_grupo_en_none_es_valido(self):
+        """`null` no es un estado inválido: es "derivalo de las unidades"."""
+        plan = plan_de_prueba()
+        for grupo in plan.grupos:
+            grupo["status"] = None
+        self.assertEqual(errores_de(plan), [])
+
     def test_codigos_de_unidad_repetidos(self):
         filas = FILAS_CSV + [fila_csv()]
         plan = plan_de_prueba(filas_csv=filas)
@@ -674,13 +792,18 @@ class Advertencias(unittest.TestCase):
     def _advertencias(self, plan, manifiesto=None):
         return validar(plan, features=FEATURES, manifiesto=manifiesto or manifiesto_de_prueba())[1]
 
-    def test_avisa_que_los_hotspots_de_bloque_pierden_estado_al_publicar(self):
-        avisos = self._advertencias(plan_de_prueba())
-        self.assertTrue(any("target_kind='group'" in a for a in avisos), avisos)
+    def test_el_recorte_real_no_dispara_avisos_de_perdida(self):
+        """Los dos avisos que había acá —hotspots de bloque sin color, extras de
+        escena sin columna— eran agujeros reales del publicador y del esquema.
+        Los dos se taparon (0023-0027 y `pickSceneExtras`), así que una carga
+        limpia ya no tiene que avisar ninguno de los dos.
 
-    def test_avisa_de_los_campos_de_escena_que_no_tienen_columna(self):
+        (El recorte sí dispara el aviso de features huérfanas: B3 tiene polígono
+        pero el manifiesto de prueba no lo dibuja. Eso es del fixture, y tiene su
+        propio test más abajo.)"""
         avisos = self._advertencias(plan_de_prueba())
-        self.assertTrue(any("sceneExtras" in a for a in avisos), avisos)
+        self.assertFalse(any("target_kind='group'" in a for a in avisos), avisos)
+        self.assertFalse(any("sceneExtras" in a for a in avisos), avisos)
 
     def test_avisa_si_el_arranque_no_es_la_escena_de_menor_sort(self):
         """El publicador usa `scenes[0].slug` ordenando por `sort`; no lee

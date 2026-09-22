@@ -181,21 +181,68 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
    uno no cargado, y arreglar un dato por corrida es la forma más lenta que
    existe de arreglar cinco.
 
-12. LO QUE NO ENTRA EN NINGUNA TABLA SE GUARDA IGUAL, APARTE. `Scene`
-   (packages/core/src/types.ts) tiene cuatro campos opcionales que la tabla
-   `scenes` no tiene columna para guardar: `procedencia` (la chapa de
-   foto/render/IA, que es un valor de producto, no un adorno), y `poster`,
-   `mobileUrl` y `portrait` del video. Se guardan en
-   `settings.sceneExtras[slug]`, que `pickManifestOverrides` ignora en
-   silencio (sólo levanta cinco claves conocidas, así que no hay riesgo de
-   que esto se cuele al manifiesto). No los lee nadie todavía: están ahí para
-   que la ingesta no PIERDA información que sí existe, y para que el día que
-   el publicador aprenda a emitirlos no haya que volver a correr nada.
+12. LOS CUATRO CAMPOS SUELTOS DE `Scene` VAN A `scenes.extras`, Y SE LIMPIA EL
+   LUGAR VIEJO. `Scene` (packages/core/src/types.ts) tiene cuatro campos
+   opcionales que `scenes` no tenía dónde guardar: `procedencia` (la chapa de
+   foto/render/IA, que es un valor de producto, no un adorno) y `poster`,
+   `mobileUrl` y `portrait` del video. La primera versión de este script los
+   estacionaba en `settings.sceneExtras[slug]` porque no había columna;
+   `0024_scenes_extras.sql` se la dio, y el publicador ya la levanta
+   (`pickSceneExtras`).
+
+   Así que ahora van a `scenes.extras`, donde corresponde — y, en la misma
+   corrida, se BORRA la clave `sceneExtras` de `settings`. Eso no es
+   prolijidad: mientras existan las dos, el publicador tiene un puente que usa
+   la de `settings` para las escenas cuya columna está vacía, o sea dos
+   fuentes de verdad para el mismo dato y ninguna forma de saber cuál se
+   publicó. Es la ÚNICA clave que este script retira, y la retira de la copia
+   fusionada: `initial_scene_id`, `allowed_domains` y cualquier otra cosa que
+   haya puesto el panel se conservan intactas (ver punto 6).
+
+13. `hotspots.sort` SALE DEL ORDEN DEL MANIFIESTO, QUE NO ES COSMÉTICO. Leaflet
+   apila los polígonos por orden de inserción e ignora el `zIndex` del hotspot
+   (ver decisión 4 de `build_tour.py` y `0023_hotspots_sort.sql`). Por eso
+   `build_tour.py` pone el perímetro del terreno PRIMERO: si sale después,
+   tapa los cinco bloques y el masterplan queda sin nada clickeable. Ese orden
+   ya está resuelto y es el del array `hotspots` del manifiesto, así que se
+   numera 1..N siguiendo ese array y listo.
+
+   Se numera de corrido sobre TODO el array, no reiniciando por escena, y da
+   igual: el publicador pide los hotspots de a una escena y ordenados por
+   `sort`, así que lo único que importa es el orden RELATIVO dentro de cada
+   escena, y un contador global lo preserva sin depender de que las escenas
+   vengan agrupadas en el array.
+
+14. `groups.status` SÓLO PARA LOS BLOQUES QUE LO DECLARAN, Y LA LISTA SE LEE DE
+   `build_tour.py`. Desde `0026_groups_status.sql` un grupo puede declarar su
+   propio estado comercial, y `generate_availability_json` (0027) le da
+   precedencia: declarado > derivado de las unidades > sin entrada.
+
+   Eso destapa el caso del Bloque 1: el brochure lo marca "PRÓXIMAMENTE" pero
+   no tiene NI UNA unidad cargada, justamente porque no se lanzó. Sin estado
+   declarado se derivaría de un conjunto vacío —o sea, no se derivaría— y
+   quedaría fuera de `availability.json`, gris "etapa futura" en el plano, que
+   es lo contrario de lo que dice el brochure. Con `status='proximamente'`
+   vuelve a salir con su chip de contorno.
+
+   Los que NO declaran van en NULL, que no es un estado sino "derivalo de las
+   unidades". Y los que no declaran NI tienen unidades (Bloque 4 y 5) quedan
+   fuera de la disponibilidad, que es exactamente como se ven hoy: la regla
+   dura sigue en pie.
+
+   La lista de cuáles declaran es `BLOCKS_PROXIMAMENTE` en `build_tour.py`, y
+   se lee DE AHÍ (parseando el archivo con `ast`, sin importarlo — importarlo
+   arrastra Pillow, que no está en el Python del sistema). Tener la misma
+   lista escrita en dos scripts era pedir que se desincronizaran: el día que
+   el Bloque 1 se lance, se corrige en un solo lugar. Si el archivo no está o
+   la constante se movió, se cae a una copia local y se AVISA — un default
+   silencioso acá sería un bloque con el estado de otra época.
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 import csv
 import json
 import os
@@ -258,16 +305,65 @@ ALIAS_DE_ESTADO = {
     "proximo": "proximamente",
 }
 
-# Estado de las unidades cuya columna `estado` viene vacía, POR BLOQUE. No es
-# un default: es un dato real que está en el brochure y no en el CSV (el cartel
-# "PRÓXIMAMENTE" sobre Bloque 1 y Bloque 3). Misma regla, misma justificación y
-# mismos bloques que `BLOCKS_PROXIMAMENTE` en build_tour.py — si algún día
-# cambia, tiene que cambiar en los dos lados. Un bloque que no esté acá y venga
-# sin estado aborta la carga.
-ESTADO_SIN_DATO_POR_BLOQUE = {
+# Copia de emergencia de `BLOCKS_PROXIMAMENTE`/`PROXIMAMENTE_VALUE` de
+# build_tour.py. Sólo se usa si ese archivo no se puede leer (ver
+# `leer_bloques_declarados`), y cuando se usa el script lo dice en voz alta.
+ESTADO_SIN_DATO_POR_BLOQUE_FALLBACK = {
     "B1": "proximamente",
     "B3": "proximamente",
 }
+RUTA_BUILD_TOUR = os.path.join(HERE, "build_tour.py")
+
+
+def leer_bloques_declarados(ruta: str = RUTA_BUILD_TOUR) -> Tuple[Dict[str, str], str]:
+    """Lee `BLOCKS_PROXIMAMENTE` y `PROXIMAMENTE_VALUE` de build_tour.py y los
+    devuelve como {code: estado}, junto con de dónde salieron.
+
+    Por qué parsear en vez de importar: `build_tour.py` hace `from PIL import
+    Image` al tope, y Pillow no está en el Python del sistema. Importarlo para
+    leer dos constantes obligaría a armar un entorno antes de poder ver un
+    dry-run. `ast` lee el archivo como texto, no ejecuta nada y no necesita
+    ninguna dependencia: se recorre el árbol buscando las dos asignaciones de
+    primer nivel y se evalúan con `literal_eval`, que sólo acepta literales.
+
+    Por qué leerlas en vez de copiarlas: esa lista es el mismo dato comercial
+    ("el brochure marca estos bloques PRÓXIMAMENTE") que decide dos cosas
+    distintas —el estado de las unidades sin dato y el `groups.status`
+    declarado— y tenerla escrita en dos scripts es pedir que se desincronicen.
+    El día que el Bloque 1 se lance, se corrige en build_tour.py y este script
+    se entera solo."""
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            arbol = ast.parse(f.read(), filename=ruta)
+        encontrado: Dict[str, Any] = {}
+        for nodo in arbol.body:
+            if not isinstance(nodo, ast.Assign):
+                continue
+            for destino in nodo.targets:
+                if isinstance(destino, ast.Name) and destino.id in (
+                    "BLOCKS_PROXIMAMENTE",
+                    "PROXIMAMENTE_VALUE",
+                ):
+                    encontrado[destino.id] = ast.literal_eval(nodo.value)
+        bloques = encontrado["BLOCKS_PROXIMAMENTE"]
+        estado = encontrado["PROXIMAMENTE_VALUE"]
+        if not isinstance(bloques, (list, tuple)) or not isinstance(estado, str):
+            raise ValueError("BLOCKS_PROXIMAMENTE/PROXIMAMENTE_VALUE no tienen la forma esperada")
+        if estado not in ESTADOS_PLATAFORMA:
+            raise ValueError('PROXIMAMENTE_VALUE = "{}" no es un estado de la plataforma'.format(estado))
+        return {str(c): estado for c in bloques}, os.path.basename(ruta)
+    except Exception as e:  # archivo ausente, movido, renombrado, lo que sea
+        return dict(ESTADO_SIN_DATO_POR_BLOQUE_FALLBACK), "copia local ({})".format(e)
+
+
+# Qué bloques declaran su estado, y cuál. Decide DOS cosas, que son el mismo
+# dato visto desde dos lados: el estado de las unidades cuya columna `estado`
+# viene vacía (no es un default: es el cartel "PRÓXIMAMENTE" del brochure, que
+# está en el brochure y no en el CSV) y el `groups.status` declarado del bloque
+# (0026), que es lo que mantiene al Bloque 1 —sin ninguna unidad cargada—
+# dentro de `availability.json`. Un bloque que no esté acá y venga sin estado
+# aborta la carga.
+ESTADO_SIN_DATO_POR_BLOQUE, ORIGEN_BLOQUES_DECLARADOS = leer_bloques_declarados()
 
 # Cómo se traduce el `kind` de cada feature del GeoJSON al `hotspot_target_kind`
 # del esquema. Ver puntos 2 y 3 del docstring.
@@ -283,9 +379,19 @@ DESTINO_POR_TIPO_DE_FEATURE = {
 # propósito (no inventa bandas de precio; el visor las deriva por cuantiles).
 CAMPOS_EDITORIALES = ("contact", "brandLogo", "photoTour", "brochurePages", "theme")
 
-# Campos de `Scene` (packages/core/src/types.ts) que la tabla `scenes` no tiene
-# dónde guardar. Ver punto 12 del docstring.
+# Campos de `Scene` (packages/core/src/types.ts) que no tienen columna propia y
+# viven en `scenes.extras` (0024). Misma lista blanca que `pickSceneExtras` en
+# apps/worker/src/routes/publish.ts — es un pick explícito de los dos lados:
+# nada más que esto entra a la columna, y nada más que esto sale de ella.
 EXTRAS_DE_ESCENA = ("procedencia", "poster", "mobileUrl", "portrait")
+
+# Claves que este script ESCRIBÍA en `projects.settings` y ahora escribe en su
+# propia columna. Se retiran de `settings` al cargar. Ver punto 12: mientras
+# convivan las dos, el publicador tiene un puente que usa la de `settings` para
+# las escenas cuya columna está vacía, y pasan a haber dos fuentes de verdad
+# para el mismo dato. Es la única clave que este script BORRA de `settings`;
+# todo lo demás que haya ahí (la config del panel) no se toca nunca.
+CLAVES_RETIRADAS_DE_SETTINGS = ("sceneExtras",)
 
 # Formato de `projects.subdomain`, calcado del check de
 # 0022_project_domains.sql. Se valida acá para dar el error en castellano
@@ -565,23 +671,47 @@ def campos_editoriales(manifiesto: Dict[str, Any]) -> Dict[str, Any]:
     return salida
 
 
+def extras_de(escena: Dict[str, Any]) -> Dict[str, Any]:
+    """Los cuatro campos sueltos de UNA escena -> lo que va a `scenes.extras`.
+
+    Una clave ausente o en `null` queda ausente, por el mismo motivo que en
+    `campos_editoriales`: `pickSceneExtras` le da significado a la ausencia
+    (el visor no dibuja esa chapa, no sirve ese póster) y un `null` explícito
+    rompería esa lectura. Una escena sin ninguno de los cuatro queda con `{}`,
+    que es el default de la columna: un solo caso a contemplar, no dos."""
+    return {k: escena[k] for k in EXTRAS_DE_ESCENA if escena.get(k) is not None}
+
+
 def extras_de_escena(manifiesto: Dict[str, Any]) -> Dict[str, Any]:
-    """Los campos de `Scene` que no tienen columna. Ver punto 12."""
+    """Mapa slug -> extras, sólo con las escenas que traen alguno. No se
+    escribe en ningún lado (cada escena lleva los suyos en su columna): sirve
+    para contarlas en el resumen."""
     salida: Dict[str, Any] = {}
     for escena in manifiesto.get("scenes") or []:
-        extras = {k: escena[k] for k in EXTRAS_DE_ESCENA if escena.get(k) is not None}
+        extras = extras_de(escena)
         if extras:
             salida[escena["slug"]] = extras
     return salida
 
 
-def fusionar_settings(existente: Optional[Dict[str, Any]], nuevo: Dict[str, Any]) -> Dict[str, Any]:
+def fusionar_settings(
+    existente: Optional[Dict[str, Any]],
+    nuevo: Dict[str, Any],
+    retirar: Tuple[str, ...] = CLAVES_RETIRADAS_DE_SETTINGS,
+) -> Dict[str, Any]:
     """Le encima al `settings` que ya está en la base las claves que este
     script maneja, sin tocar el resto. Ver punto 6: ahí también vive la
     configuración del panel (`initial_scene_id`, `allowed_domains`) y una
-    ingesta no tiene por qué saber de su existencia para no borrarla."""
+    ingesta no tiene por qué saber de su existencia para no borrarla.
+
+    `retirar` es la excepción, y es acotada a propósito: sólo salen las claves
+    que ESTE script escribía antes y ahora escribe en otra columna (punto 12).
+    No es una limpieza general de `settings` — nada que este script no haya
+    puesto se borra nunca."""
     fusionado = dict(existente or {})
     fusionado.update(nuevo)
+    for clave in retirar:
+        fusionado.pop(clave, None)
     return fusionado
 
 
@@ -603,6 +733,10 @@ def filas_escenas(manifiesto: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "initial_view": escena.get("initialView"),
                 "north_offset": escena.get("northOffset"),
                 "sort": escena.get("sort", 0),
+                # Los cuatro campos que no tienen columna propia (0024). Ver
+                # punto 12: hasta la 0024 esto se estacionaba en
+                # `projects.settings.sceneExtras`.
+                "extras": extras_de(escena),
             }
         )
     return filas
@@ -620,7 +754,12 @@ def filas_hotspots(
     geometría, en cambio, se toma de la feature: el GeoJSON es la fuente."""
     por_id_de_escena = {e["id"]: e["slug"] for e in manifiesto.get("scenes") or []}
     filas = []
-    for hotspot in manifiesto.get("hotspots") or []:
+    # `orden` arranca en 1 y avanza sobre TODO el array, sin reiniciar por
+    # escena: ver punto 13 del docstring. El orden del array del manifiesto ya
+    # es el correcto —lo resolvió `build_tour.py`, que pone el perímetro
+    # primero para que quede debajo de los bloques— así que esto no decide
+    # nada, lo transcribe.
+    for orden, hotspot in enumerate(manifiesto.get("hotspots") or [], start=1):
         id_origen = hotspot.get("id") or ""
         # Convención de `build_tour.py`: el id del hotspot es "h-" + el code de
         # la feature. Es la única forma de volver a cruzar las dos fuentes, y
@@ -653,6 +792,7 @@ def filas_hotspots(
                 "geometry": anillo_a_px(feature["anillo"]) if feature else hotspot.get("geometry"),
                 "label_anchor": hotspot.get("anchor"),
                 "meta": meta,
+                "sort": orden,
                 "_clave": id_origen,
                 "_escena": por_id_de_escena.get(hotspot.get("sceneId")),
                 "_grupo": codigo if destino == "group" else None,
@@ -662,13 +802,25 @@ def filas_hotspots(
     return filas
 
 
-def filas_grupos(features: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Las features de `kind='bloque'` -> filas de `groups`. Ver punto 2.
+def filas_grupos(
+    features: Dict[str, Dict[str, Any]],
+    estados_declarados: Optional[Dict[str, str]] = None,
+) -> List[Dict[str, Any]]:
+    """Las features de `kind='bloque'` -> filas de `groups`. Ver puntos 2 y 14.
 
     Se cargan los CINCO bloques, no sólo los dos que tienen unidades: B1, B4 y
     B5 existen en el plano, tienen polígono y su hotspot necesita un
     `group_id` al que apuntar. Un bloque sin unidades no es un bloque que no
-    exista: es un bloque de una etapa futura."""
+    exista: es un bloque de una etapa futura.
+
+    `status` es la diferencia entre "etapa futura" y "próximamente", que en el
+    plano son dos chips distintos. Sólo lo llevan los bloques que lo DECLARAN
+    (los de `BLOCKS_PROXIMAMENTE`); el resto va en `None`, que no es un estado
+    sino "derivalo de las unidades" —y es un `None` explícito, no una clave
+    omitida, para que una corrida posterior pueda BORRAR un estado declarado
+    que ya no corresponde (el día que el Bloque 1 se lance y pase a tener
+    unidades de verdad)."""
+    declarados = estados_declarados or {}
     filas = []
     for orden, (codigo, feature) in enumerate(
         sorted((c, f) for c, f in features.items() if f.get("kind") == "bloque"), start=1
@@ -679,6 +831,7 @@ def filas_grupos(features: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "code": codigo,
                 "name": feature.get("name") or codigo,
                 "sort": orden,
+                "status": declarados.get(codigo),
                 "parent_id": None,
             }
         )
@@ -784,10 +937,11 @@ def armar_plan(
     for tipo in tipos:
         tipo["attr_schema"] = esquema_de_atributos(por_tipo.get(tipo["code"], []))
 
+    # Los extras de escena ya NO entran acá: cada escena lleva los suyos en
+    # `scenes.extras` (punto 12). `fusionar_settings` además retira la clave
+    # vieja, así que una base cargada con la versión anterior de este script
+    # queda limpia con volver a correrlo.
     settings = fusionar_settings(None, campos_editoriales(manifiesto))
-    extras = extras_de_escena(manifiesto)
-    if extras:
-        settings["sceneExtras"] = extras
 
     plan = Plan(
         tenant={"slug": tenant, "name": nombre_tenant},
@@ -797,7 +951,7 @@ def armar_plan(
             "kind": tipo_proyecto,
             "subdomain": subdominio,
         },
-        grupos=filas_grupos(features),
+        grupos=filas_grupos(features, ESTADO_SIN_DATO_POR_BLOQUE),
         tipos=tipos,
         unidades=unidades,
         precios=precios,
@@ -861,6 +1015,21 @@ def validar(
         )
 
     codigos_de_grupo = {g["code"] for g in plan.grupos}
+    for grupo in plan.grupos:
+        if grupo.get("status") is not None and grupo["status"] not in ESTADOS_PLATAFORMA:
+            errores.append(
+                '{}: el estado declarado "{}" no existe en el enum `unit_status` (que es el mismo '
+                "que usa `groups.status`, ver 0026)".format(grupo["code"], grupo["status"])
+            )
+    if not ORIGEN_BLOQUES_DECLARADOS.startswith("build_tour"):
+        # Si la lista no se pudo leer de su fuente, el estado declarado de los
+        # bloques puede haber quedado viejo. Se avisa en vez de cargar en
+        # silencio un dato que quizás ya no corresponde.
+        advertencias.append(
+            "no se pudo leer `BLOCKS_PROXIMAMENTE` de build_tour.py ({}): los estados declarados "
+            "de los bloques salen de la copia local de este script, que puede haber quedado "
+            "vieja".format(ORIGEN_BLOQUES_DECLARADOS)
+        )
     unidades_manifiesto = manifiesto.get("units") or {}
     for unidad in plan.unidades:
         if unidad["status"] not in ESTADOS_PLATAFORMA:
@@ -1010,22 +1179,20 @@ def validar(
         )
 
     # --- lo que se va a perder por el camino -----------------------------
-    bloques_hotspot = [h for h in plan.hotspots if h["target_kind"] == "group"]
-    if bloques_hotspot:
-        advertencias.append(
-            "los {} hotspots de bloque se cargan como `target_kind='group'` (que es lo correcto), "
-            "pero el publicador de hoy sólo traduce `target_kind='unit'` a una acción: publicados "
-            "así, los bloques del masterplan van a salir sin color de estado y sin click. Ver "
-            "`buildManifestFromSupabase` en apps/worker/src/routes/publish.ts".format(
-                len(bloques_hotspot)
-            )
-        )
-    if plan.settings.get("sceneExtras"):
-        advertencias.append(
-            "{} escenas traen campos que `scenes` no tiene columna para guardar (procedencia, "
-            "poster, mobileUrl, portrait): quedan en `settings.sceneExtras`, que el publicador de "
-            "hoy no lee. El video en particular se va a publicar sin póster ni versión "
-            "vertical".format(len(plan.settings["sceneExtras"]))
+    # Acá vivía, hasta que se arreglaron las dos puntas, el aviso de que los
+    # hotspots de bloque se publicaban sin color ni click: el publicador sólo
+    # traducía `target_kind='unit'`. Ya no hace falta — `publish.ts` resuelve
+    # un hotspot de grupo a `unitCode` + `action:{kind:'unit'}`, y
+    # `generate_availability_json` (0025 + 0027) le da entrada al grupo. Se
+    # deja anotado acá para que quien lea el informe viejo no lo busque.
+    # Los hotspots sin `sort` propio quedarían todos empatados en el default 0,
+    # que es exactamente el problema que arregla la 0023: con empate, Postgres
+    # devuelve en el orden que le resulte cómodo y el perímetro puede terminar
+    # dibujado encima de los bloques.
+    if any(not h.get("sort") for h in plan.hotspots):
+        errores.append(
+            "hay hotspots sin `sort`: quedarían empatados en 0 y el orden de apilado del plano "
+            "pasaría a ser el que Postgres quiera (ver 0023_hotspots_sort.sql)"
         )
 
     return errores, advertencias
@@ -1243,10 +1410,15 @@ def aplicar(api: Plataforma, plan: Plan) -> Dict[str, Conteo]:
     grupos, conteos["groups"] = _sincronizar(
         api,
         "groups",
-        consulta_existentes="project_id=eq.{}&select=id,code,kind,name,sort,parent_id".format(proyecto_id),
+        consulta_existentes=(
+            "project_id=eq.{}&select=id,code,kind,name,sort,status,parent_id".format(proyecto_id)
+        ),
         clave="code",
         filas=plan.grupos,
-        columnas=["kind", "name", "sort"],
+        # `status` se compara y se escribe aunque sea None: es la única forma
+        # de que una corrida posterior pueda RETIRAR un estado declarado que
+        # dejó de corresponder. Ver `filas_grupos`.
+        columnas=["kind", "name", "sort", "status"],
         fijas={"project_id": proyecto_id},
     )
 
@@ -1326,13 +1498,12 @@ def aplicar(api: Plataforma, plan: Plan) -> Dict[str, Conteo]:
         api,
         "scenes",
         consulta_existentes=(
-            "project_id=eq.{}&select=id,slug,kind,name,source,initial_view,north_offset,sort".format(
-                proyecto_id
-            )
+            "project_id=eq.{}&select=id,slug,kind,name,source,initial_view,north_offset,sort,"
+            "extras".format(proyecto_id)
         ),
         clave="slug",
         filas=plan.escenas,
-        columnas=["kind", "name", "source", "initial_view", "north_offset", "sort"],
+        columnas=["kind", "name", "source", "initial_view", "north_offset", "sort", "extras"],
         fijas={"project_id": proyecto_id},
     )
 
@@ -1345,7 +1516,7 @@ def aplicar(api: Plataforma, plan: Plan) -> Dict[str, Conteo]:
         for fila in api.seleccionar(
             "hotspots",
             "scene_id=eq.{}&select=id,scene_id,target_kind,geometry_kind,geometry,label_anchor,meta,"
-            "unit_id,group_id,target_scene_id".format(escena_id),
+            "sort,unit_id,group_id,target_scene_id".format(escena_id),
         ):
             origen = (fila.get("meta") or {}).get("sourceId")
             if origen:
@@ -1373,6 +1544,7 @@ def aplicar(api: Plataforma, plan: Plan) -> Dict[str, Conteo]:
                 "geometry",
                 "label_anchor",
                 "meta",
+                "sort",
                 "unit_id",
                 "group_id",
                 "target_scene_id",
@@ -1491,10 +1663,22 @@ def resumir(
     for precio in plan.precios:
         por_visibilidad[precio["visibility"]] = por_visibilidad.get(precio["visibility"], 0) + 1
 
+    declarados = ["{}={}".format(g["code"], g["status"]) for g in plan.grupos if g.get("status")]
+    derivados = [g["code"] for g in plan.grupos if not g.get("status")]
+    con_extras = sum(1 for e in plan.escenas if e.get("extras"))
+
     filas_resumen = [
         ("tenants", 1, plan.tenant["slug"]),
         ("projects", 1, "{} (settings: {})".format(plan.proyecto["slug"], ", ".join(sorted(plan.settings)))),
-        ("groups", len(plan.grupos), " ".join(g["code"] for g in plan.grupos)),
+        (
+            "groups",
+            len(plan.grupos),
+            "{} · estado declarado: {} · derivan de sus unidades: {}".format(
+                " ".join(g["code"] for g in plan.grupos),
+                " ".join(declarados) or "ninguno",
+                " ".join(derivados) or "ninguno",
+            ),
+        ),
         (
             "unit_types",
             len(plan.tipos),
@@ -1513,12 +1697,22 @@ def resumir(
         (
             "scenes",
             len(plan.escenas),
-            " · ".join("{} {}".format(n, k) for k, n in sorted(por_kind_escena.items(), key=lambda kv: -kv[1])),
+            "{} · {} con extras".format(
+                " · ".join(
+                    "{} {}".format(n, k) for k, n in sorted(por_kind_escena.items(), key=lambda kv: -kv[1])
+                ),
+                con_extras,
+            ),
         ),
         (
             "hotspots",
             len(plan.hotspots),
-            " · ".join("{} {}".format(n, d) for d, n in sorted(por_destino.items(), key=lambda kv: -kv[1])),
+            "{} · sort 1..{} en el orden de tour.json".format(
+                " · ".join(
+                    "{} {}".format(n, d) for d, n in sorted(por_destino.items(), key=lambda kv: -kv[1])
+                ),
+                len(plan.hotspots),
+            ),
         ),
     ]
 
@@ -1550,13 +1744,28 @@ def resumir(
                 plan.settings["contact"].get("name"), plan.settings["contact"].get("whatsapp")
             )
         )
-    if "sceneExtras" in plan.settings:
-        editoriales.append("sceneExtras: {} escenas".format(len(plan.settings["sceneExtras"])))
     if editoriales:
         lineas.append("")
         lineas.append("Campos editoriales -> projects.settings")
         for item in editoriales:
             lineas.append("  · " + item)
+
+    # Los cuatro campos sueltos de `Scene`, que desde la 0024 tienen columna
+    # propia. Se muestran aparte de los editoriales justamente para que se vea
+    # que ya NO están en `settings`.
+    extras = extras_de_escena(manifiesto)
+    if extras:
+        por_clave: Dict[str, int] = {}
+        for campos in extras.values():
+            for clave in campos:
+                por_clave[clave] = por_clave.get(clave, 0) + 1
+        lineas.append("")
+        lineas.append("Campos sueltos de escena -> scenes.extras")
+        lineas.append(
+            "  · {} escenas: {}".format(
+                len(extras), " · ".join("{} ({})".format(k, n) for k, n in sorted(por_clave.items()))
+            )
+        )
 
     if plan.advertencias:
         lineas.append("")
