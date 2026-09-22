@@ -46,8 +46,17 @@ async function restRequest<T>(
     const body = await res.text().catch(() => undefined);
     throw new SupabaseError(`Supabase REST error ${res.status} on ${path}`, res.status, body);
   }
+  // PostgREST con `Prefer: return=minimal` -que es lo que usan `insert` sin
+  // `returning` y TODOS los `update`- contesta 201 con el cuerpo VACIO, no
+  // 204. `res.json()` sobre un cuerpo vacio tira SyntaxError, y el llamador
+  // lo interpreta como que la escritura fallo cuando en realidad se escribio.
+  // Asi se reportaba `record_publication` como fallida con la fila ya
+  // guardada: peor que un fallo real, porque invita a reintentar algo hecho.
+  // Por eso la decision se toma mirando el cuerpo y no el codigo de estado.
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const cuerpo = await res.text();
+  if (cuerpo === '') return undefined as T;
+  return JSON.parse(cuerpo) as T;
 }
 
 export function createSupabaseClient(cfg: SupabaseConfig) {

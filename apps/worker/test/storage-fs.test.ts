@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { access, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createFsStorage } from '../src/lib/storage-fs.ts';
@@ -100,5 +100,41 @@ describe('createFsStorage', () => {
       await expect(storage.put('../no-deberia-existir.txt', 'pwned')).rejects.toThrow();
       await expect(access(outsideMarker)).rejects.toThrow();
     });
+  });
+});
+
+describe('tipo de contenido de archivos depositados por fuera del adaptador', () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), 'r360-mime-'));
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('deduce el tipo de la extensión cuando no hay meta al lado', async () => {
+    const almacen = createFsStorage(root);
+    // Simula lo que hace rsync: el archivo aparece en disco sin pasar por `put`,
+    // así que nunca se escribió su `.meta.json`.
+    await mkdir(path.join(root, 'assets'), { recursive: true });
+    await writeFile(path.join(root, 'assets/viewer.js'), 'export const a = 1;');
+    const obj = await almacen.get('assets/viewer.js');
+    expect(obj?.httpMetadata?.contentType).toBe('text/javascript');
+  });
+
+  it('el meta explícito de un put le gana a la extensión', async () => {
+    const almacen = createFsStorage(root);
+    await almacen.put('cosa.json', '{}', { httpMetadata: { contentType: 'application/geo+json' } });
+    const obj = await almacen.get('cosa.json');
+    expect(obj?.httpMetadata?.contentType).toBe('application/geo+json');
+  });
+
+  it('una extensión desconocida no inventa un tipo', async () => {
+    const almacen = createFsStorage(root);
+    await writeFile(path.join(root, 'algo.rarisimo'), 'x');
+    const obj = await almacen.get('algo.rarisimo');
+    expect(obj?.httpMetadata?.contentType).toBeUndefined();
   });
 });

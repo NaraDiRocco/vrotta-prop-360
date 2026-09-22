@@ -437,6 +437,45 @@ export async function buildManifestFromSupabase(
     };
   }
 
+  // Pseudo-unidades de bloque: la otra mitad de la traducción grupo→unidad.
+  //
+  // Un hotspot de grupo se emite con `unitCode` = el code del bloque y
+  // `action: {kind:'unit'}` (ver más abajo), pero eso solo no alcanza: el
+  // visor, al abrir una ficha, hace `tour.units[code]` y si no existe se va
+  // en silencio — el bloque se pintaba bien y no respondía al click.
+  //
+  // El manifiesto tiene que traer, además, una entrada por bloque. No es un
+  // invento nuestro: es exactamente lo que ya emitía el pipeline viejo, con
+  // `typeCode: 'bloque'` y los atributos que la ficha del bloque lee para
+  // decir "9 unidades · 5 disponibles". Se arma acá, en el publicador, por la
+  // misma razón que la traducción del hotspot: la base guarda el modelo
+  // correcto (un bloque es un grupo) y el manifiesto habla el idioma que el
+  // visor ya entiende.
+  //
+  // Las unidades reales se escriben DESPUÉS, así un bloque nunca puede pisar
+  // a una unidad que se llame igual.
+  const unidadesDeBloque: TourManifest['units'] = {};
+  for (const g of groupRows) {
+    const suyas = unitRows.filter((u) => u.group_id === g.id);
+    const superficies = suyas
+      .map((u) => u.area_total_m2)
+      .filter((a): a is number => typeof a === 'number');
+    unidadesDeBloque[g.code] = {
+      // `label` del manifiesto es `string | undefined`; la columna admite null.
+      label: g.name ?? undefined,
+      groupCode: null,
+      typeCode: 'bloque',
+      attrs: {
+        unitCount: suyas.length,
+        unitCodes: suyas.map((u) => u.code),
+        superficieTotalUnidadesM2: superficies.length
+          ? Number(superficies.reduce((a, b) => a + b, 0).toFixed(2))
+          : null,
+      },
+    };
+  }
+  const unitsConBloques: TourManifest['units'] = { ...unidadesDeBloque, ...units };
+
   const start = scenes[0]?.slug ?? '';
 
   const manifest: TourManifest = {
@@ -453,7 +492,7 @@ export async function buildManifestFromSupabase(
     start,
     scenes,
     hotspots,
-    units,
+    units: unitsConBloques,
   };
 
   // El prefijado va DESPUÉS del fundido de `settings`: `photoTour`,

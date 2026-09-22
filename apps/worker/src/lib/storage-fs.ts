@@ -50,6 +50,48 @@ function metaPathFor(filePath: string): string {
  * gana y `root` se ignora por completo - por eso acá nunca se confía en el
  * resultado de `resolve` sin comparar contra `root` primero.
  */
+/**
+ * Tipo de contenido deducido de la extensión, para los archivos que NO escribió
+ * este adaptador.
+ *
+ * Hace falta porque el shell del visor y sus assets llegan al almacenamiento
+ * por rsync, no por `put`: nunca pasan por acá y por lo tanto no tienen
+ * `.meta.json` al lado. Sin esta tabla salían como `application/octet-stream`,
+ * y el navegador RECHAZA un módulo de JavaScript servido así —"Strict MIME
+ * type checking is enforced for module scripts"—, con lo cual el recorrido
+ * quedaba en pantalla negra. El meta explícito, cuando existe, sigue ganando:
+ * esto es sólo la red para lo que se deposita por otra vía.
+ */
+const TIPOS_POR_EXTENSION: Record<string, string> = {
+  js: 'text/javascript',
+  mjs: 'text/javascript',
+  css: 'text/css',
+  html: 'text/html; charset=utf-8',
+  json: 'application/json',
+  webmanifest: 'application/manifest+json',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  ico: 'image/x-icon',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  woff2: 'font/woff2',
+  woff: 'font/woff',
+  ttf: 'font/ttf',
+  pdf: 'application/pdf',
+  txt: 'text/plain; charset=utf-8',
+  xml: 'application/xml',
+  map: 'application/json',
+};
+
+export function tipoPorExtension(key: string): string | undefined {
+  const ext = key.split('/').pop()?.split('.').pop()?.toLowerCase();
+  return ext ? TIPOS_POR_EXTENSION[ext] : undefined;
+}
+
 function resolveKeyPath(root: string, key: string): string {
   if (typeof key !== 'string' || key.length === 0) {
     throw new Error(`Key de storage inválida: ${JSON.stringify(key)}`);
@@ -118,7 +160,11 @@ export function createFsStorage(root: string): ObjectStorage {
         // por `new Response(obj.body)` en serve.ts - igual que el `body` que
         // devuelve R2Object en Cloudflare.
         body: Readable.toWeb(createReadStream(filePath)) as unknown as ReadableStream,
-        httpMetadata: meta,
+        // El meta explícito manda; si no hay, se deduce de la extensión.
+        httpMetadata: meta ?? (() => {
+          const contentType = tipoPorExtension(key);
+          return contentType ? { contentType } : undefined;
+        })(),
       };
     },
 

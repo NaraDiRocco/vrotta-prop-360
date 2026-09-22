@@ -38,7 +38,10 @@ echo "   dist: $(du -sh "$DIST" | cut -f1) en $(find "$DIST" -type f | wc -l | t
 
 echo "==> 2/6  Averiguando que version toca"
 BASE="$ALMACEN/t/$TENANT/$PROYECTO"
-ACTUAL=$(ssh "$VPS_HOST" "cat /srv/r360/kv/$(printf 'ptr:%s:%s' "$TENANT" "$PROYECTO" | sed 's/:/%3A/g').kv.json 2>/dev/null" \
+# `|| true` del lado del servidor y `tail -1` de este: sin eso, la primera
+# publicacion -cuando el puntero todavia no existe- hace fallar la tuberia
+# por pipefail y el respaldo termina agregando un segundo cero.
+ACTUAL=$(ssh "$VPS_HOST" "cat /srv/r360/kv/$(printf 'ptr:%s:%s' "$TENANT" "$PROYECTO" | sed 's/:/%3A/g').kv.json 2>/dev/null || true" \
   | python3 -c "import sys,json
 # El adaptador de KV guarda un sobre {value: '<json>', expiresAt?}, no el
 # puntero pelado: hay que abrirlo antes de leer la version.
@@ -46,7 +49,7 @@ try:
     sobre=json.load(sys.stdin)
     print(json.loads(sobre['value']).get('version') or 0)
 except Exception:
-    print(0)" 2>/dev/null || echo 0)
+    print(0)" 2>/dev/null | tail -1)
 SIGUIENTE=$((ACTUAL + 1))
 echo "   version activa: ${ACTUAL:-ninguna} -> se publicara la v$SIGUIENTE"
 
@@ -65,7 +68,12 @@ ssh "$VPS_HOST" "set -e
 echo "==> 4/6  Subiendo el shell del visor y la media"
 # tour.json queda afuera: lo escribe /api/publish desde la base, y subir el
 # del pipeline seria pisarlo con datos que no vienen de Supabase.
-rsync -rlpt --delete --partial --stats --exclude 'tour.json' \
+# -c (comparar por CONTENIDO, no por fecha) no es un lujo: Vite recopia la
+# carpeta publica en cada build, asi que todas las fechas cambian aunque los
+# bytes sean identicos. Sin esto rsync retransfiere los 100 MB enteros y, al
+# reescribirlos, rompe los hardlinks que acaba de crear `cp -al`: cada
+# publicacion costaria 100 MB de disco en vez de cero.
+rsync -rlpt -c --delete --partial --stats --exclude 'tour.json' \
   "$DIST/" "$VPS_HOST:$BASE/v$SIGUIENTE/" | tail -3
 
 echo "==> 5/6  Publicando (manifiesto desde la base + puntero) y regenerando disponibilidad"

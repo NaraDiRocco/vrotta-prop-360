@@ -352,3 +352,43 @@ describe('puente temporal: extras estacionados en settings.sceneExtras', () => {
     expect(escena.procedencia).toEqual({ kind: 'render' });
   });
 });
+
+describe('pseudo-unidades de bloque', () => {
+  it('emite una entrada por grupo, para que el click en el bloque abra su ficha', async () => {
+    const { manifest } = build({
+      groups: [
+        { id: 'g1', code: 'B2', name: 'Bloque 2', sort: 1 },
+        { id: 'g2', code: 'B4', name: 'Bloque 4', sort: 2 },
+      ],
+      units: [
+        { id: 'u1', code: 'B2-A', group_id: 'g1', area_total_m2: 100, attrs: {} },
+        { id: 'u2', code: 'B2-B', group_id: 'g1', area_total_m2: 50.5, attrs: {} },
+      ],
+    });
+    const m = await manifest;
+
+    expect(m.units['B2']).toMatchObject({
+      label: 'Bloque 2',
+      groupCode: null,
+      typeCode: 'bloque',
+      attrs: { unitCount: 2, unitCodes: ['B2-A', 'B2-B'], superficieTotalUnidadesM2: 150.5 },
+    });
+    // Un bloque sin unidades igual existe: el hotspot tiene que poder abrirlo.
+    expect(m.units['B4']).toMatchObject({
+      typeCode: 'bloque',
+      attrs: { unitCount: 0, unitCodes: [], superficieTotalUnidadesM2: null },
+    });
+    // Y las unidades reales siguen estando.
+    expect(m.units['B2-A']).toMatchObject({ groupCode: 'B2' });
+  });
+
+  it('una unidad real le gana a un bloque que se llame igual', async () => {
+    const { manifest } = build({
+      groups: [{ id: 'g1', code: 'CHOQUE', name: 'Bloque raro', sort: 1 }],
+      units: [{ id: 'u1', code: 'CHOQUE', group_id: null, area_total_m2: 10, attrs: {} }],
+    });
+    const m = await manifest;
+    expect(m.units['CHOQUE']).toMatchObject({ areaTotalM2: 10 });
+    expect(m.units['CHOQUE']).not.toMatchObject({ typeCode: 'bloque' });
+  });
+});
