@@ -259,6 +259,22 @@ export interface TourManifest {
    * visor dibuja el nombre del proyecto en texto, nunca un ícono roto.
    */
   brandLogo?: string;
+  /**
+   * Metadata de la tarjeta de previsualización (Open Graph / Twitter Card)
+   * para cuando el link del recorrido circula por WhatsApp u otro chat —
+   * ver `apps/worker/src/lib/og-tags.ts`, que es quien la lee. Opcional y
+   * aditivo, igual que los demás campos de esta lista: sin `social`, ese
+   * Worker deduce lo que puede del resto del manifiesto (el título del
+   * proyecto para `title`, la primera foto no restringida de `photoTour` o
+   * si no `brandLogo` para `image`) y omite en silencio lo que no puede
+   * deducir — nunca emite una etiqueta vacía o rota.
+   */
+  social?: {
+    title?: string;
+    description?: string;
+    /** Relativa a la base pública versionada (se prefija igual que `brandLogo`, ver `prefixManifestMediaPaths`) o ya absoluta. */
+    image?: string;
+  };
   /** Ver `PhotoTour`. Ausente = el visor no dibuja el recorrido narrativo de fotos. */
   photoTour?: PhotoTour;
   availabilityUrl: string;

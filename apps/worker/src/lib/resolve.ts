@@ -17,9 +17,9 @@ export interface ResolvedProject {
    * así, aunque la columna es `not null default '{}'::jsonb`. El panel
    * guarda ahí su propia configuración (`initial_scene_id`,
    * `allowed_domains`, ver 0012_project_health_view.sql) y también, mezclados
-   * con eso, los cinco campos opcionales del manifiesto que no tienen tabla
-   * propia (theme, contact, brandLogo, photoTour, brochurePages). Quien hace
-   * el pick de esas cinco claves nada más es `buildManifestFromSupabase` en
+   * con eso, los seis campos opcionales del manifiesto que no tienen tabla
+   * propia (theme, contact, brandLogo, social, photoTour, brochurePages). Quien hace
+   * el pick de esas seis claves nada más es `buildManifestFromSupabase` en
    * publish.ts — acá simplemente se trae la columna entera, sin interpretarla.
    */
   settings: Record<string, unknown> | null;

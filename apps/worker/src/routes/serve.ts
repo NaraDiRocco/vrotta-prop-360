@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
+import type { TourManifest } from '@r360/core';
 import type { Env } from '../env.ts';
 import { getActivePointer } from '../lib/pointer.ts';
 import { r2Paths } from '../lib/r2paths.ts';
 import { cspHeaderForTenant, getTenantConfig } from '../lib/csp.ts';
 import { verifyEmbedToken, loadRevocationState } from '../lib/embed-token.ts';
 import { createSupabaseClient } from '../lib/supabase.ts';
+import { buildOgTags, injectOgTags } from '../lib/og-tags.ts';
 import {
   normalizeHost,
   classifyHost,
@@ -81,7 +83,20 @@ export async function serveProject(
     const key = r2Paths.indexHtml(tenant, project, pointer.version);
     const obj = await c.env.R2.get(key);
     if (!obj) return c.json({ error: 'missing_asset', key }, 404);
-    return new Response(obj.body, {
+
+    // Hasta acá el shell se devolvía como stream (`new Response(obj.body)`),
+    // sin pasar por memoria entera — el criterio correcto para los assets
+    // versionados de abajo (fuentes, JS, y sobre todo lo pesado como tiles y
+    // video, que ni siquiera pasan por este Worker). Para inyectar las
+    // etiquetas Open Graph hace falta el documento completo como string, así
+    // que ACÁ se deja de streamear y se lee entero con `.text()`. Es
+    // aceptable únicamente porque el shell del visor pesa apenas un par de
+    // KB (ver README/apps/viewer): nada que ver con la media, que sigue sin
+    // tocar este código.
+    const html = await new Response(obj.body).text();
+    const htmlConOg = await withOgTags(c, tenant, project, pointer.version, html);
+
+    return new Response(htmlConOg, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         // El shell referencia tour.json vía el puntero, así que su propio
@@ -118,6 +133,90 @@ export async function serveProject(
       'Cache-Control': 'public, max-age=31536000, immutable',
     },
   });
+}
+
+/**
+ * Origen (esquema + host) tal como lo vio el visitante — hace falta para que
+ * `og:url`/`og:image` sean URLs ABSOLUTAS (exigencia de Open Graph) y, sobre
+ * todo, para que apunten al host que la visita realmente usó: el mismo
+ * proyecto puede atenderse tanto en su subdominio de plataforma como en el
+ * dominio propio del cliente (ver lib/host-routing.ts), así que el origen no
+ * puede salir de una constante — tiene que armarse por request.
+ *
+ * El host sale del header `Host` tal cual llegó: es la misma fuente de
+ * verdad que ya usa el resto del ruteo (`serveByHost`, `normalizeHost`). El
+ * esquema es más delicado: este Worker corre detrás de nginx (mismo
+ * escenario que documenta `clientIp` en lib/rate-limit.ts para la IP), que
+ * termina TLS y le habla a Node por HTTP plano — así que la URL que ESTE
+ * proceso ve casi siempre dice "http" aunque el visitante entró por HTTPS.
+ * Se respeta `X-Forwarded-Proto` (lo que nginx debería setear) primero, y
+ * recién si no vino se mira el esquema de la propia request.
+ *
+ * Devuelve `null` si ni siquiera hay `Host` (no debería pasar en un request
+ * HTTP/1.1 real) — quien llama lo trata igual que cualquier otro motivo para
+ * no poder armar las etiquetas: se sirve el shell sin ellas.
+ */
+function requestOrigin(c: Context<{ Bindings: Env }>): string | null {
+  const host = c.req.header('host');
+  if (!host) return null;
+  const forwardedProto = c.req.header('X-Forwarded-Proto')?.split(',')[0]?.trim();
+  const scheme = forwardedProto || new URL(c.req.url).protocol.replace(':', '') || 'https';
+  return `${scheme}://${host}`;
+}
+
+/**
+ * Lee y valida el manifiesto de esta versión SÓLO para las etiquetas Open
+ * Graph — nunca para nada que el visor necesite (eso lo sigue sirviendo
+ * `/t/.../tour.json` tal cual, un poco más abajo). Cualquier problema
+ * (objeto ausente en R2, JSON corrupto, forma inesperada) devuelve `null`:
+ * la tarjeta de previsualización es un detalle estético; que el recorrido no
+ * cargue por esto sería un desastre (tarea 6 del pedido), así que acá no hay
+ * ningún camino que pueda tirar un error hacia arriba.
+ */
+async function readManifestForOgTags(
+  c: Context<{ Bindings: Env }>,
+  tenant: string,
+  project: string,
+  version: number,
+): Promise<TourManifest | null> {
+  try {
+    const obj = await c.env.R2.get(r2Paths.tourJson(tenant, project, version));
+    if (!obj) return null;
+    const text = await new Response(obj.body).text();
+    const parsed = JSON.parse(text) as Partial<TourManifest> | null;
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.project !== 'string' || !parsed.project) {
+      return null;
+    }
+    return parsed as TourManifest;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Intenta inyectar las etiquetas Open Graph en el shell. Cualquier eslabón
+ * que falle (no se pudo leer el manifiesto, no hay `Host`, el manifiesto no
+ * tiene ni título posible) devuelve el `html` de entrada sin tocar — mismo
+ * criterio de "nunca romper lo que anda" en cada paso, no sólo en el
+ * primero.
+ */
+async function withOgTags(
+  c: Context<{ Bindings: Env }>,
+  tenant: string,
+  project: string,
+  version: number,
+  html: string,
+): Promise<string> {
+  const manifest = await readManifestForOgTags(c, tenant, project, version);
+  if (!manifest) return html;
+
+  const origin = requestOrigin(c);
+  if (!origin) return html;
+
+  const tags = buildOgTags(manifest, origin, c.req.path);
+  if (!tags) return html;
+
+  return injectOgTags(html, tags);
 }
 
 serve.get('/t/:tenant/:project/*', async (c) => {

@@ -193,6 +193,26 @@ describe('prefixManifestMediaPaths', () => {
     expect(result.brandLogo).toBe('/t/demo/baleia/v5/marca/logo.svg');
   });
 
+  it('prefija social.image, conservando title/description intactos', () => {
+    const manifest = baseManifest({
+      social: { title: 'Título', description: 'Descripción', image: './social/portada.webp' },
+    });
+    const result = prefixManifestMediaPaths(manifest);
+    expect(result.social).toEqual({
+      title: 'Título',
+      description: 'Descripción',
+      image: '/t/demo/baleia/v5/social/portada.webp',
+    });
+  });
+
+  it('NO toca social.image cuando ya es absoluta, y deja social intacto cuando no trae image', () => {
+    const manifestAbsoluto = baseManifest({ social: { title: 'X', image: 'https://cdn.example.com/portada.webp' } });
+    expect(prefixManifestMediaPaths(manifestAbsoluto).social?.image).toBe('https://cdn.example.com/portada.webp');
+
+    const manifestSinImagen = baseManifest({ social: { title: 'Sólo título' } });
+    expect(prefixManifestMediaPaths(manifestSinImagen).social).toEqual({ title: 'Sólo título' });
+  });
+
   it('prefija brochurePages[]', () => {
     const manifest = baseManifest({ brochurePages: ['brochure/1.webp', 'brochure/2.webp'] });
     const result = prefixManifestMediaPaths(manifest);

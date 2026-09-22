@@ -44,8 +44,50 @@ ssh "$VPS_HOST" "set -e
   sed -i \"s|^R360_PLATFORM_HOST=.*|R360_PLATFORM_HOST=$HOST_PLATAFORMA|\" \$ENVFILE
   echo '   variables actualizadas (respaldo guardado)'"
 
-echo "==> 3/5  Moviendo el host fijo de la plataforma"
-ssh "$VPS_HOST" "sed -i 's|Host(\`[^\`]*\`)|Host(\`$HOST_PLATAFORMA\`)|g' /etc/dokploy/traefik/dynamic/r360-worker.yml
+echo "==> 3/5  Reescribiendo el host fijo de la plataforma"
+# Se reescribe el archivo ENTERO en vez de parchearlo con sed. Un sed sobre
+# las reglas es fragil: la de media combina Host y PathRegexp, y en Traefik
+# `&&` liga mas fuerte que `||`, asi que un reemplazo que agregue hosts la
+# convierte en un catch-all que se come todo el dominio. Ya paso una vez.
+ssh "$VPS_HOST" "cat > /etc/dokploy/traefik/dynamic/r360-worker.yml <<'YML'
+http:
+  routers:
+    r360-worker-router:
+      rule: Host(\`$HOST_PLATAFORMA\`) || Host(\`$DOMINIO\`) || Host(\`www.$DOMINIO\`)
+      priority: 1
+      service: r360-worker-service
+      middlewares:
+        - redirect-to-https
+      entryPoints:
+        - web
+    r360-worker-router-websecure:
+      rule: Host(\`$HOST_PLATAFORMA\`) || Host(\`$DOMINIO\`) || Host(\`www.$DOMINIO\`)
+      priority: 1
+      service: r360-worker-service
+      middlewares: []
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+    r360-media-router-websecure:
+      rule: (Host(\`$HOST_PLATAFORMA\`) || Host(\`$DOMINIO\`) || Host(\`www.$DOMINIO\`)) && PathRegexp(\`^/t/[^/]+/[^/]+/v[0-9]+/\`)
+      priority: 100
+      service: r360-media-service
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+  services:
+    r360-media-service:
+      loadBalancer:
+        servers:
+          - url: http://r360-media:80
+    r360-worker-service:
+      loadBalancer:
+        servers:
+          - url: http://r360-worker:8787
+        passHostHeader: true
+YML
   echo '   router de la plataforma apuntando a $HOST_PLATAFORMA'"
 
 echo "==> 4/5  Reiniciando el worker y el reconciliador con la configuración nueva"

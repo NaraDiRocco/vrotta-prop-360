@@ -75,6 +75,11 @@ describe('pickManifestOverrides', () => {
   it('trata un null explícito en una de las cinco claves como ausente, no lo copia', () => {
     expect(pickManifestOverrides({ brandLogo: null })).toEqual({});
   });
+
+  it('copia social (título/descripción/imagen de la tarjeta de previsualización) cuando está presente', () => {
+    const social = { title: 'Baleia — reservá tu unidad', description: 'Recorrido 360°.', image: './social/portada.webp' };
+    expect(pickManifestOverrides({ social })).toEqual({ social });
+  });
 });
 
 describe('buildManifestFromSupabase — fundido de projects.settings', () => {

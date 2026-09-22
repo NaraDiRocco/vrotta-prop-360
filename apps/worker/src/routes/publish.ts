@@ -99,8 +99,8 @@ interface HotspotRow {
 }
 
 /**
- * Los cinco campos opcionales y aditivos de `TourManifest` (`theme`,
- * `contact`, `brandLogo`, `photoTour`, `brochurePages` — ver
+ * Los seis campos opcionales y aditivos de `TourManifest` (`theme`,
+ * `contact`, `brandLogo`, `social`, `photoTour`, `brochurePages` — ver
  * packages/core/src/types.ts) no tienen tabla propia: en el caso real de
  * Baleia son justamente el recorrido narrativo entero (tramos, brochure,
  * logo, CTA de contacto), así que hoy quedan guardados en `projects.settings`
@@ -108,7 +108,7 @@ interface HotspotRow {
  * propia configuración interna (`initial_scene_id`, `allowed_domains`, ver
  * 0012_project_health_view.sql).
  *
- * Por eso acá se hace un pick explícito de esas cinco claves nada más:
+ * Por eso acá se hace un pick explícito de esas seis claves nada más:
  * cualquier otra cosa que haya en `settings` (configuración de panel, restos
  * de una versión vieja, lo que sea) se ignora en silencio. Y una clave sólo
  * se copia si está REALMENTE presente y no es `null` — un `photoTour`
@@ -117,13 +117,13 @@ interface HotspotRow {
  * la ausencia de la clave (el visor simplemente no dibuja esa sección).
  *
  * El tipo de retorno (`Partial<Pick<TourManifest, ...>>` con sólo estas
- * cinco claves) es, a la vez, la garantía de seguridad: por construcción este
+ * seis claves) es, a la vez, la garantía de seguridad: por construcción este
  * objeto no puede contener `scenes`, `version`, `tenant` ni ningún otro campo
  * obligatorio, así que un `settings` corrupto o cargado a mano de más nunca
  * tiene forma de pisar la geometría o el versionado que arma el publicador.
  */
 type ManifestSettingsOverrides = Partial<
-  Pick<TourManifest, 'theme' | 'contact' | 'brandLogo' | 'photoTour' | 'brochurePages'>
+  Pick<TourManifest, 'theme' | 'contact' | 'brandLogo' | 'social' | 'photoTour' | 'brochurePages'>
 >;
 
 export function pickManifestOverrides(settings: Record<string, unknown> | null): ManifestSettingsOverrides {
@@ -132,6 +132,7 @@ export function pickManifestOverrides(settings: Record<string, unknown> | null):
   if (settings.theme != null) overrides.theme = settings.theme as TourManifest['theme'];
   if (settings.contact != null) overrides.contact = settings.contact as TourManifest['contact'];
   if (settings.brandLogo != null) overrides.brandLogo = settings.brandLogo as TourManifest['brandLogo'];
+  if (settings.social != null) overrides.social = settings.social as TourManifest['social'];
   if (settings.photoTour != null) overrides.photoTour = settings.photoTour as TourManifest['photoTour'];
   if (settings.brochurePages != null) {
     overrides.brochurePages = settings.brochurePages as TourManifest['brochurePages'];
@@ -213,7 +214,10 @@ function sceneExtrasFromSettings(
  * Prefija con la base pública versionada (`/t/{tenant}/{project}/v{N}`) toda
  * ruta de media RELATIVA del manifiesto: `scenes[].source` (y, en escenas de
  * video, `poster`/`mobileUrl`/`portrait`), `units[].media`, `brandLogo`,
- * `brochurePages` y `photoTour` (items y pares antes/después).
+ * `brochurePages`, `photoTour` (items y pares antes/después) y, si vino
+ * cargada, `social.image` (la imagen de la tarjeta de previsualización, ver
+ * apps/worker/src/lib/og-tags.ts) — misma regla que el resto: sólo se toca
+ * si es relativa.
  *
  * Por qué hace falta: la media pesada (fotos, tiles de 360, video, brochure)
  * no la sirve este Worker — la sirve un nginx aparte que sabe responder
@@ -297,6 +301,9 @@ export function prefixManifestMediaPaths(manifest: TourManifest): TourManifest {
   };
 
   if (manifest.brandLogo != null) next.brandLogo = prefix(manifest.brandLogo);
+  if (manifest.social?.image != null) {
+    next.social = { ...manifest.social, image: prefix(manifest.social.image) };
+  }
   if (manifest.brochurePages) next.brochurePages = manifest.brochurePages.map(prefix);
   if (manifest.photoTour) {
     const photoTour: PhotoTour = {
