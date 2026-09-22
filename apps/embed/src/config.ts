@@ -7,6 +7,23 @@
 export interface ParsedTourElementConfig {
   tenant: string;
   project: string;
+  /**
+   * Subdominio público del proyecto en la plataforma (`{subdomain}.<dominio
+   * base>`) — la identidad que de verdad enruta el iframe, ver
+   * `resolveViewerOrigin` más abajo. Normalizado en minúsculas: los
+   * hostnames son case-insensitive y la propia plataforma compara
+   * subdominios así (`unique index ... on projects (lower(subdomain))` en
+   * `supabase/migrations/0022_project_domains.sql`).
+   */
+  subdomain: string;
+  /**
+   * `true` cuando `data-subdomain` no vino y se usó `data-project` como
+   * respaldo (ver `parseTourDataset`). El loader (`v1.ts`) usa esta señal
+   * para avisar por consola — nunca para fallar en silencio — porque
+   * `project` (el slug interno, único sólo por tenant) puede no coincidir
+   * con el subdominio real (único a nivel global) si algún día divergen.
+   */
+  subdomainFromProjectFallback: boolean;
   poster: string | null;
   unit: string | null;
   scene: string | null;
@@ -16,6 +33,7 @@ export interface ParsedTourElementConfig {
 export interface TourDataset {
   tenant?: string;
   project?: string;
+  subdomain?: string;
   poster?: string;
   unit?: string;
   scene?: string;
@@ -53,9 +71,26 @@ export function parseTourDataset(dataset: TourDataset): ParsedTourElementConfig 
   const project = (dataset.project ?? "").trim();
   if (!tenant) throw new ConfigError("missing required data-tenant attribute");
   if (!project) throw new ConfigError("missing required data-project attribute");
+
+  // `data-subdomain` es la identidad pública del proyecto en la plataforma
+  // (única a nivel global: `projects.subdomain`, ver
+  // supabase/migrations/0022_project_domains.sql). `data-project` es el
+  // slug interno del proyecto (único sólo por tenant: `unique(tenant_id,
+  // slug)` en 0003_projects.sql) — hoy coinciden en los proyectos que
+  // existen (p.ej. Baleia: project="baleia", subdomain="baleia"), pero son
+  // columnas distintas y podrían divergir. Por eso, si falta
+  // `data-subdomain` (snippets viejos, pegados antes de que este atributo
+  // existiera), el loader sigue funcionando usando `project` como mejor
+  // estimación — no rompe el embed en silencio — pero `v1.ts` avisa por
+  // consola con `subdomainFromProjectFallback` para que se corrija.
+  const explicitSubdomain = (dataset.subdomain ?? "").trim().toLowerCase();
+  const subdomain = explicitSubdomain || project.toLowerCase();
+
   return {
     tenant,
     project,
+    subdomain,
+    subdomainFromProjectFallback: !explicitSubdomain,
     poster: dataset.poster?.trim() || null,
     unit: dataset.unit?.trim() || null,
     scene: dataset.scene?.trim() || null,
@@ -110,7 +145,36 @@ export function writeDeepLinkParams(
   return qs ? `?${qs}` : "";
 }
 
-/** Builds the iframe `src` with initial config baked into the query string, avoiding a flash of the default scene. */
+/**
+ * Arma el origen del visor para UN proyecto puntual. La plataforma no sirve
+ * los recorridos por una ruta compartida: cada proyecto vive en su propio
+ * subdominio, `{subdomain}.{baseDomain}`, y el worker resuelve cuál es por
+ * el header `Host` de la petición (ver DESPLIEGUE-VPS.md, sección "Cómo se
+ * publica"/"Subdominio automático"). La ruta `/t/tenant/proyecto/` existe
+ * en el worker pero NO sirve el shell del visor —sus assets son absolutos
+ * desde la raíz del subdominio, no desde esa ruta—, así que el iframe
+ * siempre tiene que apuntar acá, nunca a `{baseDomain}/t/...`.
+ *
+ * Pura y testeable a propósito (nada de `window`/`location` acá): quien
+ * decide CUÁL es el `baseDomain` de esta build es `v1.ts` (una sola
+ * constante visible, ver el comentario de cabecera de ese archivo), esta
+ * función sólo compone el resultado.
+ */
+export function resolveViewerOrigin(subdomain: string, baseDomain: string): string {
+  return `https://${subdomain}.${baseDomain}`;
+}
+
+/**
+ * Builds the iframe `src` with initial config baked into the query string, avoiding a flash of the default scene.
+ *
+ * `viewerOrigin` ya viene resuelto (ver `resolveViewerOrigin`) — esta
+ * función no sabe nada de subdominios, sólo arma la querystring. Importante:
+ * `tenant`/`project` NO viajan acá. El visor no los lee de la URL (el
+ * subdominio ya identifica el proyecto ante el worker); los recibe recién
+ * en el primer `tour:init` por `postMessage`, después del handshake
+ * (`tour:hello`) — ver `apps/viewer/src/embed-bridge.ts`. Meterlos también
+ * en la query string sólo duplicaría datos que nadie consume por ese canal.
+ */
 export function buildIframeSrc(
   viewerOrigin: string,
   config: ParsedTourElementConfig,
@@ -123,8 +187,6 @@ export function buildIframeSrc(
   // handshake completes, so it can stamp `instance` on its very first
   // tour:hello. Everything after that is negotiated over postMessage.
   params.set("instance", instanceId);
-  params.set("tenant", config.tenant);
-  params.set("project", config.project);
   const unit = deepLink.unit ?? config.unit;
   const scene = deepLink.scene ?? config.scene;
   if (unit) params.set("unit", unit);
@@ -146,7 +208,9 @@ export function buildIframeSrc(
   // entregue, nunca que se entregue en otro lado (ver el razonamiento
   // completo en el comentario de cabecera de `embed-bridge.ts`).
   params.set("parentOrigin", parentOrigin);
-  return `${viewerOrigin}/t?${params.toString()}`;
+  // Raíz del subdominio (`/`), no `/t`: ver el comentario de
+  // `resolveViewerOrigin` sobre por qué la ruta compartida no sirve acá.
+  return `${viewerOrigin}/?${params.toString()}`;
 }
 
 let counter = 0;

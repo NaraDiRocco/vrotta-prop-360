@@ -6,23 +6,24 @@
  * a raw <script> tag, not a module, so it cannot assume ESM support.
  *
  * ---------------------------------------------------------------------
- * CONFIGURE THESE TWO CONSTANTS FOR YOUR DEPLOYMENT. Nothing else in this
- * file should need to change when the final domain is decided.
+ * DOMINIO BASE DE LA PLATAFORMA — configurable ACÁ, en un solo lugar.
  * ---------------------------------------------------------------------
+ * La plataforma no sirve cada proyecto en una ruta compartida: cada uno
+ * vive en su propio subdominio, `{subdominio}.VIEWER_BASE_DOMAIN`, y el
+ * worker resuelve qué proyecto es por el header `Host` de la petición (ver
+ * DESPLIEGUE-VPS.md). El subdominio de cada tour sale de `data-subdomain`
+ * en el `.tm-tour` (o de `data-project` como respaldo — ver
+ * `parseTourDataset` en `./config.ts`); esta constante es sólo la parte
+ * común a TODOS los proyectos de esta build.
+ *
+ * Por qué una constante fija acá y no un atributo `data-*` del `<script>`
+ * para poder apuntar a un entorno de pruebas sin tocar código: un build de
+ * `v1.js` sirve a UN solo entorno — no hay un caso real de que una misma
+ * página necesite mezclar producción y staging en el mismo script. Para
+ * probar contra otro entorno: cambiar este valor y correr
+ * `pnpm --filter @r360/embed build` (idealmente publicando el `dist/v1.js`
+ * de pruebas en una URL de staging aparte, nunca pisando el de producción).
  */
-// The `__TM_DEV_*` overrides exist ONLY so demo/index.html can point a
-// locally-built bundle at http://localhost:<port> without a second build
-// config. Client sites never set these; production always resolves to the
-// literal defaults below.
-const VIEWER_ORIGIN: string =
-  (typeof window !== "undefined" && (window as unknown as Record<string, string>).__TM_DEV_VIEWER_ORIGIN__) ||
-  "https://viewer.tumarca.com";
-/** Origin this very script is served from. Used only to validate messages
- * from the parent's own context if ever needed; kept separate from
- * VIEWER_ORIGIN because the two may live on different subdomains. */
-const EMBED_ORIGIN: string =
-  (typeof window !== "undefined" && (window as unknown as Record<string, string>).__TM_DEV_EMBED_ORIGIN__) ||
-  "https://embed.tumarca.com";
 
 import {
   PROTOCOL_VERSION,
@@ -41,11 +42,58 @@ import {
   readDeepLinkParams,
   writeDeepLinkParams,
   buildIframeSrc,
+  resolveViewerOrigin,
   nextInstanceId,
   ConfigError,
   type ParsedTourElementConfig,
   type DeepLinkParams,
 } from "./config";
+
+const VIEWER_BASE_DOMAIN = "vrottaprop360.com";
+
+/**
+ * Origen donde se sirve este mismo script (v1.js) — hoy puramente
+ * informativo (no se usa para validar nada), se deja configurable junto al
+ * dominio base para no dejar un resto de dominio viejo dando vueltas.
+ * `cdn` es el subdominio que la plataforma reserva explícitamente para
+ * "servir estáticos/tiles" (ver `reserved_subdomains` en
+ * `supabase/migrations/0022_project_domains.sql`) — no hay todavía una
+ * decisión operativa firme de dónde se aloja `dist/v1.js` en producción,
+ * así que este es el candidato más razonable, no un hecho confirmado.
+ */
+const EMBED_ORIGIN: string =
+  (typeof window !== "undefined" && (window as unknown as Record<string, string>).__TM_DEV_EMBED_ORIGIN__) ||
+  "https://cdn.vrottaprop360.com";
+
+// El `__TM_DEV_VIEWER_ORIGIN__` existe SOLO para que demo/index.html pueda
+// apuntar un build local a http://localhost:<puerto> sin un segundo config
+// de build. A diferencia de VIEWER_BASE_DOMAIN (que compone un subdominio
+// distinto por proyecto vía `resolveViewerOrigin`), este override reemplaza
+// el origen COMPLETO para TODAS las instancias de la página por igual: el
+// demo es intencionalmente same-origin (loader + "visores" mock, todo en
+// `http://localhost:8090`, ver README de este paquete) y no intenta simular
+// subdominios reales, que en `localhost` no existen sin tocar `/etc/hosts`.
+// Los sitios de clientes nunca setean esto; producción siempre resuelve por
+// subdominio real vía VIEWER_BASE_DOMAIN.
+function devViewerOriginOverride(): string | null {
+  return (
+    (typeof window !== "undefined" &&
+      (window as unknown as Record<string, string>).__TM_DEV_VIEWER_ORIGIN__) ||
+    null
+  );
+}
+
+/**
+ * Origen del visor para UNA instancia puntual. No es una constante global
+ * como antes: dos `.tm-tour` en la misma página pueden ser proyectos
+ * distintos (subdominios distintos), así que cada instancia resuelve el
+ * suyo a partir de su propio `config.subdomain`.
+ */
+function resolveInstanceViewerOrigin(subdomain: string): string {
+  const devOverride = devViewerOriginOverride();
+  if (devOverride) return devOverride; // ver comentario de EMBED_ORIGIN/__TM_DEV_VIEWER_ORIGIN__ arriba
+  return resolveViewerOrigin(subdomain, VIEWER_BASE_DOMAIN);
+}
 
 const SELECTOR = ".tm-tour";
 const MOUNTED_ATTR = "data-tm-mounted";
@@ -61,6 +109,10 @@ interface TourInstance {
   iframe: HTMLIFrameElement | null;
   posterBtn: HTMLButtonElement | null;
   config: ParsedTourElementConfig;
+  /** Origen del visor de ESTA instancia (subdominio propio del proyecto) —
+   *  ver `resolveInstanceViewerOrigin`. No hay una única constante global:
+   *  dos tours en la misma página pueden ser proyectos distintos. */
+  viewerOrigin: string;
   deepLinkPrefix: string;
   observer: IntersectionObserver | null;
   outgoingQueue: ParentToIframeMessage[];
@@ -233,7 +285,7 @@ function startWatchdog(instance: TourInstance): void {
   instance.watchdogTimer = window.setTimeout(() => {
     if (!instance.helloReceived) {
       emitClientEvent(instance, "loadError", {
-        message: "no tour:hello received within timeout — check the client CSP allows " + VIEWER_ORIGIN,
+        message: "no tour:hello received within timeout — check the client CSP allows " + instance.viewerOrigin,
       });
     }
   }, HELLO_WATCHDOG_MS);
@@ -249,7 +301,7 @@ function clearWatchdog(instance: TourInstance): void {
 function loadIframe(instance: TourInstance): void {
   if (instance.iframe) return; // already loading/loaded
   const deepLink = readDeepLinkParams(location.search, instance.deepLinkPrefix);
-  const src = buildIframeSrc(VIEWER_ORIGIN, instance.config, deepLink, instance.id, location.origin);
+  const src = buildIframeSrc(instance.viewerOrigin, instance.config, deepLink, instance.id, location.origin);
 
   const iframe = document.createElement("iframe");
   iframe.className = "tm-tour-iframe";
@@ -289,7 +341,7 @@ function sendToIframe(instance: TourInstance, message: ParentToIframeMessage): v
     instance.outgoingQueue.push(message);
     return;
   }
-  instance.iframe.contentWindow?.postMessage(message, VIEWER_ORIGIN);
+  instance.iframe.contentWindow?.postMessage(message, instance.viewerOrigin);
 }
 
 function flushQueue(instance: TourInstance): void {
@@ -387,13 +439,25 @@ function syncDeepLink(instance: TourInstance, next: Partial<DeepLinkParams>): vo
 // ---------------------------------------------------------------------------
 
 function handleIncoming(event: MessageEvent): void {
-  if (!isTrustedOrigin(event.origin, VIEWER_ORIGIN)) return;
+  // El origen esperado ya NO es una única constante global: cada instancia
+  // puede apuntar a un subdominio distinto (dos `.tm-tour` en la misma
+  // página pueden ser proyectos distintos), así que hace falta saber DE QUÉ
+  // instancia es el mensaje antes de poder validar su origen. Por eso el
+  // orden cambia respecto de antes: primero se mira la forma del mensaje
+  // (barato, sin efecto — sólo lectura de `event.data`) para poder buscar
+  // la instancia en el registro, y recién ahí se exige el chequeo estricto
+  // de origen (`isTrustedOrigin`, nunca substring) contra el
+  // `viewerOrigin` de ESA instancia puntual — antes de tocar nada del
+  // `switch` de abajo, que es lo único que de verdad actúa sobre el
+  // mensaje.
   if (!isTourMessage(event.data)) return;
   const message = event.data as IframeToParentMessage;
   if (!isKnownProtocolVersion(message.v)) return;
 
   const instance = registry.get(message.instance);
   if (!instance) return;
+
+  if (!isTrustedOrigin(event.origin, instance.viewerOrigin)) return;
 
   switch (message.type) {
     case "tour:hello": {
@@ -501,6 +565,22 @@ function mountOne(el: HTMLElement, index: number, total: number): void {
     return;
   }
 
+  // Compatibilidad con snippets viejos: si falta `data-subdomain`,
+  // `parseTourDataset` ya resolvió el subdominio usando `data-project` como
+  // respaldo (ver el comentario de esa función en `config.ts`) — el embed
+  // NO se rompe en silencio, sigue funcionando, pero avisamos bien claro
+  // por qué conviene corregirlo (el respaldo puede ser incorrecto si el
+  // slug del proyecto y el subdominio real llegaran a divergir).
+  if (config.subdomainFromProjectFallback) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[tumarca-embed] falta data-subdomain en este .tm-tour — usando data-project ("${config.project}") ` +
+        `como subdominio de la plataforma. Si el subdominio real es distinto, agregá ` +
+        `data-subdomain="tu-subdominio" al contenedor.`,
+      el,
+    );
+  }
+
   const id = nextInstanceId();
   el.setAttribute(INSTANCE_ATTR, id);
   const { root, frameWrap, posterBtn } = buildDom(el, config);
@@ -514,6 +594,7 @@ function mountOne(el: HTMLElement, index: number, total: number): void {
     iframe: null,
     posterBtn,
     config,
+    viewerOrigin: resolveInstanceViewerOrigin(config.subdomain),
     deepLinkPrefix: buildDeepLinkPrefix(index, total),
     observer: null,
     outgoingQueue: [],
@@ -591,6 +672,6 @@ if (document.readyState === "loading") {
   init();
 }
 
-// Re-exported so this constant is discoverable/testable from outside; not
+// Re-exported so these constants are discoverable/testable from outside; not
 // used by any consumer today.
-export { VIEWER_ORIGIN, EMBED_ORIGIN };
+export { VIEWER_BASE_DOMAIN, EMBED_ORIGIN };

@@ -38,10 +38,18 @@ function serveFile(res, filePath) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
 
-  // Stands in for the real viewer app's tour route — everything the mock
-  // viewer needs (tenant/project/instance/unit/scene) arrives via query
-  // string, same as buildIframeSrc() constructs for the real deployment.
-  if (url.pathname === "/t") {
+  // Bajo el modelo nuevo (ver README, "Configuración de dominio"), el
+  // loader ya no arma el src del iframe con una ruta propia (`/t?...`):
+  // apunta a la RAÍZ del origen del visor (`{subdominio}.{dominio}/`),
+  // porque en producción esa raíz es un subdominio distinto por proyecto.
+  // Localmente no hay subdominios reales (`__TM_DEV_VIEWER_ORIGIN__` hace
+  // que TODAS las instancias reusen este mismo origen, ver el comentario
+  // de cabecera de `src/v1.ts`), así que el iframe del "visor" y la propia
+  // página del demo piden el mismo path (`/`). Se distinguen por
+  // `?instance=`: es el único parámetro que `buildIframeSrc` siempre
+  // manda, y sólo lo trae la petición del iframe, nunca la navegación de
+  // primer nivel a la página del demo.
+  if (url.pathname === "/" && url.searchParams.has("instance")) {
     return serveFile(res, path.join(root, "demo/mock-viewer.html"));
   }
   if (url.pathname === "/" || url.pathname === "/index.html") {

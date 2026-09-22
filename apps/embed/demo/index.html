@@ -85,8 +85,9 @@
         <div
           class="tm-tour"
           id="tour-1"
-          data-tenant="dacal"
+          data-tenant="baleia"
           data-project="baleia"
+          data-subdomain="baleia"
           data-poster="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='800' height='450' fill='%23274156'/%3E%3Ctext x='400' y='230' font-size='28' fill='white' text-anchor='middle' font-family='sans-serif'%3EPoster — Baleia%3C/text%3E%3C/svg%3E"
           data-unit="B2-A"
           data-aspect="16/9"
@@ -95,13 +96,15 @@
       </div>
 
       <div class="tour-block">
-        <h2>Tour 2 — costa / vento (carga tardía, sin data-unit)</h2>
+        <h2>Tour 2 — costa / vento (carga tardía, sin data-unit ni data-subdomain)</h2>
         <div class="controls">
           <button data-cmd="goToUnit" data-target="2" data-unit="A1-C">goToUnit A1-C</button>
         </div>
         <p class="hint" style="margin: 0 0 6px">
           Este bloque tiene mucho margen arriba a propósito, para ver el <code>IntersectionObserver</code>
-          (rootMargin 400px) disparar la carga recién al acercarse con scroll.
+          (rootMargin 400px) disparar la carga recién al acercarse con scroll. A propósito NO tiene
+          <code>data-subdomain</code>: sirve para ver en la consola del navegador el aviso de
+          compatibilidad ("usando data-project como subdominio") sin que el tour deje de cargar.
         </p>
         <div style="height: 900px"></div>
         <div
@@ -119,8 +122,11 @@
     <div id="protocol-log"></div>
 
     <script>
-      // Dev-only overrides — see the comment above VIEWER_ORIGIN/EMBED_ORIGIN
-      // in src/v1.ts. Client sites never set these.
+      // Dev-only overrides — see the comment above VIEWER_BASE_DOMAIN/EMBED_ORIGIN
+      // in src/v1.ts. Client sites never set these. __TM_DEV_VIEWER_ORIGIN__
+      // reemplaza el origen del visor para TODAS las instancias por igual
+      // (el demo es same-origin a propósito, ver README) sin importar el
+      // subdominio real que cada .tm-tour declare en data-subdomain.
       window.__TM_DEV_VIEWER_ORIGIN__ = window.location.origin;
       window.__TM_DEV_EMBED_ORIGIN__ = window.location.origin;
 

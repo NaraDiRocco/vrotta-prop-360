@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inmobiliaria Dacal — Baleia (demo de sitio de un tercero)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 16px 40px;
+        color: #1a1a1a;
+      }
+      header.site {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 0;
+        border-bottom: 2px solid #274156;
+      }
+      header.site .brand {
+        font-weight: 700;
+        font-size: 18px;
+        color: #274156;
+      }
+      header.site nav a {
+        margin-left: 18px;
+        color: #274156;
+        text-decoration: none;
+        font-size: 14px;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 28px 0 6px;
+      }
+      p.lead {
+        color: #444;
+        max-width: 60ch;
+      }
+      .banner {
+        background: #fff7e0;
+        border: 1px solid #e8cf8a;
+        border-radius: 6px;
+        padding: 12px 14px;
+        font-size: 13px;
+        color: #6b5410;
+        margin: 18px 0;
+      }
+      .banner code {
+        background: #f1e4b8;
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+      /* Nada de esto es del snippet — es sólo la ambientación de "sitio de
+         un tercero" alrededor del recorrido embebido. */
+      .snippet-marker {
+        font-size: 12px;
+        color: #888;
+        margin: 26px 0 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      #protocol-log {
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 10px;
+        background: #0a0f14;
+        color: #d6e4ea;
+        font: 11px/1.5 ui-monospace, monospace;
+        height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      footer.site {
+        margin-top: 40px;
+        padding-top: 14px;
+        border-top: 1px solid #eee;
+        font-size: 12px;
+        color: #999;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ===================================================================
+         Todo lo de arriba y abajo de este comentario es decorado — simula
+         la web de una inmobiliaria cliente. Lo único que hace falta pegar
+         en un sitio real es el bloque marcado más abajo ("EL SNIPPET").
+         =================================================================== -->
+    <header class="site">
+      <div class="brand">Inmobiliaria Dacal</div>
+      <nav>
+        <a href="#">Proyectos</a>
+        <a href="#">Nosotros</a>
+        <a href="#">Contacto</a>
+      </nav>
+    </header>
+
+    <h1>Baleia — Recorrido virtual 360°</h1>
+    <p class="lead">
+      Esta página es la demo de "sitio de un tercero" pedida para verificar el circuito completo del
+      embed: es un <strong>HTML suelto</strong>, sin build ni servidor propio, con el snippet real tal
+      cual se le entregaría a un cliente (ver README de <code>@r360/embed</code>, sección "Snippets por
+      plataforma"). Se puede abrir haciendo doble clic en el archivo.
+    </p>
+
+    <div class="banner">
+      <strong>Nota sobre <code>file://</code>:</strong> abierto por doble clic, el navegador trata esta
+      página como un origen "opaco" (sin <code>http/https</code>), así que <code>location.origin</code>
+      no es un origen válido y el parámetro <code>parentOrigin</code> que arma el loader no sirve — el
+      visor tampoco puede caer a <code>document.referrer</code> (los navegadores no lo mandan desde
+      <code>file://</code>). El resultado esperado en ese caso: el tour intenta cargar y, a los 8s sin
+      handshake, dispara <code>tm:loadError</code> en el log de abajo — es el comportamiento correcto del
+      loader ante un origen que no puede validar, no un bug. Para probar el circuito COMPLETO de verdad
+      (con <code>tour:hello</code>/<code>tour:ready</code> llegando), serví este archivo con cualquier
+      servidor estático, por ejemplo desde <code>apps/embed/demo/</code>:
+      <code>python3 -m http.server 8095</code> y abrí
+      <code>http://localhost:8095/sitio-tercero.html</code>.
+    </div>
+
+    <p class="snippet-marker">↓ el snippet (esto es lo que se pega en la web del cliente) ↓</p>
+
+    <!-- =====================  EL SNIPPET — EMPIEZA ACÁ  ===================== -->
+    <div
+      class="tm-tour"
+      data-tenant="baleia"
+      data-project="baleia"
+      data-subdomain="baleia"
+      data-poster="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='800' height='450' fill='%23274156'/%3E%3Ctext x='400' y='230' font-size='26' fill='white' text-anchor='middle' font-family='sans-serif'%3EBaleia — reemplazar por el poster real%3C/text%3E%3C/svg%3E"
+      data-unit="B2-A"
+      data-aspect="16/9"
+      data-seo-json='{"name":"Baleia — Dacal","canonicalUrl":"https://dacal.com.uy/baleia","units":[{"label":"Unidad B2-A","url":"https://dacal.com.uy/baleia/b2-a"}]}'
+    ></div>
+    <script src="https://cdn.vrottaprop360.com/v1.js" async></script>
+    <!-- =====================  EL SNIPPET — TERMINA ACÁ  ===================== -->
+
+    <p class="snippet-marker">↑ fin del snippet ↑</p>
+
+    <h2 style="font-size: 15px; margin-top: 26px">
+      Log en vivo del protocolo (lo que un cliente vería en su propia consola/GTM)
+    </h2>
+    <p class="lead" style="font-size: 13px">
+      Todo lo de acá abajo tampoco es parte del snippet: es sólo instrumentación de esta página de
+      demo para mostrar en pantalla los <code>CustomEvent</code> <code>tm:*</code> que el loader ya
+      dispara sobre el contenedor <code>.tm-tour</code> (y empuja a <code>window.dataLayer</code>) —
+      exactamente lo que un cliente engancharía desde Google Tag Manager o su propio JS, sin tocar
+      nada del embed.
+    </p>
+    <div id="protocol-log"></div>
+
+    <footer class="site">© Inmobiliaria Dacal — página de demostración, no un sitio real.</footer>
+
+    <script>
+      // Instrumentación de la demo — un cliente real NO necesita nada de
+      // este bloque para que el tour funcione; esto es sólo para mostrar en
+      // pantalla lo que ya emite el snippet de arriba.
+      const logEl = document.getElementById("protocol-log");
+      function log(line) {
+        const row = document.createElement("div");
+        row.textContent = `[${new Date().toLocaleTimeString()}] ${line}`;
+        logEl.appendChild(row);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      log("(esperando eventos del recorrido — instance, ready, sceneView, unitView, lotClick, leadIntent, deeplink, error, loadError)");
+
+      [
+        "ready",
+        "sceneView",
+        "unitView",
+        "lotClick",
+        "leadIntent",
+        "deeplink",
+        "error",
+        "loadError",
+      ].forEach((name) => {
+        document.addEventListener(`tm:${name}`, (e) => {
+          log(`tm:${name} ${JSON.stringify(e.detail)}`);
+        });
+      });
+
+      // El loader también empuja cada evento a window.dataLayer (para GTM) —
+      // lo mostramos igual para que se vea que es el mismo dato por dos
+      // caminos distintos.
+      window.dataLayer = window.dataLayer || [];
+      const push = window.dataLayer.push.bind(window.dataLayer);
+      window.dataLayer.push = (item) => {
+        log(`dataLayer.push ${JSON.stringify(item)}`);
+        return push(item);
+      };
+    </script>
+  </body>
+</html>
