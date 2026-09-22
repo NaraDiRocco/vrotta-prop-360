@@ -1,16 +1,33 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/auth.ts';
+import { resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { isMaterialItemId } from '@/lib/material/catalog.ts';
 import { isMaterialStatus } from '@/lib/material/types.ts';
+import { canApproveMaterial } from '@/lib/roles.ts';
 import type { MaterialPatchRequest } from '@/lib/material/api-types.ts';
 
 const MAX_NOTES = 2000;
 
-/** Cambia el estado o la nota de un ítem. Sólo desde el panel, nunca por el link. */
+/**
+ * Cambia el estado o la nota de un ítem. Sólo desde el panel, nunca por el link.
+ *
+ * Ojo con esto: hasta acá sólo se chequeaba que hubiera sesión, y la policy
+ * `project_material_write` (0019) permite `owner`/`editor` además de
+ * plataforma. Eso dejaba que un cliente se auto-aprobara su propio material
+ * (o lo marcara "no aplica"), saltándose el criterio de Vrotta que
+ * `canApproveMaterial` codifica. El chequeo se agrega acá, en la ruta, y no
+ * en la RLS — mismo criterio que el resto de las rutas tocadas en esta
+ * auditoría: cambiar la policy es más riesgoso y no se puede probar contra
+ * producción ahora, mientras que este `if` es chico, testeable y reversible.
+ * Falta, como deuda, que la policy termine siendo la única fuente de verdad.
+ */
 export async function PATCH(request: NextRequest, ctx: { params: Promise<{ project: string; item: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const lookup = await resolveProjectActor((await ctx.params).project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canApproveMaterial(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés aprobar material en este proyecto' }, { status: 403 });
+  }
 
   const { project, item } = await ctx.params;
   if (!isMaterialItemId(item)) {

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/auth.ts';
+import { resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
+import { canEditHotspots } from '@/lib/roles.ts';
 import type { HotspotRow, Pt } from '@/lib/editor/records.ts';
 
 /**
@@ -13,17 +14,35 @@ import type { HotspotRow, Pt } from '@/lib/editor/records.ts';
  * El PUT reemplaza el conjunto completo de UNA escena. Es idempotente a
  * propósito: el autosave puede reintentar el mismo cuerpo tantas veces como
  * haga falta sin duplicar nada ni dejar la escena a medio camino.
+ *
+ * Dibujar hotspots es tarea de Vrotta (`canEditHotspots`): la pantalla del
+ * editor (`scenes/[scene]/edit/page.tsx`) ya redirige a quien no cumpla ese
+ * rol, y este único consumidor (`components/editor/use-editor.ts`) nunca la
+ * llama si no. Pero la ruta en sí sólo chequeaba sesión — la policy
+ * `hotspots_write` de RLS permite `owner`/`editor` — así que por API directa
+ * el hueco seguía abierto. Se cierra acá (no en RLS: mismo razonamiento que
+ * el resto de esta auditoría, ver `publish/preview-tokens/route.ts`),
+ * incluido el GET: nadie fuera de plataforma tiene un motivo legítimo para
+ * pedirlo.
  */
 export async function GET(_request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const lookup = await resolveProjectActor((await ctx.params).project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canEditHotspots(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés ver los hotspots de este proyecto' }, { status: 403 });
+  }
   const { project } = await ctx.params;
   return NextResponse.json({ hotspots: await getRepo().listHotspots(project) });
 }
 
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const lookup = await resolveProjectActor((await ctx.params).project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canEditHotspots(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés editar los hotspots de este proyecto' }, { status: 403 });
+  }
 
   const { project } = await ctx.params;
   const body: unknown = await request.json().catch(() => null);

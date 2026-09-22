@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/auth.ts';
+import { resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
 import { assessSchemaChange, type SchemaImpact } from '@/lib/units/attrs.ts';
+import { canEditStructure } from '@/lib/roles.ts';
 import type { GroupRow, UnitTypeRow } from '@/lib/data/types.ts';
 
 interface SaveGroups {
@@ -28,10 +29,23 @@ export interface StructureSaveResponse {
  * antes de commitear: agregar un `required` o cambiar un tipo puede dejar
  * cientos de unidades inválidas, y eso hay que decirlo con el número en la
  * mano, no descubrirlo tres semanas después.
+ *
+ * Editar estructura es tarea de Vrotta (`canEditStructure`): la pantalla
+ * `/structure` del panel ya redirige a quien no cumpla ese rol. Esta ruta
+ * sólo chequeaba sesión, y la policy `groups_write`/`unit_types_write` de
+ * RLS permite `owner`/`editor`, así que por API directa el hueco seguía
+ * abierto (incluso para el `dryRun`, que aunque no guarda nada, tampoco
+ * tiene sentido ofrecerle a quien de todas formas no puede aplicar el
+ * cambio). Se cierra acá y no en RLS: mismo razonamiento que el resto de
+ * esta auditoría, ver `publish/preview-tokens/route.ts`.
  */
 export async function POST(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const lookup = await resolveProjectActor((await ctx.params).project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canEditStructure(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés editar la estructura de este proyecto' }, { status: 403 });
+  }
 
   const { project } = await ctx.params;
   const body = (await request.json()) as SaveGroups | SaveType;

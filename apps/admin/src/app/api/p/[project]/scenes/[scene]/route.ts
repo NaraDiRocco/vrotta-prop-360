@@ -1,13 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/auth.ts';
+import { resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
+import { canManageScenes } from '@/lib/roles.ts';
 
 type Ctx = { params: Promise<{ project: string; scene: string }> };
 
-/** Renombrar y/o marcar como inicial. */
+/**
+ * Renombrar y/o marcar como inicial. Gestionar escenas es tarea de Vrotta
+ * (`canManageScenes`): ver el razonamiento completo en `../route.ts`.
+ */
 export async function PATCH(request: NextRequest, ctx: Ctx) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const lookup = await resolveProjectActor((await ctx.params).project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canManageScenes(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés editar escenas en este proyecto' }, { status: 403 });
+  }
 
   const { project, scene } = await ctx.params;
   let raw: unknown;
@@ -43,8 +51,12 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(_request: NextRequest, ctx: Ctx) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const lookup = await resolveProjectActor((await ctx.params).project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canManageScenes(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés borrar escenas en este proyecto' }, { status: 403 });
+  }
 
   const { project, scene } = await ctx.params;
   try {

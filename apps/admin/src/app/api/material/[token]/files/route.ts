@@ -11,6 +11,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getRepo } from '@/lib/data/index.ts';
 import { isMaterialItemId } from '@/lib/material/catalog.ts';
+import { UPLOAD_RATE_LIMIT_WINDOW_SECONDS, withinUploadRateLimit } from '@/lib/material/rate-limit.ts';
 import { receiveUpload } from '@/lib/material/receive.ts';
 import { isShareTokenShaped } from '@/lib/material/share.ts';
 import { MaterialStorageError } from '@/lib/material/storage.ts';
@@ -20,6 +21,18 @@ const NOT_FOUND = { error: 'El link no existe o ya no está vigente' };
 export async function POST(request: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params;
   if (!isShareTokenShaped(token)) return NextResponse.json(NOT_FOUND, { status: 404 });
+
+  // Rate limit por token (ver `lib/material/rate-limit.ts`): va ANTES de
+  // tocar la base o el body de la request, a propósito — es la defensa más
+  // barata que hay contra un script golpeando este endpoint público en loop,
+  // así que no tiene sentido gastar una consulta a Supabase ni empezar a leer
+  // el multipart para un request que de todas formas se va a rechazar.
+  if (!withinUploadRateLimit(token)) {
+    return NextResponse.json(
+      { error: 'Demasiadas subidas con este link en poco tiempo. Probá de nuevo en unos minutos.' },
+      { status: 429, headers: { 'Retry-After': String(UPLOAD_RATE_LIMIT_WINDOW_SECONDS) } },
+    );
+  }
 
   const itemId = new URL(request.url).searchParams.get('item') ?? '';
   if (!isMaterialItemId(itemId)) {

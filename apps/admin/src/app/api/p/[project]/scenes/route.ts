@@ -1,14 +1,31 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/auth.ts';
+import { resolveProjectActor } from '@/lib/auth.ts';
 import { getRepo } from '@/lib/data/index.ts';
+import { canManageScenes } from '@/lib/roles.ts';
 import type { CreateSceneRequest, ScenesResponse } from '@/lib/scenes/api-types.ts';
 
 const SCENE_KINDS = ['panorama', 'floorplan', 'map', 'video'];
 
-/** Listado de escenas + cola de procesamiento del proyecto, en una sola llamada. */
+/**
+ * Listado de escenas + cola de procesamiento del proyecto, en una sola llamada.
+ *
+ * Escenas, hotspots y estructura son tarea de Vrotta (`canManageScenes`): la
+ * propia pantalla `/scenes` del panel ya redirige a quien no cumpla ese rol
+ * (ver `app/t/[tenant]/p/[project]/scenes/page.tsx`), pero esta ruta sólo
+ * chequeaba sesión y la policy `scenes_write`/`jobs_select` de RLS permite
+ * `owner`/`editor`. Eso dejaba a un Gestor gestionar escenas por API directa
+ * aunque el botón ni se le mostrara. Se cierra acá, en la ruta (no en RLS,
+ * ver el razonamiento largo en `publish/preview-tokens/route.ts`), incluido
+ * el GET: nadie que no sea de plataforma llega nunca a esta pantalla, así
+ * que tampoco tiene por qué poder leerla por API.
+ */
 export async function GET(_request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const lookup = await resolveProjectActor((await ctx.params).project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canManageScenes(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés ver las escenas de este proyecto' }, { status: 403 });
+  }
 
   const { project } = await ctx.params;
   const repo = getRepo();
@@ -24,8 +41,12 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ projec
  * cola — coherente con que esta pantalla no tiene acceso a ese storage.
  */
 export async function POST(request: NextRequest, ctx: { params: Promise<{ project: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  const lookup = await resolveProjectActor((await ctx.params).project);
+  if (!lookup) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 });
+  if (lookup === 'sin-proyecto') return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+  if (!lookup.actor || !canManageScenes(lookup.actor)) {
+    return NextResponse.json({ error: 'No podés crear escenas en este proyecto' }, { status: 403 });
+  }
 
   const { project } = await ctx.params;
 
