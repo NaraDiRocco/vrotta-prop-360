@@ -115,3 +115,23 @@ problemas a 11.
 la serie 2 a la 3 en los seis paquetes que lo usan. Es un salto de versión
 mayor sobre unos 1.000 tests, así que necesita atención y no se hace de
 apuro al final de una jornada.
+
+## Pendiente importante: el panel que corre es del 6 de septiembre
+
+El servicio `r360-admin-ilx9n6` se construyó el **2026-09-06** y nunca se
+volvió a desplegar. Todo lo que se arregló después —incluida la escalada de
+privilegios dentro del propio inquilino del 2026-09-22— está en el repositorio
+pero **no en lo que está sirviendo**.
+
+**Exposición real al 2026-09-22: ninguna.** Hay un solo usuario y pertenece al
+equipo de la plataforma; no existe ninguna cuenta de inmobiliaria desde la
+cual escalar, ni invitaciones pendientes. La escalada requiere una sesión
+legítima de `owner` o `editor` de un inquilino.
+
+**Cuándo deja de ser cero:** el día que se invite a la primera inmobiliaria.
+Antes de ese día hay que redesplegar el panel.
+
+No se redesplegó ahora a propósito: la app está configurada en Dokploy como
+build desde git pero con el repositorio sin completar, así que un despliegue
+a ciegas podía fallar y dejar el panel caído sin nadie mirando. Es una tarea
+de diez minutos con alguien atento, no una para hacer de apuro.
