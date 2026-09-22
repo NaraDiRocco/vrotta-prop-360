@@ -762,6 +762,39 @@ body.r360-units-open .r360-rail__marca { display: none; }
    Disponible"— donde todo pesaba igual y el precio, que es lo que decide, no
    se distinguía de la fecha de entrega. */
 .r360-ficha { margin: 10px 0 16px; }
+
+/* En escritorio, la cruz sale del flujo y la ficha pierde el aire de arriba.
+   En la ficha de una unidad el título va oculto —lo dice la chapa con el
+   número—, así que esa fila quedaba vacía salvo por el botón y empujaba todo
+   44 px hacia abajo. En el teléfono la hoja sube desde el pie y ese respiro
+   arriba es parte del gesto, así que ahí queda como estaba. */
+@media (min-width: 641px) {
+  .r360-sheet .r360-ficha { margin-top: 16px; }
+  /* El logo de la lista, despegado del canto: la hoja ahora llega hasta el
+     borde de la pantalla y con 2 px quedaba pegado. */
+  .r360-sheet .r360-units__marca { margin-top: 18px; }
+
+  /* Las hojas usan TODO el alto del panel. Los altos en `vh` son del gesto
+     del teléfono —la hoja sube hasta cierto punto y deja ver el plano
+     detrás—; acá el panel entra por el costado y el plano se sigue viendo al
+     lado, así que recortarlo sólo deja la lista corta y con media pantalla
+     vacía debajo. */
+  .r360-sheet[data-height],
+  .r360-units[data-height="full"],
+  .r360-units[data-height="open"],
+  .r360-gallery[data-height="open"] { height: auto; }
+  .r360-sheet[data-height="closed"], .r360-sheet[hidden] { height: 0; }
+  /* Y el pie del cuerpo deja de reservar el alto de la barra: la hoja termina
+     arriba de ella, no debajo. */
+  .r360-units .r360-sheet__body { padding-bottom: 24px; }
+  .r360-sheet__body > .r360-panel__head:has(.r360-solo-lectores) {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    z-index: 3;
+    padding: 0;
+  }
+}
 /* El estado arriba de todo, en su color, y debajo la unidad como chapa: quien
    abre la ficha primero quiere saber si se puede comprar y recién después
    cuál es. */
@@ -870,4 +903,38 @@ body.r360-units-open .r360-rail__marca { display: none; }
   color: #55636f;
   opacity: 1;
   font-size: 11px;
+}
+
+/* ------------------------------------------- la hoja, en escritorio */
+
+/* De alto completo y entrando por el costado, no una tarjeta flotante a media
+   altura. Con la ficha de una unidad hay mucho que mostrar —plano 3D, medidas,
+   galería, las panorámicas— y en una tarjeta de 340 px recortada arriba y
+   abajo todo eso quedaba detrás de un scroll dentro de otro scroll. Pegada al
+   borde derecho, con su propio alto, se lee como un panel del sitio. */
+@media (min-width: 641px) {
+  .r360-sheet {
+    top: 0;
+    /* Termina donde empieza la barra inferior, no debajo: pasando por detrás,
+       las últimas filas de la lista quedaban tapadas por la barra y no había
+       forma de subirlas. */
+    bottom: calc(var(--r360-nav-h) + var(--r360-safe-b));
+    right: 0;
+    width: min(420px, 40vw);
+    max-height: none;
+    border-radius: 0;
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 1px solid rgba(22, 32, 42, .14);
+    box-shadow: -18px 0 42px rgba(0, 0, 0, .28);
+    animation: r360-sheet-lateral .3s cubic-bezier(.2, .8, .2, 1);
+  }
+  @keyframes r360-sheet-lateral {
+    from { transform: translateX(100%); }
+    to { transform: none; }
+  }
+}
+@media (min-width: 641px) and (prefers-reduced-motion: reduce) {
+  .r360-sheet { animation: none; }
 }

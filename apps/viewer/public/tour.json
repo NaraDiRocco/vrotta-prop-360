@@ -151,6 +151,21 @@
       "sort": 16
     },
     {
+      "id": "sc-portada",
+      "slug": "portada",
+      "kind": "floorplan",
+      "name": "La portada del brochure",
+      "source": {
+        "url": "./baleia/media/renders/portada.webp",
+        "width": 1448,
+        "height": 1086
+      },
+      "procedencia": {
+        "kind": "render"
+      },
+      "sort": 17
+    },
+    {
       "id": "sc-p-b2a-llegada",
       "slug": "p-b2a-llegada",
       "kind": "panorama",
@@ -2417,7 +2432,7 @@
           "kind": "foto",
           "capturedAt": "2026-09-02"
         },
-        "caption": "Desde esta terraza: Punta del Este sobre el mar. Sin retoque.",
+        "caption": "Desde esta terraza: Punta del Este\nsobre el mar. Sin retoque.",
         "ambiente": "La vista"
       }
     ],

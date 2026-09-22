@@ -341,6 +341,10 @@ RENDERS = [
     ("complejo4.jpg", "complejo-fachada", "Fachada de un bloque al atardecer"),
     ("complejo5.jpg", "complejo-pergola", "Pérgola junto a la piscina"),
     ("back-amenities-v2.jpg", "amenities", "Amenities: piscina, fuego y laguna"),
+    # La portada del brochure, que la dueña eligió para abrir el recorrido.
+    # Sale de la página 1 del PDF, donde el render va como imagen aparte del
+    # texto: por eso se extrae limpia, sin el título encima.
+    ("portada-brochure.jpg", "portada", "La portada del brochure"),
 ]
 
 # Amenity -> escena de render a la que salta su hotspot en el masterplan.
@@ -377,7 +381,7 @@ UNIT_WALK = [
     ("12_terraza_pergolotecho_parrillero", "Bajo techo", "Techada, con luces embutidas\ny baranda de vidrio."),
     ("22_parrillero_empotrado_detalle", "Terraza", "El parrillero, de cerca."),
     ("13_terraza_sillon_vista_verde", "El paso afuera", "Los ventanales corren enteros:\nel living se abre a la terraza."),
-    ("11_vista_terraza_peninsula_skyline", "La vista", "Desde esta terraza: Punta del Este sobre el mar. Sin retoque."),
+    ("11_vista_terraza_peninsula_skyline", "La vista", "Desde esta terraza: Punta del Este\nsobre el mar. Sin retoque."),
 ]
 
 # El deslizador antes/después del plan (§1 Tramo 2 Mitad A, mecánica en
@@ -1196,48 +1200,25 @@ def publish(tour_dir: str) -> dict:
 
     with open(os.path.join(tour_dir, "tour.json"), encoding="utf-8") as f:
         tour = json.load(f)
+
     # `./x` -> `./baleia/x`: el mismo manifiesto servido un nivel más arriba.
-    tour["availabilityUrl"] = "./baleia/availability.json"
-    if tour.get("brochurePages"):
-        tour["brochurePages"] = [u.replace("./", "./baleia/", 1) for u in tour["brochurePages"]]
-    if tour.get("brandLogo"):
-        tour["brandLogo"] = tour["brandLogo"].replace("./", "./baleia/", 1)
-    for sc in tour["scenes"]:
-        sc["source"]["url"] = sc["source"]["url"].replace("./", "./baleia/", 1)
-        # Campos aditivos de la escena de video (decisión 15): mismo prefijo.
-        if sc.get("mobileUrl"):
-            sc["mobileUrl"] = sc["mobileUrl"].replace("./", "./baleia/", 1)
-        if sc.get("poster"):
-            sc["poster"]["url"] = sc["poster"]["url"].replace("./", "./baleia/", 1)
-        # Corte vertical (decisión 18): mismo prefijo, en sus tres campos.
-        if sc.get("portrait"):
-            sc["portrait"]["url"] = sc["portrait"]["url"].replace("./", "./baleia/", 1)
-            if sc["portrait"].get("mobileUrl"):
-                sc["portrait"]["mobileUrl"] = sc["portrait"]["mobileUrl"].replace(
-                    "./", "./baleia/", 1
-                )
-            if sc["portrait"].get("poster"):
-                sc["portrait"]["poster"]["url"] = sc["portrait"]["poster"]["url"].replace(
-                    "./", "./baleia/", 1
-                )
-    for u in tour["units"].values():
-        if u.get("media"):
-            u["media"] = [m.replace("./", "./baleia/", 1) for m in u["media"]]
-        # Mismo prefijo para los dos archivos que cuelgan de `attrs` (punto 16).
-        for key in ("plano3d", "planoPdf"):
-            if u.get("attrs", {}).get(key):
-                u["attrs"][key] = u["attrs"][key].replace("./", "./baleia/", 1)
+    #
+    # Se recorre el manifiesto entero y se prefija TODA ruta relativa, en vez
+    # de ir campo por campo. La lista escrita a mano se quedaba corta cada vez
+    # que el manifiesto crecía —y cuando entraron las escenas 360, que traen
+    # `source.base` en lugar de `source.url`, directamente reventaba y dejaba
+    # el manifiesto de la raíz sin actualizar—. Es el mismo criterio que usa
+    # `integrate_panoramas.py`.
+    def prefijar(nodo):
+        if isinstance(nodo, dict):
+            return {k: prefijar(v) for k, v in nodo.items()}
+        if isinstance(nodo, list):
+            return [prefijar(v) for v in nodo]
+        if isinstance(nodo, str) and nodo.startswith("./") and not nodo.startswith("./baleia/"):
+            return nodo.replace("./", "./baleia/", 1)
+        return nodo
 
-    def rewrite_photo_item(item: dict) -> None:
-        item["url"] = item["url"].replace("./", "./baleia/", 1)
-        item["thumbUrl"] = item["thumbUrl"].replace("./", "./baleia/", 1)
-
-    if tour.get("photoTour"):
-        for item in tour["photoTour"]["items"]:
-            rewrite_photo_item(item)
-        for pair in tour["photoTour"].get("pairs", []):
-            rewrite_photo_item(pair["before"])
-            rewrite_photo_item(pair["after"])
+    tour = prefijar(tour)
 
     with open(PUBLISH_ROOT_TOUR, "w", encoding="utf-8") as f:
         json.dump(tour, f, indent=2, ensure_ascii=False)

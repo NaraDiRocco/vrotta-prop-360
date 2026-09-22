@@ -225,11 +225,14 @@
   background: rgba(255, 255, 255, .12);
   backdrop-filter: blur(14px) saturate(120%);
   -webkit-backdrop-filter: blur(14px) saturate(120%);
-  border: 1px solid rgba(255, 255, 255, .5);
+  /* Sin borde: el contorno blanco translúcido, sobre el vidrio y con el mar
+     detrás, se teñía de celeste y se leía como un botón ya seleccionado. El
+     vidrio solo alcanza para despegarlo de la foto. */
+  border: 0;
   cursor: pointer;
-  transition: background .25s ease, border-color .25s ease;
+  transition: background .25s ease;
 }
-.r360-welcome__start:hover { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .78); }
+.r360-welcome__start:hover { background: rgba(255, 255, 255, .2); }
 .r360-welcome__start:active { transform: scale(.995); }
 
 .r360-welcome__link {
@@ -300,7 +303,16 @@
 
 @media (min-width: 720px) {
   .r360-welcome { padding-left: max(20px, calc(50% - 310px)); padding-right: max(20px, calc(50% - 310px)); }
-  .r360-welcome__info h1 { max-width: 13em; margin-inline: auto; }
+  /* El titular tiene tope de 44 px y en un monitor llega siempre a ese tope:
+     bajado a 36 pesa menos y deja respirar la foto. */
+  .r360-welcome__info h1 { max-width: 13em; margin-inline: auto; font-size: 36px; }
+  /* Los socios, un poco más grandes: los tamaños de arriba están medidos para
+     375 px de ancho y en un monitor quedaban diminutos. Se mantiene la
+     proporción entre los dos, que está calculada para que pesen parecido. */
+  .r360-welcome__socios { gap: 12px 30px; }
+  .r360-welcome__socios p { font-size: 9.5px; letter-spacing: .16em; }
+  .r360-welcome__socios img[data-marca="caetano"] { height: 34px; }
+  .r360-welcome__socios img[data-marca="dacal"] { height: 30px; }
 }
 
 .r360-welcome [hidden] { display: none !important; }

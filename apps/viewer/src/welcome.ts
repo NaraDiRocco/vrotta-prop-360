@@ -193,8 +193,9 @@ export function mountWelcome(opts: WelcomeOptions): WelcomeHandle {
   };
 
   empezar.addEventListener('click', () => { handle.close(); opts.onStart('llegada'); });
-  // El brochure se abre encima, sin cerrar la portada: al cerrarlo, se vuelve.
-  empezar.focus({ preventScroll: true });
+  // Sin foco automático: en el teléfono el botón entraba ya marcado, como si
+  // alguien lo hubiera tocado. Con teclado se llega igual, en un solo Tab: es
+  // el primer control de la portada.
 
   return handle;
 }

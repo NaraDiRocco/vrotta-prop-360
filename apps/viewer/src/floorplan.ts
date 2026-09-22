@@ -471,7 +471,15 @@ export class FloorplanRenderer implements SceneRenderer {
     const layer = id ? this.layers.get(id) : undefined;
     if (!layer || !this.map) return;
     this.highlighted = id!;
-    if ('getBounds' in layer) this.map.fitBounds((layer as L.Polygon).getBounds(), { maxZoom: 2 });
+    // En el teléfono el plano se acerca a la unidad: la pantalla es chica y sin
+    // ese acercamiento el bloque marcado puede quedar fuera de vista. En
+    // escritorio el plano entero se ve de una y la ficha abre al costado, así
+    // que moverlo desorienta —se pierde de vista dónde está parado uno— en vez
+    // de ayudar. Se marca y se abre el rótulo, nada más.
+    const escritorio = typeof matchMedia === 'function' && matchMedia('(min-width: 641px)').matches;
+    if (!escritorio && 'getBounds' in layer) {
+      this.map.fitBounds((layer as L.Polygon).getBounds(), { maxZoom: 2 });
+    }
     this.paintLayer(id!);
     layer.openTooltip();
   }

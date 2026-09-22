@@ -467,6 +467,28 @@ function renderFor(tour: TourManifest, slug: string): RailRender | null {
   };
 }
 
+/** La escena que abre la bienvenida, cuando el manifiesto la trae. */
+const SLUG_PORTADA = 'portada';
+
+/**
+ * Envuelve una escena de imagen como `PhotoTourItem`, que es el tipo con el
+ * que la bienvenida y el riel manejan todo lo que se dibuja. El `id` lleva
+ * prefijo para no chocar nunca con el de una foto real.
+ */
+function escenaComoFoto(tour: TourManifest, slug: string): PhotoTourItem | null {
+  const sc = tour.scenes.find((s) => s.slug === slug);
+  const src = sc && 'url' in sc.source ? sc.source : null;
+  if (!sc || !src) return null;
+  return {
+    id: `escena:${slug}`,
+    url: src.url,
+    thumbUrl: src.url,
+    width: src.width,
+    height: src.height,
+    procedencia: sc.procedencia ?? { kind: 'render' },
+  };
+}
+
 /**
  * Envuelve `Scene.poster` (sólo `url`/`width`/`height`) como `PhotoTourItem`
  * para que el Tramo 4 lo use con el mismo tipo que el resto del riel — el
@@ -797,7 +819,11 @@ export function puntaAnclaje(id: string): PuntaAnclaje | null {
 export function welcomePhotos(tour: TourManifest): { hero: PhotoTourItem | null; segunda: PhotoTourItem | null } {
   const items = (tour.photoTour?.items ?? []).filter(isPublicable);
   return {
-    hero: pick(items, ID_HERO),
+    // La dueña eligió abrir con la portada del brochure, que es un render: es
+    // la imagen con la que el proyecto se presenta en todos lados y quiso que
+    // la web abriera igual. Si esa escena no está en el manifiesto, se vuelve
+    // a la aérea real de siempre.
+    hero: escenaComoFoto(tour, SLUG_PORTADA) ?? pick(items, ID_HERO),
     segunda: pick(items, ID_SKYLINE_TERRAZA),
   };
 }

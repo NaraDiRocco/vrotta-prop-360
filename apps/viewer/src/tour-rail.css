@@ -977,17 +977,90 @@
   .r360-rail__dot i { transition: none !important; }
 }
 
-/* Escritorio: el recorrido sigue siendo una columna de lectura, centrada, y
-   con el alto acotado para que la pieza entre entera con su caption. */
-@media (min-width: 720px) {
-  .r360-rail__pantalla > *,
-  .r360-rail__pantalla--texto > * { max-width: 620px; margin-left: auto; margin-right: auto; }
-  .r360-rail__head { padding-left: max(16px, calc(50% - 310px)); padding-right: max(16px, calc(50% - 310px)); }
-  .r360-rail__foot > .r360-rail__dots { max-width: 460px; }
-  .r360-rail__dot { min-width: 60px; }
-  .r360-rail__dot span { display: block; }
-  .r360-rail__frame.is-foto { border-radius: 10px; }
+/* Escritorio: la imagen va a sangre, igual que en el teléfono.
+   Antes el recorrido era una columna de 620 px centrada sobre negro: en un
+   monitor quedaban dos franjas negras enormes a los costados, con la marca
+   suelta arriba a la izquierda y las flechas lejos de la foto. Las fotos son
+   de 2000 px de ancho, así que dan para pantalla completa sin quedar blandas.
 
+   La columna sobrevive sólo donde de verdad es una columna de lectura: las
+   pantallas de texto. Hoy no queda ninguna —los cinco tramos son una pieza de
+   material cada uno—, pero la regla se queda por si vuelve alguna. */
+@media (min-width: 720px) {
+  .r360-rail__pantalla--texto > * { max-width: 620px; margin-left: auto; margin-right: auto; }
+  /* Las flechas viajan con los puntos, no contra los bordes de la pantalla.
+     En el teléfono van a los costados porque ahí llega el pulgar; en un
+     monitor, separadas por medio metro de imagen, no se leen como parte de la
+     misma pieza. */
+  .r360-rail__foot { justify-content: center; gap: 22px; }
+  .r360-rail__dots { flex: 0 0 auto; }
+
+  /* Un margen de verdad contra los costados: los 28 px del teléfono, en una
+     pantalla ancha, dejan la marca y los textos pegados al filo. */
+  /* Doble clase: más abajo en este archivo hay un `.r360-rail__marca` con el
+     relleno del teléfono, y al ir después ganaba. */
+  .r360-root .r360-rail__marca { padding-left: 56px; }
+  .r360-rail__head { padding-left: 56px; padding-right: 56px; }
+  .r360-rail__caption--sobre { padding-right: 56px; }
+
+  /* El bloque de esta posición se corre al centro: en el teléfono, a 18 % del
+     borde derecho, ya cae casi en el medio; en un monitor quedaba escorado a
+     la derecha con media pantalla vacía a la izquierda. */
+  /* Doble clase por lo mismo de siempre: las posiciones del bloque están
+     definidas más abajo en el archivo y, al ir después, ganaban. */
+  .r360-rail__serie .r360-editorial.is-ab-der { right: 48%; }
+  .r360-rail__serie .r360-editorial.is-ar-izq { left: 53%; }
+  .r360-rail__serie .r360-editorial.is-ar-der { right: 37%; }
+  .r360-rail__serie .r360-editorial.is-ar-der-b { right: 44%; }
+
+  /* Retoque de una sola foto: en "La vista", con el bloque a media altura el
+     texto caía sobre el skyline, que es lo que esa imagen tiene para mostrar.
+     Sube y deja el horizonte despejado. */
+  .r360-rail__serie .r360-editorial[data-foto="11_vista_terraza_peninsula_skyline"] { top: 30%; }
+
+  /* El video también llena la pantalla. Antes iba `contain` para no recortar
+     ni un cuadro, pero dejaba franjas negras arriba y abajo en el medio de un
+     recorrido donde todo lo demás va a sangre. Se pierde algo de borde. */
+  .r360-rail__video video { object-fit: cover; }
+
+  /* Los rótulos de la imagen partida, con el mismo margen que el resto del
+     recorrido en pantalla ancha. */
+  .r360-rail__diagonal .r360-diagonal__rotulo.is-proyecto { left: 56px; }
+  .r360-rail__diagonal .r360-diagonal__rotulo.is-hoy { right: 56px; }
+
+  /* El corte, más recto en pantalla ancha: la misma inclinación que en el
+     teléfono, sobre el doble de ancho, se acuesta demasiado. Va del 80 % al
+     20 % en vez de 96 a 2. */
+  .r360-rail__diagonal .r360-diagonal__capa.is-hoy {
+    clip-path: polygon(80% 0, 100% 0, 100% 100%, 20% 100%);
+  }
+  .r360-rail__diagonal .r360-diagonal__borde {
+    clip-path: polygon(calc(80% - 1.5px) 0, 100% 0, 100% 100%, calc(20% - 1.5px) 100%);
+  }
+
+  /* El cierre, al medio de la pantalla. En el teléfono el bloque va abajo,
+     donde llega el pulgar; en un monitor esa misma caída dejaba la mitad de
+     arriba vacía y el pedido leyéndose como un pie de página. Centrado —y con
+     el velo parejo sobre toda la foto en vez de sólo abajo— se lee como lo
+     que es: la tarjeta de cierre del recorrido. */
+  /* Con `.r360-rail__pantalla` delante porque las reglas del cierre están más
+     abajo en el archivo y, al ir después, ganaban. */
+  .r360-rail__pantalla .r360-rail__cierre-final { justify-content: center; }
+  .r360-rail__pantalla .r360-rail__cierre-final .r360-cierre__texto {
+    margin-left: auto;
+    margin-right: auto;
+    /* Los 154 px de abajo son para despejar el pie en el teléfono; centrado no
+     hacen falta, y descolgaban el bloque. Queda algo de aire para que el pie
+     no quede pegado al texto. */
+    padding-bottom: 40px;
+  }
+  .r360-rail__pantalla .r360-rail__cierre-final::after {
+    background: linear-gradient(to top, rgba(4, 8, 12, .8), rgba(4, 8, 12, .58));
+  }
+  /* Y el texto centrado dentro de la columna: con el bloque al medio de la
+     pantalla, alineado a la izquierda quedaba desparejo contra el rótulo del
+     botón, que va centrado. */
+  .r360-rail__pantalla .r360-rail__cierre-final .r360-cierre__texto { text-align: center; }
 }
 
 .r360-rail__otros-title { margin: 4px 16px 10px; font-size: 15px; }
@@ -1622,7 +1695,9 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
   position: relative;
   z-index: 2;
   box-sizing: border-box;
-  width: 100%;
+  /* En el teléfono es el ancho de la pantalla; en un monitor, una columna: un
+     botón de 1180 px de ancho no se lee como un botón. */
+  width: min(100%, 560px);
   /* El pie del riel —flechas y puntos— ocupa los últimos 130 px: el texto
      termina arriba de eso, con aire, y no pegado. */
   padding: 0 22px 154px;
@@ -1712,4 +1787,44 @@ body:not(.r360-rail-open) .r360-rail__marca { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .r360-rail__serie.is-editorial .r360-rail__slide.is-asomando { animation: none; }
+}
+
+/* ------------------------------------- flechitas al costado del paseo */
+
+/* Apenas dibujadas: un chevrón fino, sin círculo ni fondo, que sólo dice que
+   la tira sigue para ese lado. Con el dedo no hacen falta —se arrastra, y el
+   asomo de la foto siguiente ya lo anuncia—, así que se muestran sólo donde
+   hay puntero fino. */
+.r360-serie-flecha { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .r360-serie-flecha {
+    position: absolute;
+    top: 50%;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-top: -22px;
+    padding: 0;
+    font: inherit;
+    font-size: 30px;
+    line-height: 1;
+    color: rgba(255, 255, 255, .45);
+    text-shadow: 0 1px 10px rgba(0, 0, 0, .55);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    opacity: 1;
+    transition: color .25s ease, transform .25s ease, opacity .25s ease;
+  }
+  .r360-serie-flecha:hover { color: #fff; }
+  .r360-serie-flecha.is-prev { left: 14px; }
+  .r360-serie-flecha.is-next { right: 14px; }
+  .r360-serie-flecha.is-prev:hover { transform: translateX(-3px); }
+  .r360-serie-flecha.is-next:hover { transform: translateX(3px); }
+  /* En las puntas no se dibuja: una flecha que no lleva a ninguna parte
+     confunde más de lo que ayuda. Sigue ocupando su lugar para que la imagen
+     no se mueva al aparecer y desaparecer. */
+  .r360-serie-flecha.is-oculta { opacity: 0; pointer-events: none; }
 }

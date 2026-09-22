@@ -1357,6 +1357,11 @@ export class TourRail {
         const pos =
           COMPOSICION[item.id] ?? POSICIONES[track.childElementCount % POSICIONES.length];
         ed.className = `r360-editorial is-${pos}`;
+        // El id de la foto queda en el DOM: las cuatro composiciones alcanzan
+        // para casi todo, pero alguna imagen puntual necesita su retoque —una
+        // altura distinta para no tapar lo que hay que ver— y esto deja
+        // hacerlo desde la hoja de estilos, sin inventarle una posición nueva.
+        ed.dataset.foto = item.id;
         // La guía y el título viajan juntos en una caja que se ajusta al ANCHO
         // DEL TÍTULO: así el punto cae en el centro del título y no en el del
         // párrafo, que es más ancho y dejaba el punto corrido.
@@ -1405,6 +1410,8 @@ export class TourRail {
     // recorre igual, con las flechas del teclado sobre la tira (`keydown`,
     // más abajo), que además es enfocable.
 
+    const flechas: HTMLButtonElement[] = [];
+
     const paint = () => {
       const i = serieIndex(this.state, id, items.length);
       const item = items[i];
@@ -1415,6 +1422,8 @@ export class TourRail {
       if (opts.editorial) {
         const hijos = [...track.children] as HTMLElement[];
         for (const [j, el] of hijos.entries()) el.classList.toggle('is-asomando', j === i + 1);
+        flechas[0]?.classList.toggle('is-oculta', i <= 0);
+        flechas[1]?.classList.toggle('is-oculta', i >= items.length - 1);
       }
       if (tira) {
         for (const b of tira.querySelectorAll<HTMLElement>('.r360-rail__amb')) {
@@ -1453,6 +1462,27 @@ export class TourRail {
     const goTo = (index: number) => {
       track.scrollTo({ left: index * pasoSerie(track), behavior: reducedMotion() ? 'auto' : 'smooth' });
     };
+
+    // Dos flechitas al costado de la foto, apenas dibujadas. En el teléfono la
+    // tira se pasa con el dedo y el asomo de la siguiente ya lo dice; con
+    // mouse no hay gesto que valga, así que la hoja de estilos las muestra
+    // sólo donde hay puntero fino. Se esconden en las puntas: una flecha que
+    // no lleva a ninguna parte es peor que no tenerla.
+    if (opts.editorial) {
+      for (const dir of [-1, 1] as const) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `r360-serie-flecha is-${dir === -1 ? 'prev' : 'next'}`;
+        b.innerHTML = dir === -1 ? '&#8249;' : '&#8250;';
+        b.setAttribute('aria-label', dir === -1 ? 'Foto anterior' : 'Foto siguiente');
+        b.addEventListener('click', () => {
+          const i = serieIndex(this.state, id, items.length);
+          goTo(Math.min(items.length - 1, Math.max(0, i + dir)));
+        });
+        card.appendChild(b);
+        flechas.push(b);
+      }
+    }
     tira?.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-index]');
       if (b) goTo(Number(b.dataset.index));
