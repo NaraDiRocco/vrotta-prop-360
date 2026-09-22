@@ -92,3 +92,26 @@ Borrar esa entrada vuelve a denegar todo, que es el estado por defecto.
 
 **Deuda:** esto debería configurarse desde el panel, no editando un archivo
 por SSH. Hoy es lo que hay.
+
+## Vulnerabilidades de dependencias — evaluación al 2026-09-22
+
+`pnpm audit` reporta 11 problemas: 1 crítico, 3 altos, 7 medios. **Ninguno
+llega al visitante.** El desglose, para que nadie se asuste con el número ni
+lo ignore sin mirarlo:
+
+| Paquete | Severidad | Dónde vive | Por qué no es urgente |
+|---|---|---|---|
+| vitest | crítica | corredor de tests | Exige que el servidor de interfaz de vitest esté escuchando. Nunca se levanta: los tests corren con `vitest run`. |
+| vite | alta | servidor de desarrollo | El fallo es del servidor de desarrollo y sólo en Windows. La build de producción no lo expone. |
+| postcss (×2) | alta | build de CSS del panel | Se ejecuta al construir, no al servir. |
+| resto | media | herramientas | Idem. |
+
+Lo que SÍ llegaba al visitante era `wrangler` en `apps/worker`, que arrastraba
+seis vulnerabilidades altas por `undici` y `sharp`. Se eliminó: el worker dejó
+de correr en Cloudflare y esa dependencia estaba muerta. El árbol pasó de 28
+problemas a 11.
+
+**Lo que falta**, y conviene hacerlo con el repositorio quieto: subir vitest de
+la serie 2 a la 3 en los seis paquetes que lo usan. Es un salto de versión
+mayor sobre unos 1.000 tests, así que necesita atención y no se hace de
+apuro al final de una jornada.
