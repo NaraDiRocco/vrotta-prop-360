@@ -17,7 +17,7 @@
 // tumbe `pnpm test` de nadie (este harness ni siquiera es parte del
 // workspace de pnpm — ver README.md).
 
-import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import { API_URL, ANON_KEY } from './lib/env.ts';
@@ -736,6 +736,138 @@ describe.skipIf(!reachable)('RLS: roles de plataforma y de inmobiliaria (0009–
       expect(svcRow).not.toHaveProperty('token');
       expect(svcRow?.token_hash).toBe(hashToken(token));
       expect(svcRow?.token_hash).not.toBe(token);
+    });
+  });
+
+  // ── 12. project_domains y projects.subdomain (0022) ───────────────────────
+  describe('project_domains y projects.subdomain (0022)', () => {
+    afterEach(async () => {
+      // No dejar subdominio puesto en los proyectos fixture entre tests: son
+      // compartidos por toda la suite y una unique key pisada rompería otros
+      // tests que corran después.
+      await svc.from('projects').update({ subdomain: null }).eq('id', scenario.tenantA.projectId);
+      await svc.from('projects').update({ subdomain: null }).eq('id', scenario.tenantB.projectId);
+    });
+
+    test('inmo_a_owner no ve los project_domains del tenant B', async () => {
+      const domainA = `rls-a-${crypto.randomUUID().slice(0, 8)}.test-domain.local`;
+      const domainB = `rls-b-${crypto.randomUUID().slice(0, 8)}.test-domain.local`;
+      await insertOrThrow('project_domains', { project_id: scenario.tenantA.projectId, domain: domainA });
+      await insertOrThrow('project_domains', { project_id: scenario.tenantB.projectId, domain: domainB });
+
+      const { data, error } = await scenario.users.inmoAOwner.client.from('project_domains').select('domain');
+      expect(error, error?.message).toBeNull();
+      const domains = (data ?? []).map((r: { domain: string }) => r.domain);
+      expect(domains).toContain(domainA);
+      expect(domains).not.toContain(domainB);
+    });
+
+    // Reproduce la trampa del snapshot de 0015: supabase-js hace
+    // `.insert().select()` por defecto, así que si a `project_domains_select`
+    // le faltara la condición evaluada sobre la fila, esto fallaría con
+    // "new row violates row-level security policy" aunque el INSERT en sí
+    // estuviera autorizado.
+    test('inmo_a_owner agrega un dominio a su propio proyecto (INSERT...RETURNING) y el trigger completa tenant_id', async () => {
+      const domain = `rls-owner-add-${crypto.randomUUID().slice(0, 8)}.test-domain.local`;
+      const { data, error } = await scenario.users.inmoAOwner.client
+        .from('project_domains')
+        .insert({ project_id: scenario.tenantA.projectId, domain })
+        .select()
+        .single();
+      expect(error, error?.message).toBeNull();
+      expect(data?.domain).toBe(domain);
+      expect(data?.status).toBe('pending');
+      expect(data?.verification_token).toBeTruthy(); // lo genera el default de la columna, no el cliente
+      expect(data?.tenant_id).toBe(scenario.tenantA.tenantId); // lo completa el trigger, no lo manda el cliente
+    });
+
+    test('inmo_a_sales no puede agregar un dominio (la escritura es sólo owner/editor/plataforma)', async () => {
+      const domain = `rls-sales-${crypto.randomUUID().slice(0, 8)}.test-domain.local`;
+      const { error } = await scenario.users.inmoASales.client
+        .from('project_domains')
+        .insert({ project_id: scenario.tenantA.projectId, domain });
+      expect(error).not.toBeNull();
+    });
+
+    test('inmo_b_owner no puede agregar un dominio al proyecto del tenant A', async () => {
+      const domain = `rls-cross-tenant-${crypto.randomUUID().slice(0, 8)}.test-domain.local`;
+      const { error } = await scenario.users.inmoBOwner.client
+        .from('project_domains')
+        .insert({ project_id: scenario.tenantA.projectId, domain });
+      expect(error).not.toBeNull();
+    });
+
+    // 0022 no expone policy de UPDATE a usuarios a propósito: el estado de
+    // verificación lo escribe el backend con service_role después de
+    // consultar el DNS real. Sin policy, el UPDATE no da error -- RLS
+    // simplemente no encuentra ninguna fila que matchee y actualiza cero.
+    test('un owner no puede auto-marcar su dominio como verified (sin policy de UPDATE)', async () => {
+      const domain = `rls-noupdate-${crypto.randomUUID().slice(0, 8)}.test-domain.local`;
+      const row = await insertOrThrow('project_domains', { project_id: scenario.tenantA.projectId, domain });
+
+      const { data, error } = await scenario.users.inmoAOwner.client
+        .from('project_domains')
+        .update({ status: 'verified', verified_at: new Date().toISOString() })
+        .eq('id', row.id)
+        .select();
+      expect(error, error?.message).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: stillPending } = await svc.from('project_domains').select('status').eq('id', row.id).single();
+      expect(stillPending?.status).toBe('pending');
+    });
+
+    test('dos proyectos no pueden tomar el mismo dominio, ni entre tenants distintos', async () => {
+      const domain = `rls-domain-collision-${crypto.randomUUID().slice(0, 8)}.test-domain.local`;
+      await insertOrThrow('project_domains', { project_id: scenario.tenantA.projectId, domain });
+      await expect(
+        insertOrThrow('project_domains', { project_id: scenario.tenantB.projectId, domain }),
+      ).rejects.toThrow();
+    });
+
+    test('dos proyectos no pueden tomar el mismo subdominio', async () => {
+      const subdomain = `rls-sub-${crypto.randomUUID().slice(0, 8)}`;
+      const { error: firstErr } = await svc
+        .from('projects')
+        .update({ subdomain })
+        .eq('id', scenario.tenantA.projectId);
+      expect(firstErr, firstErr?.message).toBeNull();
+
+      const { error } = await svc.from('projects').update({ subdomain }).eq('id', scenario.tenantB.projectId);
+      expect(error).not.toBeNull();
+      expect(error?.message).toMatch(/projects_subdomain_lower_key|duplicate key/i);
+    });
+
+    test('el formato inválido de subdominio (guion bajo) es rechazado por el constraint', async () => {
+      const { error } = await svc
+        .from('projects')
+        .update({ subdomain: 'invalido_con_guion_bajo' })
+        .eq('id', scenario.tenantA.projectId);
+      expect(error).not.toBeNull();
+      expect(error?.message).toMatch(/projects_subdomain_format/);
+    });
+
+    test('un subdominio demasiado corto también es rechazado por el constraint', async () => {
+      const { error } = await svc.from('projects').update({ subdomain: 'ab' }).eq('id', scenario.tenantA.projectId);
+      expect(error).not.toBeNull();
+      expect(error?.message).toMatch(/projects_subdomain_format/);
+    });
+
+    test('un subdominio reservado (de la semilla de reserved_subdomains) no puede asignarse a un proyecto', async () => {
+      const { error } = await svc.from('projects').update({ subdomain: 'admin' }).eq('id', scenario.tenantA.projectId);
+      expect(error).not.toBeNull();
+      expect(error?.message).toMatch(/reservado/i);
+    });
+
+    test('reserved_subdomains se puede leer autenticado pero no escribir', async () => {
+      const { data, error } = await scenario.users.inmoAOwner.client.from('reserved_subdomains').select('subdomain');
+      expect(error, error?.message).toBeNull();
+      expect((data ?? []).map((r: { subdomain: string }) => r.subdomain)).toContain('admin');
+
+      const { error: writeError } = await scenario.users.inmoAOwner.client
+        .from('reserved_subdomains')
+        .insert({ subdomain: 'lo-que-sea' });
+      expect(writeError).not.toBeNull();
     });
   });
 });
