@@ -96,7 +96,22 @@ export async function serveProject(
     const html = await new Response(obj.body).text();
     const htmlConOg = await withOgTags(c, tenant, project, pointer.version, html);
 
-    return new Response(htmlConOg, {
+    // `c.body(...)`, NO `new Response(...)`: la CSP por tenant se seteó unas
+    // líneas arriba con `c.header('Content-Security-Policy', csp)`, ANTES de
+    // saber si esto termina siendo el shell, tour.json o un 404 — es un
+    // header que aplica a toda la ruta, se setea una sola vez arriba de
+    // todos los `if`. Con esta versión de Hono (ver context.js: `header()`
+    // guarda en `#preparedHeaders` cuando todavía no hay `c.res`), esos
+    // headers previos sólo se mezclan en la respuesta final si se construye
+    // con un método de `c` (`c.body/c.json/c.text/...`, que internamente
+    // leen `#preparedHeaders`) — un `new Response(...)` devuelto directo NO
+    // pasa por ahí y los pierde en silencio. Se comprobó: con `new
+    // Response(...)` acá, `Content-Security-Policy` llegaba `null` al
+    // visitante pase lo que pase en KV — la restricción de `frame-ancestors`
+    // por tenant no se estaba aplicando de verdad. Ver
+    // test/security-headers.test.ts para el test de punta a punta que lo
+    // cubre.
+    return c.body(htmlConOg, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         // El shell referencia tour.json vía el puntero, así que su propio
@@ -111,7 +126,10 @@ export async function serveProject(
     const key = r2Paths.tourJson(tenant, project, pointer.version);
     const obj = await c.env.R2.get(key);
     if (!obj) return c.json({ error: 'missing_asset', key }, 404);
-    return new Response(obj.body, {
+    // `c.body(...)`, no `new Response(...)` — mismo motivo que en el shell
+    // de arriba: así no se pierde la CSP por tenant seteada al principio de
+    // `serveProject`.
+    return c.body(obj.body, {
       headers: {
         'Content-Type': 'application/json',
         // Igual razonamiento que el shell: el contenido en R2 es inmutable
@@ -122,15 +140,56 @@ export async function serveProject(
   }
 
   // Passthrough genérico para cualquier otro asset versionado (fuentes, css,
-  // js del bundle del visor). Los tiles caen acá también si alguien les pega
-  // directo a este dominio, pero el camino soportado es el dominio de R2.
+  // js del bundle del visor, PERO TAMBIÉN archivos de `apps/viewer/public/`
+  // como `marca/dacal-blanco.png` — ver más abajo). Los tiles caen acá
+  // también si alguien les pega directo a este dominio, pero el camino
+  // soportado es el dominio de R2.
   const key = `${r2Paths.base(tenant, project, pointer.version)}/${wildcard}`;
   const obj = await c.env.R2.get(key);
   if (!obj) return c.json({ error: 'missing_asset', key }, 404);
-  return new Response(obj.body, {
+
+  // `immutable` + un año de `max-age` SÓLO es correcto para lo que Vite
+  // emite bajo `assets/` (ver apps/viewer/vite.config.ts: `build.assetsDir`
+  // por default, con el hash de contenido en el nombre — `viewer-DakOp8ET.js`
+  // tipo) — si el contenido cambia, la URL cambia con él, así que "cachear
+  // para siempre" es seguro.
+  //
+  // NO es correcto para el resto de lo que cae en este passthrough: todo lo
+  // que Vite copia tal cual desde `apps/viewer/public/` (ej. `marca/
+  // dacal-blanco.png`, `marca/caetano-blanco.png`, `marca/
+  // baleia-logo-blanco.svg` — ver welcome.ts/tour-rail.ts/main.ts) se sirve
+  // en un path SIN hash y SIN versión. Caso real de hoy: se optimizó
+  // `caetano-blanco.png` de 120 KB a 22 KB, mismo nombre de archivo — con
+  // `immutable, max-age=31536000` ningún navegador que ya hubiera visitado
+  // el sitio iba a volver a pedirlo en un año. Peor todavía: esta misma
+  // mañana este passthrough sirvió por error una respuesta con el
+  // Content-Type equivocado (recorrido en pantalla negra) y, marcada
+  // `immutable`, esa respuesta mala quedó pegada en el caché de cada
+  // visitante mucho después de arreglado el servidor — el síntoma
+  // sobrevivió a la causa.
+  //
+  // La media pesada (fotos/video de los tiles) NO pasa por acá — se sirve
+  // por otro camino (nginx, con la versión en la URL, ver el comentario de
+  // `serveProject` más arriba) — así que este passthrough sólo carga con
+  // archivos chicos del bundle del visor. `max-age=300, must-revalidate`
+  // (5 minutos): alcanza para cubrir los pedidos repetidos de una MISMA
+  // sesión de navegación (que es donde de verdad ayuda cachear un logo que
+  // se ve una sola vez por visita) sin dejar una respuesta mala pegada por
+  // más que unos minutos — el mismo orden de magnitud que ya usan el shell
+  // y tour.json un poco más arriba en este archivo, por la misma razón.
+  // Si algún día se le agrega hash al nombre de los archivos de `public/`
+  // (dejarían de ser "públicos" en el sentido de Vite), recién ahí tiene
+  // sentido tratarlos como inmutables.
+  const esAssetConHash = wildcard.startsWith('assets/');
+  // `c.body(...)`, no `new Response(...)` — mismo motivo que en el shell y
+  // tour.json más arriba: preserva la CSP por tenant seteada al principio de
+  // `serveProject`.
+  return c.body(obj.body, {
     headers: {
       'Content-Type': obj.httpMetadata?.contentType ?? 'application/octet-stream',
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Cache-Control': esAssetConHash
+        ? 'public, max-age=31536000, immutable'
+        : 'public, max-age=300, must-revalidate',
     },
   });
 }

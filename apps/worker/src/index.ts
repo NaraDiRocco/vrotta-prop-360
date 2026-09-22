@@ -8,8 +8,16 @@ import { availability } from './routes/availability.ts';
 import { leads } from './routes/leads.ts';
 import { requirePublishSecret } from './lib/publish-auth.ts';
 import { rateLimitLeads } from './lib/rate-limit.ts';
+import { securityHeaders } from './lib/security-headers.ts';
 
 const app = new Hono<{ Bindings: Env }>();
+
+// Primer middleware montado, sin path (corre para TODO: rutas explícitas,
+// app.notFound y app.onError más abajo) — ver el docstring de
+// lib/security-headers.ts para el detalle de cada cabecera. No reemplaza la
+// Content-Security-Policy por tenant que routes/serve.ts sigue seteando por
+// su cuenta (depende de KV por request, no puede ser un header estático acá).
+app.use('*', securityHeaders);
 
 // Sólo las rutas de escritura que actúan con la service key de Supabase
 // exigen el secreto de publish — /t/*, /api/leads y el resto siguen
@@ -39,8 +47,16 @@ app.route('/', leads);
 // `serveByHost` devuelve el mismo 404 seco de siempre.
 app.notFound(serveByHost);
 app.onError((err, c) => {
+  // `err.message` se loguea pero NUNCA se devuelve al cliente: este handler
+  // atrapa cualquier excepción no controlada de CUALQUIER ruta, incluidas
+  // las públicas (/t/*, /api/leads, /api/availability/:tenant/:project). Los
+  // adaptadores de disco de este Worker (lib/storage-fs.ts, lib/kv-fs.ts)
+  // pueden tirar errores de Node (ENOENT/EACCES) cuyo `.message` trae el
+  // path absoluto en disco (R360_STORAGE_ROOT/R360_KV_ROOT); un cliente de
+  // Supabase que falle puede traer detalle de la query o del schema. Nada de
+  // eso es asunto de quien hace el request.
   console.error(err);
-  return c.json({ error: 'internal_error', message: err.message }, 500);
+  return c.json({ error: 'internal_error' }, 500);
 });
 
 export default app;
