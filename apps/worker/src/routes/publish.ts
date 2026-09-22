@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import type { TourManifest, Scene, Hotspot, GeometryKind, SceneKind } from '@r360/core';
+import type { TourManifest, Scene, Hotspot, GeometryKind, SceneKind, PhotoTour, PhotoTourItem } from '@r360/core';
 import { createSupabaseClient } from '../lib/supabase.ts';
 import { setActivePointer, getActivePointer } from '../lib/pointer.ts';
 import { r2Paths } from '../lib/r2paths.ts';
@@ -135,6 +135,113 @@ export function pickManifestOverrides(settings: Record<string, unknown> | null):
   return overrides;
 }
 
+/**
+ * Prefija con la base pública versionada (`/t/{tenant}/{project}/v{N}`) toda
+ * ruta de media RELATIVA del manifiesto: `scenes[].source` (y, en escenas de
+ * video, `poster`/`mobileUrl`/`portrait`), `units[].media`, `brandLogo`,
+ * `brochurePages` y `photoTour` (items y pares antes/después).
+ *
+ * Por qué hace falta: la media pesada (fotos, tiles de 360, video, brochure)
+ * no la sirve este Worker — la sirve un nginx aparte que sabe responder
+ * `Range` (sin eso, adelantar un video de 64 MB significa bajarlo entero) —
+ * y ese nginx enruta sólo por el path `/t/{tenant}/{project}/v{N}/...`: la
+ * versión tiene que estar puesta en la URL. Cuando el recorrido se sirve por
+ * el hostname propio del proyecto (`baleia.dominio.com/`) el navegador NUNCA
+ * ve esa versión — la resuelve este Worker con su puntero interno
+ * (`getActivePointer`) — así que las rutas de media DENTRO del manifiesto
+ * tienen que traerla ya puesta; no hay otro lugar de donde sacarla.
+ *
+ * Regla: sólo se toca una ruta RELATIVA. Una ruta que ya empieza con `/`
+ * (absoluta en este mismo origen, o protocol-relative `//...`) o que trae un
+ * esquema (`http://`, `https://`, `data:`, etc.) se deja intacta. Esto es a
+ * propósito lo que protege a `availabilityUrl`
+ * (`/t/{tenant}/{project}/availability.json`, YA absoluto y A PROPÓSITO sin
+ * versión: la disponibilidad cambia sin republicar). Por eso
+ * `availabilityUrl` ni siquiera pasa por acá — se arma aparte, ya absoluto,
+ * en `buildManifestFromSupabase` — y por eso esta función nunca debe
+ * "mejorar" una ruta que ya es absoluta: precios y estados quedarían
+ * pisados a la versión vieja para siempre si alguna vez se le pegara la
+ * versión encima.
+ *
+ * También normaliza el `./` inicial que emite el pipeline de Baleia
+ * (`./baleia/media/foto.webp`): mismo problema que ya resolvió
+ * `tools/baleia/scripts/build_tour.py::publish` en su función `prefijar()`
+ * (línea ~1193) — sin normalizar, el resultado sería
+ * `/t/a/b/v1/./baleia/...` en vez de `/t/a/b/v1/baleia/...`.
+ *
+ * Función PURA: no muta `manifest`, devuelve uno nuevo. Así se puede probar
+ * sola, sin pasar por Supabase.
+ */
+export function prefixManifestMediaPaths(manifest: TourManifest): TourManifest {
+  const publicBase = `/${r2Paths.base(manifest.tenant, manifest.project, manifest.version)}`;
+
+  const prefix = (path: string): string => {
+    // Esquema (`http:`, `https:`, `data:`, ...) o ya absoluta (`/...`,
+    // incluye protocol-relative `//...`): se deja intacta.
+    if (path.startsWith('/') || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(path)) return path;
+    const relativo = path.startsWith('./') ? path.slice(2) : path;
+    return `${publicBase}/${relativo}`;
+  };
+
+  const prefixPhotoTourItem = (item: PhotoTourItem): PhotoTourItem => ({
+    ...item,
+    url: prefix(item.url),
+    thumbUrl: prefix(item.thumbUrl),
+  });
+
+  const prefixScene = (scene: Scene): Scene => {
+    const source: Scene['source'] =
+      'url' in scene.source
+        ? { ...scene.source, url: prefix(scene.source.url) }
+        : { ...scene.source, base: prefix(scene.source.base) };
+
+    const next: Scene = { ...scene, source };
+    if (scene.poster) next.poster = { ...scene.poster, url: prefix(scene.poster.url) };
+    if (scene.mobileUrl != null) next.mobileUrl = prefix(scene.mobileUrl);
+    if (scene.portrait) {
+      next.portrait = {
+        ...scene.portrait,
+        url: prefix(scene.portrait.url),
+        ...(scene.portrait.mobileUrl != null ? { mobileUrl: prefix(scene.portrait.mobileUrl) } : {}),
+        ...(scene.portrait.poster
+          ? { poster: { ...scene.portrait.poster, url: prefix(scene.portrait.poster.url) } }
+          : {}),
+      };
+    }
+    return next;
+  };
+
+  const units: TourManifest['units'] = {};
+  for (const [code, unit] of Object.entries(manifest.units)) {
+    units[code] = unit.media ? { ...unit, media: unit.media.map(prefix) } : unit;
+  }
+
+  const next: TourManifest = {
+    ...manifest,
+    scenes: manifest.scenes.map(prefixScene),
+    units,
+  };
+
+  if (manifest.brandLogo != null) next.brandLogo = prefix(manifest.brandLogo);
+  if (manifest.brochurePages) next.brochurePages = manifest.brochurePages.map(prefix);
+  if (manifest.photoTour) {
+    const photoTour: PhotoTour = {
+      ...manifest.photoTour,
+      items: manifest.photoTour.items.map(prefixPhotoTourItem),
+    };
+    if (manifest.photoTour.pairs) {
+      photoTour.pairs = manifest.photoTour.pairs.map((pair) => ({
+        ...pair,
+        before: prefixPhotoTourItem(pair.before),
+        after: prefixPhotoTourItem(pair.after),
+      }));
+    }
+    next.photoTour = photoTour;
+  }
+
+  return next;
+}
+
 export async function buildManifestFromSupabase(
   db: ReturnType<typeof createSupabaseClient>,
   tenant: string,
@@ -216,7 +323,7 @@ export async function buildManifestFromSupabase(
 
   const start = scenes[0]?.slug ?? '';
 
-  return {
+  const manifest: TourManifest = {
     // Los opcionales de settings van primero: los campos obligatorios de
     // abajo los arma esta misma función a partir de Supabase, no vienen de
     // `overrides`, así que ni hace falta que el orden decida nada — pero
@@ -232,6 +339,13 @@ export async function buildManifestFromSupabase(
     hotspots,
     units,
   };
+
+  // El prefijado va DESPUÉS del fundido de `settings`: `photoTour`,
+  // `brochurePages` y `brandLogo` pueden venir de ahí (ver
+  // `pickManifestOverrides`) y también tienen que quedar con la base
+  // pública versionada puesta — si se prefijara antes de fundir, esos tres
+  // campos se colarían sin tocar.
+  return prefixManifestMediaPaths(manifest);
 }
 
 publish.post('/api/publish', async (c) => {

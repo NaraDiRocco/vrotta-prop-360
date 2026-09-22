@@ -1,0 +1,13 @@
+{
+  "name": "@r360/deploy",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scripts operativos de despliegue (reconciliador de dominios, publicación del visor). No es una librería que consuma el resto del monorepo -- tiene su propio package.json sólo para que 'pnpm -r test' (ver script 'test' en el package.json raíz) levante los tests de reconciliador-dominios.test.mjs. El script en sí, reconciliador-dominios.mjs, no tiene dependencias externas a propósito: corre en el VPS con 'node' y nada más. vitest queda sólo como devDependency, para poder testearlo.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}
