@@ -101,7 +101,7 @@ lo ignore sin mirarlo:
 
 | Paquete | Severidad | Dónde vive | Por qué no es urgente |
 |---|---|---|---|
-| vitest | crítica | corredor de tests | Exige que el servidor de interfaz de vitest esté escuchando. Nunca se levanta: los tests corren con `vitest run`. |
+| ~~vitest~~ | ~~crítica~~ | ~~corredor de tests~~ | **Resuelto el 2026-09-22**: se subió a la serie 3 en los cuatro paquetes que lo usan. Los 1.055 tests más los 61 de RLS pasaron sin tocar una línea de test. |
 | vite | alta | servidor de desarrollo | El fallo es del servidor de desarrollo y sólo en Windows. La build de producción no lo expone. |
 | postcss (×2) | alta | build de CSS del panel | Se ejecuta al construir, no al servir. |
 | resto | media | herramientas | Idem. |
@@ -111,10 +111,12 @@ seis vulnerabilidades altas por `undici` y `sharp`. Se eliminó: el worker dejó
 de correr en Cloudflare y esa dependencia estaba muerta. El árbol pasó de 28
 problemas a 11.
 
-**Lo que falta**, y conviene hacerlo con el repositorio quieto: subir vitest de
-la serie 2 a la 3 en los seis paquetes que lo usan. Es un salto de versión
-mayor sobre unos 1.000 tests, así que necesita atención y no se hace de
-apuro al final de una jornada.
+**Estado al cierre del 2026-09-22: 10 problemas, ninguno crítico.** El salto de
+vitest se hizo con el árbol quieto y sin sorpresas. Lo que queda son tres
+altos —vite (servidor de desarrollo, sólo Windows) y postcss (build de CSS del
+panel)— y siete medios, todos de herramientas que no viajan al visitante.
+Resolverlos implica subir Next.js de versión mayor en el panel, que merece su
+propia sesión.
 
 ## Pendiente importante: el panel que corre es del 6 de septiembre
 
