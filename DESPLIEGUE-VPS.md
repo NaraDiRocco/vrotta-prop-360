@@ -6,6 +6,110 @@
 
 ---
 
+## 0. Estado actual — Baleia ya está desplegada (2026-09-22)
+
+> Esta sección se escribió después que el resto del documento y **manda sobre
+> las secciones 1, 5, 6 y 7 donde se contradigan**. Aquellas describían
+> decisiones pendientes; acá está lo que efectivamente quedó hecho, verificado
+> contra el servidor.
+
+### Dónde vive
+
+VPS de **Arquiify**: `179.199.142.5`. Se eligió éste sobre el otro (kanu-vps,
+`31.97.172.99`) porque ahí ya estaba el proyecto *Vrotta Prop 360* en Dokploy.
+
+Provisoriamente en línea en **https://baleia.179.199.142.5.nip.io**, con
+certificado real de Let's Encrypt. `nip.io` es un truco: resuelve cualquier
+`algo.IP.nip.io` a esa IP, así se puede tener HTTPS de verdad antes de que
+exista el dominio.
+
+### Cómo está armado
+
+Dos servicios de Docker Swarm, fuera de Dokploy pero en su misma red
+(`dokploy-network`), enrutados por el Traefik que Dokploy ya tenía andando:
+
+| Servicio | Qué hace | Monta |
+|---|---|---|
+| `baleia-web` | nginx que sirve el sitio estático | `/srv/baleia/site` y `/srv/baleia/nginx.conf` |
+| `baleia-leads` | recibe los contactos del recorrido | `/srv/baleia/receptor-leads.py` y `/srv/baleia/leads` |
+
+La ruta de Traefik está en `/etc/dokploy/traefik/dynamic/baleia.yml`, con el
+mismo formato que los archivos que escribe Dokploy para sus propias apps.
+
+### Por qué no se despliega con el Dockerfile ni desde git
+
+Porque el material del recorrido —unos 100 MB de fotos, tiles 360, video y
+brochure, en `apps/viewer/public/baleia/`— **no está en git** (ni debe estarlo)
+y además está excluido en `.dockerignore`. Una imagen construida desde el repo
+da un visor vacío. Por eso publicamos el `dist` ya construido, por rsync:
+
+```bash
+bash tools/deploy/publicar-vps.sh
+```
+
+Ese script construye para la raíz del dominio, se niega a publicar si el build
+salió mal (revisa que las rutas no queden atadas a GitHub Pages, que estén el
+manifiesto, las escenas 360 y el video), sincroniza y verifica que el sitio
+responda. Son unos 100 MB y tarda menos de un minuto. No reinicia nada: el
+contenido es un volumen, se reemplazan los archivos y listo.
+
+Un detalle que costó encontrar: **`VITE_BASE=""` no es lo mismo que no tenerla**.
+`vite.config.ts` usa `process.env.VITE_BASE ?? '/'`, y `??` sólo cae al default
+si la variable está ausente. Con la variable vacía el build sale con rutas
+relativas y no sirve. El script hace `unset`.
+
+### Los leads
+
+El visor manda cada contacto por `POST /api/leads` contra su mismo origen, sin
+esperar respuesta (`contact.ts`, con `sendBeacon`). Mientras estuvo en GitHub
+Pages **nadie atendía ese endpoint y cada lead se perdió en silencio**: no hay
+error visible para el visitante ni aviso para nosotros.
+
+Ahora nginx lo enruta a `baleia-leads`, que escribe una línea JSON por contacto
+en `/srv/baleia/leads/leads.jsonl`, con `fsync`. Para leerlos:
+
+```bash
+ssh root@179.199.142.5 'cat /srv/baleia/leads/leads.jsonl'
+```
+
+Sin base de datos a propósito: lo importante era que no se pierda ninguno y que
+se pueda leer con un `cat`. Si algún día conviene, el Supabase de este proyecto
+ya está en ese mismo servidor (`vrotta-prop-360-supabase-khxq56`).
+
+### Pasar al dominio definitivo
+
+1. Los dueños cargan los registros DNS. Están en `DNS-BALEIA.md`, listo para
+   entregar: dos registros `A` a `179.199.142.5`, TTL 300.
+2. Cuando el dominio ya resuelva a esa IP, agregar el Host a las **dos** reglas
+   de `/etc/dokploy/traefik/dynamic/baleia.yml` (el archivo tiene el ejemplo
+   escrito arriba). Traefik pide el certificado solo y después lo renueva solo.
+3. Actualizar `URL_PRUEBA` en `tools/deploy/publicar-vps.sh`.
+
+El orden importa: primero el DNS, después el certificado. La validación es por
+HTTP contra el servidor, así que no puede emitirse antes de que el dominio
+apunte ahí.
+
+### Sobre Cloudflare R2
+
+No hace falta. Se evaluó y no entra en esta etapa: el peso está en el video
+(64 MB de los 100), no en las 360. Con los 100 GB de tráfico del plan entran
+del orden de 30.000 visitas livianas por mes, o unas 3.000 si cada visita mira
+el video entero. Cuando el tráfico se acerque a eso, lo que conviene mudar es
+el video, no los tiles.
+
+### Lo que quedó sin resolver
+
+- **El dominio no está elegido.** El sitio anda en la dirección provisoria.
+- **Sin `og:image`**, la tarjeta de previsualización cuando el link se comparta
+  por WhatsApp —que es como va a circular— sale sin imagen. Necesita una URL
+  absoluta, o sea el dominio.
+- **Los precios se actualizan a mano** (`tools/baleia/out/baleia_unidades.csv`,
+  fuera de git).
+- **La app vieja `r360-viewer-anvr6b`** sigue sirviendo el visor genérico de
+  septiembre en `viewer.179.199.142.5.nip.io`. No es Baleia y no se tocó.
+
+---
+
 ## 1. Antes de escribir una línea: tres decisiones que hay que tomar
 
 No las tomo yo porque cambian la arquitectura. Están explicadas abajo con una
