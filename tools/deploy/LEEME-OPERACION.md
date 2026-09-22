@@ -53,3 +53,42 @@ afecta a los datos del proyecto: se ignora.
    afuera.
 2. **El chequeo de salud escribe en un log, no avisa a nadie.** Sin un canal
    —mail, WhatsApp, lo que sea— depende de que alguien se acuerde de mirar.
+
+## Autorizar a un sitio a incrustar un recorrido
+
+Desde el 2026-09-22 la restricción de `frame-ancestors` **se aplica de
+verdad**. Antes se calculaba y se perdía en silencio, así que cualquier sitio
+podía incrustar cualquier recorrido; ahora, por defecto, no puede ninguno.
+
+Eso significa que pegar el snippet en la web de un cliente **no alcanza**: hay
+que autorizar su origen. Si no, el navegador bloquea el iframe y el loader
+dispara `tm:loadError` a los ocho segundos.
+
+La configuración vive en el KV del worker, una entrada por inmobiliaria:
+
+```bash
+ssh root@179.199.142.5
+python3 - <<'PY'
+import json, pathlib
+inquilino = "baleia"
+cfg = {"active": True, "allowedAncestors": ["https://www.sitiodelcliente.com"]}
+p = pathlib.Path(f"/srv/r360/kv/tenant%3A{inquilino}.kv.json")
+p.write_text(json.dumps({"value": json.dumps(cfg)}))
+print("listo:", cfg)
+PY
+```
+
+El origen va completo y exacto: esquema y host, sin barra final. `https://x.com`
+y `https://www.x.com` son orígenes distintos; si el cliente usa los dos, van
+los dos en la lista.
+
+Para comprobarlo:
+
+```bash
+curl -sS -D - -o /dev/null https://baleia.vrottaprop360.com/ | grep -i content-security
+```
+
+Borrar esa entrada vuelve a denegar todo, que es el estado por defecto.
+
+**Deuda:** esto debería configurarse desde el panel, no editando un archivo
+por SSH. Hoy es lo que hay.
