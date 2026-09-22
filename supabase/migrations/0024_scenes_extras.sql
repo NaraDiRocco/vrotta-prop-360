@@ -1,0 +1,35 @@
+-- 0024_scenes_extras.sql
+-- Le da a `scenes` un lugar donde guardar los campos del contrato `Scene`
+-- (packages/core/src/types.ts) que no tienen columna propia en 0006:
+--   · `procedencia` — la chapa de "esto es una foto / un render / una
+--     recreación con IA" (plan de experiencia §5.1). En Baleia la llevan 10
+--     escenas.
+--   · `poster`, `mobileUrl`, `portrait` — los tres extras de las escenas de
+--     video (decisiones 15 y 18 de tools/baleia/scripts/build_tour.py).
+--
+-- Sin esta columna esos campos no llegan a la base y, por lo tanto, tampoco
+-- al manifiesto publicado: el video saldría sin póster (rectángulo negro
+-- mientras carga), sin versión liviana para celular y sin su corte vertical,
+-- y las escenas perderían la chapa de procedencia — que en este producto no
+-- es decoración sino el argumento de honestidad frente al comprador.
+--
+-- Por qué una columna jsonb y no cuatro columnas: es exactamente el mismo
+-- problema que ya resolvió `projects.settings` (0003) para los cinco
+-- opcionales del manifiesto. Son campos OPCIONALES, aditivos, que sólo
+-- aplican a algunas escenas (tres de los cuatro, sólo a las de video) y cuya
+-- forma la define el contrato de TypeScript, no la base. Cuatro columnas
+-- nullable serían cuatro columnas vacías en el 95% de las filas y una
+-- migración nueva cada vez que el contrato sume un opcional.
+--
+-- Y con el mismo criterio de seguridad que `projects.settings`: el publicador
+-- NO vuelca esta columna entera dentro de la escena. Hace un pick explícito
+-- de estas cuatro claves y nada más (`pickSceneExtras`, en
+-- apps/worker/src/routes/publish.ts), así un `extras` cargado de más —a mano,
+-- por un panel con un bug, por el resto de una versión vieja— no tiene forma
+-- de pisar `id`, `slug`, `kind`, `name`, `source` ni `sort`, que son los
+-- campos obligatorios que arma el publicador desde las columnas reales.
+--
+-- `not null default '{}'` como `projects.settings`: una escena sin extras
+-- tiene un objeto vacío, no un null. Un solo caso a contemplar del lado del
+-- código en vez de dos.
+alter table scenes add column if not exists extras jsonb not null default '{}'::jsonb;

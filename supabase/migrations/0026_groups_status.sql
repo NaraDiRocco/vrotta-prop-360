@@ -1,0 +1,28 @@
+-- 0026_groups_status.sql
+-- Le da a un grupo la posibilidad de declarar su PROPIO estado comercial,
+-- en vez de que su estado sea siempre una consecuencia de sus unidades.
+--
+-- Por qué hace falta: que un bloque esté "próximamente" es un dato comercial
+-- del bloque, no un resumen de lo que pasa adentro. Un bloque que todavía no
+-- se lanzó no tiene unidades cargadas JUSTAMENTE porque no se lanzó —
+-- derivar su estado de un conjunto vacío es pedirle al modelo que adivine.
+--
+-- El caso real que lo destapó es el Bloque 1 de Baleia: el brochure lo marca
+-- explícitamente "PRÓXIMAMENTE", pero no tiene ni una unidad cargada. El
+-- pipeline viejo resolvía esto con una lista escrita a mano dentro del script
+-- (`BLOCKS_PROXIMAMENTE = ["B1", "B3"]` en tools/baleia/scripts/build_tour.py),
+-- que es la forma que tiene un pipeline de decir "este dato no tiene dónde
+-- vivir". Ahora tiene dónde.
+--
+-- NULLABLE A PROPÓSITO, y la diferencia importa: `null` NO es un estado. Es
+-- "no lo declaro, derivalo de las unidades", que es un caso distinto de
+-- cualquier valor concreto del enum — incluido `no_disponible`. La
+-- precedencia completa (declarado > derivado > sin entrada) vive en
+-- `generate_availability_json`, ver 0027_availability_group_status.sql.
+--
+-- Mismo enum que `units.status` (0001 + 0017) a propósito: el estado
+-- comercial es uno solo en todo el producto, definido en
+-- packages/core/src/status.ts, y el visor pinta un polígono de bloque con el
+-- mismo token con el que pinta uno de unidad. Dos enums distintos serían dos
+-- paletas que se pueden desincronizar.
+alter table groups add column if not exists status unit_status;

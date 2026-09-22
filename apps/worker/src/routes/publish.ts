@@ -79,6 +79,8 @@ interface SceneRow {
   initial_view: Scene['initialView'] | null;
   north_offset: number | null;
   sort: number;
+  /** Ver `pickSceneExtras` y supabase/migrations/0024_scenes_extras.sql. */
+  extras: Record<string, unknown> | null;
 }
 
 interface HotspotRow {
@@ -92,6 +94,8 @@ interface HotspotRow {
   geometry: Hotspot['geometry'];
   label_anchor: Hotspot['anchor'] | null;
   meta: { zIndex?: number; label?: string | null; url?: string } | null;
+  /** Orden dentro de la escena. Ver supabase/migrations/0023_hotspots_sort.sql. */
+  sort: number;
 }
 
 /**
@@ -133,6 +137,76 @@ export function pickManifestOverrides(settings: Record<string, unknown> | null):
     overrides.brochurePages = settings.brochurePages as TourManifest['brochurePages'];
   }
   return overrides;
+}
+
+/**
+ * Los cuatro campos opcionales del contrato `Scene` (packages/core/src/types.ts)
+ * que no tienen columna propia en la tabla `scenes`: `procedencia` (la chapa
+ * de foto/render/IA, que en Baleia llevan 10 escenas) y los tres extras de
+ * video — `poster`, `mobileUrl` y `portrait`. Viven en `scenes.extras`
+ * (jsonb, 0024_scenes_extras.sql), que es a la escena lo que
+ * `projects.settings` es al manifiesto.
+ *
+ * Mismo criterio que `pickManifestOverrides`, por las mismas razones:
+ *
+ *  - Pick EXPLÍCITO de esas cuatro claves y nada más. `extras` es una bolsa
+ *    jsonb: puede traer restos de una versión vieja o lo que haya escrito un
+ *    panel con un bug. Nada de eso llega al manifiesto.
+ *  - Una clave sólo se copia si está presente y no es `null`, nunca como
+ *    `undefined` ni como `null` serializado: el contrato le da significado a
+ *    la AUSENCIA de la clave (una escena sin `poster` es una escena que el
+ *    visor abre sin póster, no una con póster nulo).
+ *  - El tipo de retorno —`Partial<Pick<Scene, ...>>` con sólo estas cuatro
+ *    claves— es la garantía de que este objeto no puede contener `id`,
+ *    `slug`, `kind`, `name`, `source` ni `sort`. Esos los arma el publicador
+ *    desde las columnas reales y un `extras` corrupto no tiene forma de
+ *    pisarlos.
+ *
+ * Que sean cuatro y no cinco campos de video: `poster`, `mobileUrl` y
+ * `portrait` son los tres que quedaban fuera de la base; `source` (el video
+ * de escritorio) ya tiene su columna.
+ */
+type SceneExtras = Partial<Pick<Scene, 'procedencia' | 'poster' | 'mobileUrl' | 'portrait'>>;
+
+export function pickSceneExtras(extras: Record<string, unknown> | null): SceneExtras {
+  if (!extras || typeof extras !== 'object') return {};
+  const picked: SceneExtras = {};
+  if (extras.procedencia != null) picked.procedencia = extras.procedencia as Scene['procedencia'];
+  if (extras.poster != null) picked.poster = extras.poster as Scene['poster'];
+  if (extras.mobileUrl != null) picked.mobileUrl = extras.mobileUrl as Scene['mobileUrl'];
+  if (extras.portrait != null) picked.portrait = extras.portrait as Scene['portrait'];
+  return picked;
+}
+
+/**
+ * PUENTE TEMPORAL, a quitar. Antes de que existiera `scenes.extras`
+ * (0024_scenes_extras.sql) estos cuatro campos no tenían dónde guardarse, y
+ * el ingestor de Baleia (tools/baleia/scripts/ingestar_a_plataforma.py) los
+ * dejaba estacionados en `projects.settings.sceneExtras`, indexados por slug
+ * de escena — lo dice él mismo en su informe: "10 escenas traen campos que
+ * `scenes` no tiene columna para guardar ... quedan en
+ * `settings.sceneExtras`, que el publicador de hoy no lee".
+ *
+ * Ahora la columna existe, pero el ingestor todavía escribe en el lugar
+ * viejo. Sin este puente, publicar el proyecto tal como está cargado HOY
+ * seguiría perdiendo el póster y la versión vertical del video — que es
+ * justamente el agujero que se está tapando.
+ *
+ * `scenes.extras` MANDA: esto sólo se consulta para una escena cuya columna
+ * está vacía. Cuando el ingestor escriba la columna, esta función deja de
+ * tener efecto y se puede borrar junto con la clave `sceneExtras` de
+ * `settings`.
+ *
+ * Todo lo que salga de acá pasa igual por `pickSceneExtras`, así que la
+ * lista blanca de cuatro claves —y la garantía de que nada de esto puede
+ * pisar un campo obligatorio de la escena— vale idéntico para este camino.
+ */
+function sceneExtrasFromSettings(
+  settings: Record<string, unknown> | null,
+): Record<string, Record<string, unknown>> {
+  const bolsa = settings?.sceneExtras;
+  if (!bolsa || typeof bolsa !== 'object' || Array.isArray(bolsa)) return {};
+  return bolsa as Record<string, Record<string, unknown>>;
 }
 
 /**
@@ -268,14 +342,35 @@ export async function buildManifestFromSupabase(
   // sería una sola query, pero con muchas escenas la URL puede pasarse de
   // largo; una query por escena es más simple y sigue siendo O(escenas), no
   // O(hotspots).
+  //
+  // `order=sort` NO es un detalle: el visor dibuja el plano con Leaflet y
+  // Leaflet apila los polígonos por orden de inserción, sin mirar el `zIndex`
+  // del hotspot (apps/viewer/src/floorplan.ts::mount). En Baleia el polígono
+  // del perímetro del terreno tiene que salir primero para quedar DEBAJO; si
+  // sale después, tapa los cinco bloques. Sin `order=` el orden lo elegía
+  // Postgres. Ver 0023_hotspots_sort.sql.
+  //
+  // Las escenas ya vienen ordenadas por `sort`, así que el orden final del
+  // array es: escenas por `sort`, y dentro de cada escena sus hotspots por
+  // `sort`.
   const hotspotsPerScene = await Promise.all(
     sceneRows.map((s) =>
-      db.select<HotspotRow[]>('hotspots', `scene_id=eq.${s.id}`).catch(() => [] as HotspotRow[]),
+      db
+        .select<HotspotRow[]>('hotspots', `scene_id=eq.${s.id}&order=sort`)
+        .catch(() => [] as HotspotRow[]),
     ),
   );
   const allHotspotRows = hotspotsPerScene.flat();
 
+  const extrasEstacionados = sceneExtrasFromSettings(settings);
+
   const scenes: Scene[] = sceneRows.map((s) => ({
+    // Los extras van primero por la misma razón que en el manifiesto: los
+    // campos de abajo salen de columnas reales y tienen que ganar siempre.
+    // Ver `pickSceneExtras`.
+    ...pickSceneExtras(
+      s.extras && Object.keys(s.extras).length > 0 ? s.extras : (extrasEstacionados[s.slug] ?? null),
+    ),
     id: s.id,
     slug: s.slug,
     kind: s.kind,
@@ -290,15 +385,36 @@ export async function buildManifestFromSupabase(
     const unit = h.unit_id ? unitById.get(h.unit_id) : undefined;
     const targetScene = h.target_scene_id ? sceneById.get(h.target_scene_id) : undefined;
 
+    // Un hotspot de GRUPO (un bloque del masterplan, una manzana de un loteo)
+    // se emite como si el grupo fuera, él mismo, una unidad: `unitCode` = el
+    // code del grupo y `action: {kind:'unit'}`. La traducción va acá, en el
+    // publicador, y no en la base ni en el visor, porque cada capa conserva
+    // así lo que le corresponde: la base sigue modelando un bloque como lo
+    // que es —una fila de `groups`, con sus unidades colgando— y el
+    // manifiesto sale hablando el único idioma que el visor entiende, que es
+    // el de `unitCode` (el contrato `Hotspot` no tiene noción de grupo, ver
+    // packages/core/src/types.ts). La otra mitad de este arreglo está en
+    // `generate_availability_json` (0025), que le da estado a esos codes de
+    // grupo para que el polígono se pinte.
+    //
+    // Sin esto el bloque salía sin `action` y con `unitCode: null`: el visor
+    // lo trataba como un punto informativo —celeste, sin estado y sin ficha
+    // al tocarlo— en vez de como el bloque clickeable y coloreado que es.
+    const group = h.target_kind === 'group' && h.group_id ? groupById.get(h.group_id) : undefined;
+
     let action: Hotspot['action'];
     if (h.target_kind === 'unit') action = { kind: 'unit' };
+    else if (h.target_kind === 'group' && group) action = { kind: 'unit' };
     else if (h.target_kind === 'scene' && targetScene) action = { kind: 'goto', sceneSlug: targetScene.slug };
     else if (h.meta?.url) action = { kind: 'url', href: h.meta.url };
 
     return {
       id: h.id,
       sceneId: h.scene_id,
-      unitCode: unit?.code ?? null,
+      // Si el grupo apuntado no aparece (borrado, o fuera de este proyecto),
+      // el hotspot cae a informativo en vez de desaparecer: la regla dura del
+      // producto es que un polígono del plano nunca se va en silencio.
+      unitCode: unit?.code ?? group?.code ?? null,
       geometryKind: h.geometry_kind,
       geometry: h.geometry,
       anchor: h.label_anchor ?? undefined,
