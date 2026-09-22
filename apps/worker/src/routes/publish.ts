@@ -94,12 +94,55 @@ interface HotspotRow {
   meta: { zIndex?: number; label?: string | null; url?: string } | null;
 }
 
-async function buildManifestFromSupabase(
+/**
+ * Los cinco campos opcionales y aditivos de `TourManifest` (`theme`,
+ * `contact`, `brandLogo`, `photoTour`, `brochurePages` — ver
+ * packages/core/src/types.ts) no tienen tabla propia: en el caso real de
+ * Baleia son justamente el recorrido narrativo entero (tramos, brochure,
+ * logo, CTA de contacto), así que hoy quedan guardados en `projects.settings`
+ * (jsonb, 0003_projects.sql), la misma columna donde el panel guarda su
+ * propia configuración interna (`initial_scene_id`, `allowed_domains`, ver
+ * 0012_project_health_view.sql).
+ *
+ * Por eso acá se hace un pick explícito de esas cinco claves nada más:
+ * cualquier otra cosa que haya en `settings` (configuración de panel, restos
+ * de una versión vieja, lo que sea) se ignora en silencio. Y una clave sólo
+ * se copia si está REALMENTE presente y no es `null` — un `photoTour`
+ * ausente en `settings` tiene que quedar ausente en el manifiesto (nunca
+ * `undefined` serializado ni `null`), porque el contrato le da significado a
+ * la ausencia de la clave (el visor simplemente no dibuja esa sección).
+ *
+ * El tipo de retorno (`Partial<Pick<TourManifest, ...>>` con sólo estas
+ * cinco claves) es, a la vez, la garantía de seguridad: por construcción este
+ * objeto no puede contener `scenes`, `version`, `tenant` ni ningún otro campo
+ * obligatorio, así que un `settings` corrupto o cargado a mano de más nunca
+ * tiene forma de pisar la geometría o el versionado que arma el publicador.
+ */
+type ManifestSettingsOverrides = Partial<
+  Pick<TourManifest, 'theme' | 'contact' | 'brandLogo' | 'photoTour' | 'brochurePages'>
+>;
+
+export function pickManifestOverrides(settings: Record<string, unknown> | null): ManifestSettingsOverrides {
+  if (!settings || typeof settings !== 'object') return {};
+  const overrides: ManifestSettingsOverrides = {};
+  if (settings.theme != null) overrides.theme = settings.theme as TourManifest['theme'];
+  if (settings.contact != null) overrides.contact = settings.contact as TourManifest['contact'];
+  if (settings.brandLogo != null) overrides.brandLogo = settings.brandLogo as TourManifest['brandLogo'];
+  if (settings.photoTour != null) overrides.photoTour = settings.photoTour as TourManifest['photoTour'];
+  if (settings.brochurePages != null) {
+    overrides.brochurePages = settings.brochurePages as TourManifest['brochurePages'];
+  }
+  return overrides;
+}
+
+export async function buildManifestFromSupabase(
   db: ReturnType<typeof createSupabaseClient>,
   tenant: string,
   project: string,
   projectId: string,
   version: number,
+  /** `projects.settings` tal cual lo devuelve `resolveProject` — ver `pickManifestOverrides`. */
+  settings: Record<string, unknown> | null,
 ): Promise<TourManifest> {
   const [groupRows, unitTypeRows, unitRows, sceneRows] = await Promise.all([
     db.select<GroupRow[]>('groups', `project_id=eq.${projectId}&order=sort`),
@@ -174,6 +217,11 @@ async function buildManifestFromSupabase(
   const start = scenes[0]?.slug ?? '';
 
   return {
+    // Los opcionales de settings van primero: los campos obligatorios de
+    // abajo los arma esta misma función a partir de Supabase, no vienen de
+    // `overrides`, así que ni hace falta que el orden decida nada — pero
+    // dejarlos después documenta a simple vista que settings jamás gana.
+    ...pickManifestOverrides(settings),
     schema: 1,
     project,
     version,
@@ -214,7 +262,14 @@ publish.post('/api/publish', async (c) => {
 
   let manifest: TourManifest;
   try {
-    manifest = await buildManifestFromSupabase(db, tenant, project, resolved.projectId, nextVersion);
+    manifest = await buildManifestFromSupabase(
+      db,
+      tenant,
+      project,
+      resolved.projectId,
+      nextVersion,
+      resolved.settings,
+    );
     stages.push({ stage: 'build_manifest', ok: true });
   } catch (err) {
     return fail('build_manifest', err);
