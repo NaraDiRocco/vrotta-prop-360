@@ -12,6 +12,18 @@
     apuntarla al host provisorio seria dejarla rota el dia que se mude.
   -->
   <!--
+    `main.ts` recien pide `tour.json` DESPUES de que el bundle entero bajo,
+    parseo y corrio: un round-trip completo perdido antes de poder arrancar
+    (el propio codigo de `mountViewer` ya lo daba por hecho, ver su
+    comentario de cabecera: "en produccion tour.json viene precargado por
+    <link rel=preload>", pero ese link nunca se habia agregado). Con esto el
+    navegador larga la descarga del manifiesto en paralelo con la del script,
+    no en cuanto este termine. `crossorigin` va SIEMPRE en un preload
+    `as=fetch`, aunque el recurso sea del mismo origen: si falta, Chrome no
+    empareja este preload con el `fetch()` real y lo baja dos veces.
+  -->
+  <link rel="preload" href="./tour.json" as="fetch" crossorigin="anonymous" />
+  <!--
     El logo, pintado en el primer cuadro. Va acá y no en el JS a propósito:
     hasta que el bundle no llega y arranca, la pantalla queda negra —en un
     teléfono con red lenta, varios segundos—. Con esto, lo primero que se ve es

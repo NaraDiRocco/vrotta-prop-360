@@ -89,6 +89,14 @@ export interface UiOptions {
   availability: () => AvailabilityFile | null;
   /** URL del `tour.json`, para resolver las rutas relativas de `media`. */
   tourUrl: string;
+  /**
+   * `object URL` de la foto de portada que el arranque ya bajó (ver
+   * `ViewerHandle.heroImageUrl` en `main.ts`). La bienvenida la usa para su
+   * `<img>` en vez de volver a pedirle la misma foto al servidor. `null` o
+   * `undefined` si no hubo bienvenida, o si la descarga del arranque falló:
+   * en ese caso la bienvenida simplemente pide la URL real, como siempre.
+   */
+  heroImageUrl?: string | null;
 }
 
 /** Capas que empujan historia; el orden de cierre es el orden inverso al de apertura. */
@@ -427,7 +435,13 @@ export class ViewerUi {
         : null,
       hero,
       segunda,
-      resolve: (u) => this.resolve(u),
+      // La portada (`hero.url`) el arranque ya la bajó completa para medir el
+      // progreso (`fetchWithProgress` en `main.ts`): si acá se le vuelve a
+      // pedir la URL real, el navegador la trae de nuevo en vez de una —
+      // confirmado con Resource Timing, dos entradas para la misma foto. Se
+      // sirve del `object URL` que ya está en memoria; todo lo demás (la
+      // segunda foto, el logo) sigue resolviendo como siempre.
+      resolve: (u) => (u === hero.url && this.opts.heroImageUrl ? this.opts.heroImageUrl : this.resolve(u)),
       onStart: (t: TramoId) => { marcarVista(); this.rail.show(t); },
     });
     this.nav.setActive('tour');

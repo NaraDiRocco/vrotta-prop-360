@@ -471,6 +471,23 @@ function renderFor(tour: TourManifest, slug: string): RailRender | null {
 const SLUG_PORTADA = 'portada';
 
 /**
+ * Misma convención de miniaturas que `main.ts`/`ui.ts`: `X.webp` ->
+ * `X.thumb.webp` (decisión #8 del builder). `escenaComoFoto` reusaba el
+ * `url` completo como `thumbUrl` porque `Scene.source` no trae un campo de
+ * miniatura propio — pero el builder SÍ publica el `.thumb.webp` de cada
+ * render, igual que para toda foto. Sin esto, la portada duplicaba su propia
+ * descarga al arrancar: `boot.setThumb()` pedía "la miniatura" (que en
+ * realidad era la foto entera) EN PARALELO con `fetchWithProgress()`
+ * pidiendo la foto entera para medir el progreso — dos pedidos concurrentes
+ * al mismo archivo de ~230 KB, confirmado con Resource Timing (dos entradas
+ * para `portada.webp`, dos `initiatorType` distintos, ninguna sirviéndose de
+ * la otra por ser simultáneas). `boot.setThumb` ya cae con gracia si la
+ * miniatura no existe (`onerror` la retira), así que esto es seguro aunque
+ * algún día una escena no tenga `.thumb.webp` publicado.
+ */
+const thumbUrl = (url: string) => url.replace(/\.webp$/i, '.thumb.webp');
+
+/**
  * Envuelve una escena de imagen como `PhotoTourItem`, que es el tipo con el
  * que la bienvenida y el riel manejan todo lo que se dibuja. El `id` lleva
  * prefijo para no chocar nunca con el de una foto real.
@@ -482,7 +499,7 @@ function escenaComoFoto(tour: TourManifest, slug: string): PhotoTourItem | null 
   return {
     id: `escena:${slug}`,
     url: src.url,
-    thumbUrl: src.url,
+    thumbUrl: thumbUrl(src.url),
     width: src.width,
     height: src.height,
     procedencia: sc.procedencia ?? { kind: 'render' },

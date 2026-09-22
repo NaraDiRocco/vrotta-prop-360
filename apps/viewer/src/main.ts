@@ -48,6 +48,15 @@ export interface ViewerHandle {
   tour: TourManifest;
   controller: SceneController;
   poller: AvailabilityPoller;
+  /**
+   * `object URL` de la foto de portada, si el arranque la bajó (hay
+   * bienvenida). `ui.ts` la reutiliza para el `<img>` de la bienvenida en vez
+   * de volver a pedirle la misma foto al servidor — ver el comentario de
+   * `fetchWithProgress` más abajo. `null` si no hubo bienvenida o la
+   * descarga falló; en ese caso el `<img>` simplemente pide la URL real,
+   * como siempre.
+   */
+  heroImageUrl: string | null;
   destroy(): void;
 }
 
@@ -96,10 +105,18 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
   // (~365 KB), no el masterplan de 1 MB que todavía no le hace falta a nadie.
   // Sin `photoTour` en el manifiesto, se cae al comportamiento de siempre.
   const heroUrl = welcomePhotos(tour).hero;
+  // `object URL` de la foto ya bajada acá, para que `ui.ts` la reutilice en
+  // el `<img>` de la bienvenida (ver `ViewerHandle.heroImageUrl`). Sin esto,
+  // el visitante paga la foto DOS VECES: una acá (para medir el progreso) y
+  // otra cuando la bienvenida crea su propio `<img>` con la misma URL —
+  // confirmado con Resource Timing (dos entradas para la misma foto, una
+  // `fetch` y una `img`) en vez de asumir que el cache HTTP las une solo.
+  let heroImageUrl: string | null = null;
   if (heroUrl) {
     const abs = (u: string) => new URL(u, new URL(tourUrl, location.href)).href;
     boot.setThumb(abs(heroUrl.thumbUrl), false);
-    await fetchWithProgress(abs(heroUrl.url), (v) => boot.setProgress(v));
+    const blob = await fetchWithProgress(abs(heroUrl.url), (v) => boot.setProgress(v));
+    if (blob) heroImageUrl = URL.createObjectURL(blob);
   } else if (planUrl && startScene && 'width' in startScene.source) {
     boot.setThumb(
       thumbUrl(planUrl),
@@ -158,7 +175,14 @@ export async function mountViewer(opts: ViewerOptions): Promise<ViewerHandle> {
     tour,
     controller,
     poller,
-    destroy() { poller.stop(); controller.destroy(); },
+    heroImageUrl,
+    destroy() {
+      poller.stop();
+      controller.destroy();
+      // El `object URL` retiene el blob en memoria mientras nadie lo libera;
+      // al desmontar el visor ya no hay `<img>` que pueda necesitarlo.
+      if (heroImageUrl) URL.revokeObjectURL(heroImageUrl);
+    },
   };
 }
 
@@ -288,31 +312,43 @@ function showBoot(container: HTMLElement): BootHandle {
 }
 
 /**
- * Descarga midiendo. Devuelve cuando el archivo entero llegó; si el servidor
- * no manda `Content-Length` (o el navegador no da stream), se cae a la barra
- * indeterminada en vez de fabricar un número.
+ * Descarga midiendo. Devuelve el `Blob` completo cuando el archivo entero
+ * llegó, para que quien lo pidió pueda reusarlo (ver `ViewerHandle.
+ * heroImageUrl`) en vez de volver a pedirle la misma imagen al servidor. Si
+ * el servidor no manda `Content-Length` (o el navegador no da stream), se
+ * cae a la barra indeterminada en vez de fabricar un número, pero el blob se
+ * devuelve igual. `null` si la descarga falla: quien la pidió simplemente
+ * cae a pedir la URL real de nuevo, como antes de este cambio.
  */
-async function fetchWithProgress(url: string, onProgress: (v: number) => void): Promise<void> {
+async function fetchWithProgress(url: string, onProgress: (v: number) => void): Promise<Blob | null> {
   try {
     const res = await fetch(url, { cache: 'default' });
+    if (!res.ok) return null;
     const total = Number(res.headers.get('content-length') ?? 0);
-    if (!res.ok || !res.body || !Number.isFinite(total) || total <= 0) {
-      await res.blob().catch(() => undefined);
-      return;
+    if (!res.body || !Number.isFinite(total) || total <= 0) {
+      return await res.blob().catch(() => null);
     }
     const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
     let got = 0;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      chunks.push(value);
       got += value.byteLength;
       onProgress(got / total);
     }
     onProgress(1);
+    // El cast es sólo para el tipo: lib.dom pide `ArrayBufferView<ArrayBuffer>`
+    // y el reader tipa el buffer como `ArrayBufferLike` (incluye
+    // `SharedArrayBuffer`, que acá nunca aparece — es el body de un fetch).
+    return new Blob(chunks as BlobPart[], { type: res.headers.get('content-type') ?? undefined });
   } catch (err) {
     // Que falle la medición no puede impedir que arranque el recorrido: la
-    // imagen la vuelve a pedir Leaflet por su cuenta.
+    // imagen la vuelve a pedir Leaflet (o el `<img>` de la bienvenida) por su
+    // cuenta.
     console.warn('[r360] No se pudo medir la descarga del plano:', err);
+    return null;
   }
 }
 
@@ -392,6 +428,7 @@ if (root) {
         controller: handle.controller,
         availability: () => handle.poller.value,
         tourUrl,
+        heroImageUrl: handle.heroImageUrl,
       }),
     );
     // El chip explica el plano: sólo se muestra cuando lo primero que se ve
