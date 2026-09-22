@@ -16,6 +16,7 @@
     "@photo-sphere-viewer/cubemap-tiles-adapter": "^5.15.1",
     "@photo-sphere-viewer/markers-plugin": "^5.13.3",
     "@r360/core": "workspace:*",
+    "@r360/embed": "workspace:*",
     "leaflet": "^1.9.4"
   },
   "devDependencies": {

@@ -30,6 +30,11 @@ import { showOrientationChip } from './orientation-hint.ts';
 import { legendStatuses } from './legend.ts';
 import { TRAMO_SLUGS, parseTramoHash, shouldShowWelcome, welcomePhotos } from './tour-rail.model.ts';
 import { leadPayloadFromCta, leadsUrl, projectRefFromLocation, registerLead, type CtaEventDetail } from './contact.ts';
+// Lado del visor del protocolo de embed (`@r360/embed`): no hace nada cuando
+// el recorrido no está corriendo dentro del iframe de un tercero (ver
+// cabecera de `embed-bridge.ts`), así que sumarlo acá no cambia el build
+// standalone.
+import { initEmbedBridge } from './embed-bridge.ts';
 
 export interface ViewerOptions {
   container: HTMLElement;
@@ -365,7 +370,13 @@ if (root) {
   // `?tour=` para poder abrir un recorrido publicado en otra ruta sin tocar
   // el HTML (ej. `?tour=/baleia/tour.json`). Sin el parámetro, `./tour.json`.
   const tourUrl = new URLSearchParams(location.search).get('tour') ?? './tour.json';
+  // Se arma ANTES de pedir tour.json: si esto corre dentro del iframe de un
+  // embed, el primer `tour:hello` tiene que salir cuanto antes para no
+  // perder la carrera contra el watchdog de 8s del loader (ver cabecera de
+  // `embed-bridge.ts`). Fuera de un embed, `initEmbedBridge` no hace nada.
+  const embed = initEmbedBridge(root);
   mountViewer({ container: root, tourUrl }).then((handle) => {
+    embed?.ready(handle.tour, handle.controller);
     (window as unknown as Record<string, unknown>).r360 = handle;
     if (legend) {
       renderLegend(legend, handle.tour, handle.poller.value);
@@ -415,6 +426,7 @@ if (root) {
       registerLead(leadPayloadFromCta(handle.tour, ref, detail), leadsUrl(tourUrl));
     });
   }, (err) => {
+    embed?.error(err instanceof Error ? err.message : String(err));
     root.innerHTML = `<div class="r360-boot r360-boot--error">No se pudo cargar el recorrido.</div>`;
     console.error(err);
   });

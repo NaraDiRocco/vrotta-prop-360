@@ -608,6 +608,16 @@ export class ViewerUi {
     const unit = tour.units[code];
     if (!unit) return;
 
+    // Único punto donde el visor confirma "se está mostrando la ficha de
+    // esta unidad", sin importar por dónde se llegó (click en el plano, lista
+    // de unidades, navegación bloque↔unidad, deep link al montar). Nadie
+    // escucha este evento hoy — lo agrega `embed-bridge.ts` para el
+    // `tour:unitView` del protocolo de embed — así que sumarlo acá no cambia
+    // nada del comportamiento existente.
+    this.opts.container.dispatchEvent(
+      new CustomEvent<{ unitCode: string }>('r360:unit-view', { detail: { unitCode: code }, bubbles: true }),
+    );
+
     const avail = this.opts.availability();
     const price = priceTextForUnit(code, avail);
     const attrs = unit.attrs ?? {};
