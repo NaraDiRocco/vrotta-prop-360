@@ -21,7 +21,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import { API_URL, ANON_KEY } from './lib/env.ts';
-import { buildScenario, insertOrThrow, svc, type Scenario } from './lib/fixtures.ts';
+import {
+  buildScenario,
+  insertOrThrow,
+  loginViaAdminMagicLink,
+  svc,
+  type Scenario,
+} from './lib/fixtures.ts';
 
 /**
  * Mismo algoritmo que `hashInvitationToken` en
@@ -612,9 +618,12 @@ describe.skipIf(!reachable)('RLS: roles de plataforma y de inmobiliaria (0009–
       const password = 'Test-P4ssword!';
       const { data, error } = await svc.auth.admin.createUser({ email, password, email_confirm: true });
       if (error || !data.user) throw new Error(`no pude crear la usuaria invitada: ${error?.message}`);
-      const client = createClient(API_URL, ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-      const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-      if (signInError) throw new Error(`no pude loguear a la invitada: ${signInError.message}`);
+      // No usar signInWithPassword acá: con `[auth.email] enable_signup = false`
+      // (R360 hallazgo B7) gotrue rechaza CUALQUIER login por email, incluido
+      // el de un usuario ya creado y confirmado — ver el comentario largo en
+      // `loginViaAdminMagicLink` (lib/fixtures.ts) con la verificación contra
+      // gotrue de por qué y la alternativa que sí funciona.
+      const client = await loginViaAdminMagicLink(email);
       invitee = { userId: data.user.id, email, client };
     });
 

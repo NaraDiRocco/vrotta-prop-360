@@ -242,10 +242,23 @@ web3 = 30
 [auth.email]
 # Allow/disallow new user signups via email to your project.
 # (R360 — hallazgo B7) Mismo criterio que `[auth].enable_signup` arriba: sin
-# alta abierta, tampoco por email. REPLICAR en el VPS con la env var
-# `GOTRUE_EXTERNAL_EMAIL_ENABLED=false` (nombre puede variar según la versión
-# de gotrue) — lo importante es que el resultado sea "no se puede crear
-# cuenta nueva", sin tocar login ni recuperación de contraseña.
+# alta abierta, tampoco por email.
+#
+# OJO, CORRECCION (2026-09-22): este comentario decia antes que había que
+# REPLICAR esto en el VPS con `GOTRUE_EXTERNAL_EMAIL_ENABLED=false`, y que eso
+# no tocaba el login. Es FALSO, verificado con curl contra gotrue v2.188.1:
+# esa variable apaga el proveedor "email" ENTERO, asi que
+# `POST /token?grant_type=password` empieza a devolver 422
+# `email_provider_disabled` incluso para usuarios que ya existen. O sea: nadie
+# podria volver a entrar al panel. Haberlo replicado habria sido un incidente.
+#
+# La variable correcta en el VPS es `GOTRUE_DISABLE_SIGNUP=true` con
+# `GOTRUE_EXTERNAL_EMAIL_ENABLED=true`, que es justo como esta hoy produccion:
+# no se pueden crear cuentas, pero los usuarios existentes entran.
+#
+# Acá en local queda `enable_signup = false` (que sí apaga el proveedor) y por
+# eso los tests de RLS no pueden usar `signInWithPassword`: se loguean por
+# enlace mágico de administración. Ver `supabase/tests/rls/README.md`.
 enable_signup = false
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.

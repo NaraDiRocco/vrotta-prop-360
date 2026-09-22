@@ -26,10 +26,67 @@ export interface TestUser {
   client: SupabaseClient;
 }
 
+/**
+ * Le da una sesión real a un usuario ya creado (y confirmado) por la vía de
+ * administración, sin pasar por `signInWithPassword`.
+ *
+ * Por qué: este local tiene `GOTRUE_EXTERNAL_EMAIL_ENABLED=false` (viene de
+ * `supabase/config.toml` → `[auth.email] enable_signup = false`, R360
+ * hallazgo B7 — la inmobiliaria no se autoregistra). El comentario de ese
+ * config.toml da por sentado que el flag "no afecta el login con contraseña
+ * (`/token`)... son endpoints distintos". Verificado a mano contra gotrue
+ * v2.188.1 (curl directo a `POST /auth/v1/token?grant_type=password`, sin
+ * pasar por supabase-js): ESO ES FALSO. El flag apaga el proveedor "email"
+ * entero — signup Y login — y `/token` responde 422
+ * `{"error_code":"email_provider_disabled","msg":"Email logins are
+ * disabled"}` aunque el usuario exista y esté confirmado. Por eso este
+ * harness no puede usar `signInWithPassword` para ningún usuario de prueba,
+ * sin importar cómo se haya creado.
+ *
+ * La alternativa que sí funciona (y que también verificamos a mano): generar
+ * un magic link con `service_role` vía `auth.admin.generateLink` — un
+ * endpoint de administración que no pasa por el chequeo de proveedor
+ * habilitado — y canjear el `hashed_token` resultante con `verifyOtp` en el
+ * cliente anon. `verifyOtp` tampoco pasa por ese chequeo (no es
+ * `grant_type=password`), así que funciona con el proveedor "email" apagado.
+ * Resultado: una sesión (`access_token` + `refresh_token`) igual de real que
+ * la que hoy usa el panel, sin tocar `enable_signup` ni debilitar la postura
+ * de seguridad de "alta cerrada" que ese flag existe para sostener.
+ *
+ * NO "simplificar" esto de vuelta a `signInWithPassword`: con
+ * `enable_signup = false` vuelve a romper con el mismo 422, y si alguna vez
+ * deja de romper es porque alguien bajó esa guarda (ver README.md).
+ */
+export async function loginViaAdminMagicLink(email: string): Promise<SupabaseClient> {
+  const { data: linkData, error: linkError } = await svc.auth.admin.generateLink({
+    type: 'magiclink',
+    email,
+  });
+  if (linkError || !linkData?.properties?.hashed_token) {
+    throw new Error(`No se pudo generar el magic link para ${email}: ${linkError?.message}`);
+  }
+
+  const client = createClient(API_URL, ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { error: verifyError } = await client.auth.verifyOtp({
+    type: 'magiclink',
+    token_hash: linkData.properties.hashed_token,
+  });
+  if (verifyError) {
+    throw new Error(`No se pudo canjear el magic link de ${email}: ${verifyError.message}`);
+  }
+
+  return client;
+}
+
 async function createUser(label: string): Promise<TestUser> {
   const email = `rls-${label}-${RUN_ID}@test.r360.local`;
   const password = 'Test-P4ssword!';
 
+  // El password queda seteado en el usuario (paridad con un alta real, y
+  // por si algún test futuro quisiera ejercitar `/recover` o cambio de
+  // contraseña), pero no se usa para loguear: ver `loginViaAdminMagicLink`.
   const { data, error } = await svc.auth.admin.createUser({
     email,
     password,
@@ -39,13 +96,7 @@ async function createUser(label: string): Promise<TestUser> {
     throw new Error(`No se pudo crear el usuario de prueba ${label}: ${error?.message}`);
   }
 
-  const client = createClient(API_URL, ANON_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-  if (signInError) {
-    throw new Error(`No se pudo loguear como ${label}: ${signInError.message}`);
-  }
+  const client = await loginViaAdminMagicLink(email);
 
   return { email, password, userId: data.user.id, client };
 }

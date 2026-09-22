@@ -17,10 +17,11 @@ producción: `.insert().select()`. Un test en pgTAP que hace
 `select set_config('request.jwt.claims', ...)` a mano corre dentro de la
 misma sesión SQL y no pasa por PostgREST, así que no reproduce ese camino.
 Este harness sí: cada "usuario" de la matriz es un cliente de
-`supabase-js` logueado de verdad (`signInWithPassword`, con un JWT emitido
-por GoTrue) hablando con el PostgREST local — el mismo camino que usa el
-panel. Es más lento que pgTAP, pero para 45 tests no importa (corre en
-~1.5s).
+`supabase-js` logueado de verdad (con un JWT emitido por GoTrue — ver más
+abajo "Cómo se loguean los usuarios de prueba" para el detalle de cómo se
+consigue esa sesión) hablando con el PostgREST local — el mismo camino que
+usa el panel. Es más lento que pgTAP, pero para la cantidad de tests que
+hay no importa (corre en ~1.5s).
 
 ## Qué cubre (matriz del plan, §7)
 
@@ -72,6 +73,51 @@ restrictiva, que le saca a la inmobiliaria estructura/escenas/publicar) —
 todavía no existe en `supabase/migrations`. Cuando se escriba, este
 harness es el lugar natural para sumarle sus tests (el plan ya lo prevé
 como paso posterior).
+
+## Cómo se loguean los usuarios de prueba (y por qué no es `signInWithPassword`)
+
+Los seis usuarios de la matriz (`lib/fixtures.ts`) y la usuaria invitada del
+bloque de `invitations` (`rls.test.ts`) se crean con
+`svc.auth.admin.createUser({ email_confirm: true })` — la API de
+administración, con `service_role`, que ya bypasea `enable_signup`. Eso es
+necesario pero **no alcanza**: conseguirles una sesión con la que ejercitar
+las policies de RLS no se puede hacer con `signInWithPassword`.
+
+Este local corre con `GOTRUE_EXTERNAL_EMAIL_ENABLED=false` (lo pone
+`supabase/config.toml` → `[auth.email] enable_signup = false`, R360 hallazgo
+B7: la inmobiliaria no se autoregistra, la da de alta la dueña a mano). El
+comentario de ese `config.toml` asume que el flag "no afecta el login con
+contraseña (`/token`)... son endpoints distintos, gotrue los sigue
+sirviendo igual para los usuarios que ya existen". **Esa asunción es
+incorrecta** en gotrue v2.188.1 (la que trae este proyecto): se verificó a
+mano pegándole directo a la API, sin pasar por `supabase-js`—
+
+```bash
+curl -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
+  -H "apikey: $ANON_KEY" -H "Content-Type: application/json" \
+  -d '{"email":"...","password":"..."}'
+# → 422 {"error_code":"email_provider_disabled","msg":"Email logins are disabled"}
+```
+
+—contra un usuario recién creado y confirmado por la API de administración.
+El flag apaga el proveedor "email" **entero**, signup y login por igual, no
+sólo el alta. Por eso `pnpm test` fallaba entero en el `beforeAll` con
+exactamente ese mensaje, aunque el usuario de prueba se hubiera creado bien.
+
+La salida (también verificada a mano, mismo método) es generar un magic
+link con `service_role` vía `auth.admin.generateLink({ type: 'magiclink',
+email })` — otro endpoint de administración, que no pasa por el chequeo de
+"proveedor habilitado" — y canjear el `hashed_token` que devuelve con
+`client.auth.verifyOtp({ type: 'magiclink', token_hash })` desde el cliente
+anon. Esa ruta sí funciona con el proveedor apagado, y entrega una sesión
+(`access_token` + `refresh_token`) igual de real que la que usa el panel.
+Queda envuelta en `loginViaAdminMagicLink` (`lib/fixtures.ts`), exportada y
+reusada en `rls.test.ts`.
+
+**No volver a `signInWithPassword`** para loguear usuarios de prueba: con
+`enable_signup = false` (una decisión de seguridad deliberada, no algo para
+tocar por comodidad de testing) siempre va a fallar con el mismo 422, sin
+importar cómo se haya creado el usuario.
 
 ## Cómo correrlos
 
