@@ -6,107 +6,94 @@
 
 ---
 
-## 0. Estado actual — Baleia ya está desplegada (2026-09-22)
+## 0. Estado actual — Baleia vive DENTRO de la plataforma (2026-09-22)
 
-> Esta sección se escribió después que el resto del documento y **manda sobre
-> las secciones 1, 5, 6 y 7 donde se contradigan**. Aquellas describían
-> decisiones pendientes; acá está lo que efectivamente quedó hecho, verificado
-> contra el servidor.
+> Esta sección manda sobre todo el resto del documento donde se contradigan.
+> Lo de abajo está verificado contra el servidor, no asumido.
 
-### Dónde vive
+### Lo que cambió respecto de la primera versión de esta sección
 
-VPS de **Arquiify**: `179.199.142.5`. Se eligió éste sobre el otro (kanu-vps,
-`31.97.172.99`) porque ahí ya estaba el proyecto *Vrotta Prop 360* en Dokploy.
+Baleia estuvo unas horas publicada como **sitio suelto** (un nginx sirviendo
+archivos estáticos, sin base de datos). Eso ya no es así: ahora es un
+**proyecto adentro del SaaS**, con sus filas en Supabase, su manifiesto
+versionado y su subdominio propio. El sitio suelto sigue instalado pero **sin
+ruta en Traefik**, como respaldo: para volver atrás alcanza con restaurar
+`/root/.r360/respaldo/baleia.yml.suelto` en `/etc/dokploy/traefik/dynamic/`.
 
-Provisoriamente en línea en **https://baleia.179.199.142.5.nip.io**, con
-certificado real de Let's Encrypt. `nip.io` es un truco: resuelve cualquier
-`algo.IP.nip.io` a esa IP, así se puede tener HTTPS de verdad antes de que
-exista el dominio.
+### Las piezas
 
-### Cómo está armado
+VPS **179.199.142.5** (el de Arquiify). Todo corre en la red `dokploy-network`,
+enrutado por el Traefik que Dokploy ya tenía.
 
-Dos servicios de Docker Swarm, fuera de Dokploy pero en su misma red
-(`dokploy-network`), enrutados por el Traefik que Dokploy ya tenía andando:
+| Servicio | Qué hace |
+|---|---|
+| `r360-worker` | la capa de servido de la plataforma (Hono sobre Node) |
+| `r360-media` | nginx que sirve la media versionada, con soporte de rangos |
+| `r360-reconciliador` | cada minuto, lee la base y le escribe a Traefik un router por host |
+| `baleia-leads` | receptor de contactos del sitio suelto (sigue vivo) |
+| `baleia-web` | el sitio suelto, **sin ruta**, como respaldo |
 
-| Servicio | Qué hace | Monta |
-|---|---|---|
-| `baleia-web` | nginx que sirve el sitio estático | `/srv/baleia/site` y `/srv/baleia/nginx.conf` |
-| `baleia-leads` | recibe los contactos del recorrido | `/srv/baleia/receptor-leads.py` y `/srv/baleia/leads` |
+El worker no es una imagen: es un bundle de ~150 KB montado en un contenedor
+`node:22-alpine`. Actualizarlo es copiar un archivo y forzar el servicio.
 
-La ruta de Traefik está en `/etc/dokploy/traefik/dynamic/baleia.yml`, con el
-mismo formato que los archivos que escribe Dokploy para sus propias apps.
-
-### Por qué no se despliega con el Dockerfile ni desde git
-
-Porque el material del recorrido —unos 100 MB de fotos, tiles 360, video y
-brochure, en `apps/viewer/public/baleia/`— **no está en git** (ni debe estarlo)
-y además está excluido en `.dockerignore`. Una imagen construida desde el repo
-da un visor vacío. Por eso publicamos el `dist` ya construido, por rsync:
+### Cómo se publica
 
 ```bash
-bash tools/deploy/publicar-vps.sh
+bash tools/deploy/publicar-plataforma.sh dacal baleia
 ```
 
-Ese script construye para la raíz del dominio, se niega a publicar si el build
-salió mal (revisa que las rutas no queden atadas a GitHub Pages, que estén el
-manifiesto, las escenas 360 y el video), sincroniza y verifica que el sitio
-responda. Son unos 100 MB y tarda menos de un minuto. No reinicia nada: el
-contenido es un volumen, se reemplazan los archivos y listo.
+Construye el visor, crea la versión nueva enlazando la anterior con hardlinks
+(los 100 MB de media no se copian: una publicación cuesta ~2 MB de disco),
+sincroniza por contenido y no por fecha —Vite recopia la carpeta pública en
+cada build, así que las fechas siempre cambian aunque los bytes no—, llama a
+`/api/publish` para que arme el manifiesto **desde la base** y mueva el
+puntero, y regenera la disponibilidad.
 
-Un detalle que costó encontrar: **`VITE_BASE=""` no es lo mismo que no tenerla**.
-`vite.config.ts` usa `process.env.VITE_BASE ?? '/'`, y `??` sólo cae al default
-si la variable está ausente. Con la variable vacía el build sale con rutas
-relativas y no sirve. El script hace `unset`.
-
-### Los leads
-
-El visor manda cada contacto por `POST /api/leads` contra su mismo origen, sin
-esperar respuesta (`contact.ts`, con `sendBeacon`). Mientras estuvo en GitHub
-Pages **nadie atendía ese endpoint y cada lead se perdió en silencio**: no hay
-error visible para el visitante ni aviso para nosotros.
-
-Ahora nginx lo enruta a `baleia-leads`, que escribe una línea JSON por contacto
-en `/srv/baleia/leads/leads.jsonl`, con `fsync`. Para leerlos:
+### Cómo se carga un proyecto
 
 ```bash
-ssh root@179.199.142.5 'cat /srv/baleia/leads/leads.jsonl'
+python3 tools/baleia/scripts/ingestar_a_plataforma.py \
+  --tenant dacal --project baleia --subdominio baleia \
+  --nombre-tenant "Dacal Bienes Raíces" --prefijo-publicado "" --aplicar
 ```
 
-Sin base de datos a propósito: lo importante era que no se pierda ninguno y que
-se pueda leer con un `cat`. Si algún día conviene, el Supabase de este proyecto
-ya está en ese mismo servidor (`vrotta-prop-360-supabase-khxq56`).
+Sin `--aplicar` no escribe nada, sólo muestra el plan. Es idempotente. El
+`--prefijo-publicado ""` importa: conserva el `./baleia/` de las rutas, que es
+la forma en que la media se sube al almacenamiento y la que espera el
+`index.html` para el logo del preloader.
 
-### Pasar al dominio definitivo
+### Subdominio automático y dominio propio
 
-1. Los dueños cargan los registros DNS. Están en `DNS-BALEIA.md`, listo para
-   entregar: dos registros `A` a `179.199.142.5`, TTL 300.
-2. Cuando el dominio ya resuelva a esa IP, agregar el Host a las **dos** reglas
-   de `/etc/dokploy/traefik/dynamic/baleia.yml` (el archivo tiene el ejemplo
-   escrito arriba). Traefik pide el certificado solo y después lo renueva solo.
-3. Actualizar `URL_PRUEBA` en `tools/deploy/publicar-vps.sh`.
+Cada proyecto tiene `projects.subdomain` (único global, label DNS válido, con
+lista de reservados que hace cumplir un trigger). El reconciliador le escribe
+a Traefik **tres routers por host**: el general hacia el worker, el de media
+hacia nginx (con `PathRegexp` y prioridad explícita) y el de redirección a
+https. Traefik pide y renueva el certificado solo.
 
-El orden importa: primero el DNS, después el certificado. La validación es por
-HTTP contra el servidor, así que no puede emitirse antes de que el dominio
-apunte ahí.
+Hoy el dominio base es `179.199.142.5.nip.io`, que funciona como wildcard sin
+tocar DNS. **Falta comprar el dominio del SaaS.** El día que esté:
 
-### Sobre Cloudflare R2
+1. Cargar un registro **A wildcard** `*.algo.eldominio.com` → `179.199.142.5`.
+2. Cambiar `R360_PAGES_DOMAIN` y `R360_BASE_DOMAIN` en `/root/.r360/worker.env`.
+3. Reiniciar `r360-worker` y `r360-reconciliador`.
 
-No hace falta. Se evaluó y no entra en esta etapa: el peso está en el video
-(64 MB de los 100), no en las 360. Con los 100 GB de tráfico del plan entran
-del orden de 30.000 visitas livianas por mes, o unas 3.000 si cada visita mira
-el video entero. Cuando el tráfico se acerque a eso, lo que conviene mudar es
-el video, no los tiles.
+Para el dominio propio de un cliente está la tabla `project_domains`, con
+token de posesión y estados. El reconciliador sólo enruta los `verified`.
 
-### Lo que quedó sin resolver
+### Lo que sigue pendiente
 
-- **El dominio no está elegido.** El sitio anda en la dirección provisoria.
-- **Sin `og:image`**, la tarjeta de previsualización cuando el link se comparta
-  por WhatsApp —que es como va a circular— sale sin imagen. Necesita una URL
-  absoluta, o sea el dominio.
-- **Los precios se actualizan a mano** (`tools/baleia/out/baleia_unidades.csv`,
-  fuera de git).
-- **La app vieja `r360-viewer-anvr6b`** sigue sirviendo el visor genérico de
-  septiembre en `viewer.179.199.142.5.nip.io`. No es Baleia y no se tocó.
+- **Comprar el dominio del SaaS** (ver arriba). Es lo único que bloquea.
+- **Sin `og:image`**: el link compartido por WhatsApp sale sin imagen. Necesita
+  URL absoluta, o sea dominio.
+- **Los leads del proyecto en la plataforma** los recibe `/api/leads` del
+  worker y van a la tabla `leads` de Supabase. Los que junte el sitio suelto
+  quedaron en `/srv/baleia/leads/leads.jsonl`.
+- **`B3-K`** ahora figura como "próximamente"; el pipeline viejo la omitía a
+  propósito. Es la única diferencia visible respecto del sitio suelto.
+- **Servir por ruta** (`/t/tenant/proyecto/`) no sirve el shell del visor: sus
+  assets son absolutos desde la raíz. Por hostname sí. Si alguna vez hace
+  falta la forma por ruta, hay que construir el visor con `VITE_BASE`.
+- Los precios se siguen actualizando a mano en el CSV.
 
 ---
 
