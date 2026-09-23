@@ -970,7 +970,19 @@ export class ViewerUi {
       : '';
     return `<button class="r360-cta360" data-abrir360="${escapeHtml(escena)}" aria-label="Recorrer en 360°, unidad modelo de la misma tipología">
         ${img}
-        <span class="r360-cta360__tag"><i aria-hidden="true"></i>Recorrer en 360&deg;</span>
+        <span class="r360-cta360__velo" aria-hidden="true"></span>
+        <span class="r360-cta360__entrar" aria-hidden="true">
+          <!-- Un triángulo de reproducción, no un ícono de 360 con órbitas y
+               flechas: a 26 píxeles esos trazos se empastan en una mancha.
+               Acá el ícono sólo tiene que decir "esto se abre" -eso ya se
+               entiende en cualquier pantalla del mundo- y el "360°" lo dice
+               la palabra de abajo, que sí se lee. Corrido 1px a la derecha
+               porque un triángulo centrado geométricamente se ve descentrado. -->
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M9.4 6.9c0-.83.9-1.35 1.62-.94l7.1 4.1a1.08 1.08 0 0 1 0 1.88l-7.1 4.1c-.72.41-1.62-.11-1.62-.94z"/>
+          </svg>
+        </span>
+        <span class="r360-cta360__tag">Recorrer en 360&deg;</span>
       </button>
       <p class="r360-panel__note r360-panel__note--360">Unidad modelo de la misma tipología, fotografiada adentro.</p>`;
   }

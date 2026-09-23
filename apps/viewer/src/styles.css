@@ -640,15 +640,33 @@ body.r360-rail-open .r360-bar > * { pointer-events: auto; }
   aspect-ratio: 16 / 10; background: #16202a;
 }
 .r360-cta360 img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.r360-cta360__tag {
-  position: absolute; left: 10px; bottom: 10px;
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 12px; border-radius: 999px;
-  font-size: 13px; font-weight: 700; color: #fff;
-  background: rgba(13, 17, 23, .78);
+/* Un velo suave, no una pastilla opaca: la foto es el argumento y taparla con
+   una caja negra era pagar legibilidad con imagen. El degradado sólo oscurece
+   lo que hay detrás del texto. */
+.r360-cta360__velo {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(13,17,23,.28) 0%, rgba(13,17,23,0) 38%,
+                                      rgba(13,17,23,.10) 62%, rgba(13,17,23,.62) 100%);
 }
-.r360-cta360__tag i {
-  width: 8px; height: 8px; border-radius: 999px; background: var(--r360-accent);
+/* El ícono al centro es la invitación: en una foto, un círculo en el medio se
+   lee como "esto se abre" sin que haga falta explicarlo. Vidrio esmerilado
+   para que funcione lo mismo sobre una pared clara que sobre un ventanal. */
+.r360-cta360__entrar {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: grid; place-items: center; width: 56px; height: 56px;
+  border-radius: 999px; color: #fff; pointer-events: none;
+  background: rgba(13, 17, 23, .34);
+  border: 1.5px solid rgba(255, 255, 255, .85);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: transform .18s ease, background-color .18s ease;
+}
+.r360-cta360__entrar svg { width: 22px; height: 22px; margin-left: 2px; }
+.r360-cta360:hover .r360-cta360__entrar { transform: translate(-50%, -50%) scale(1.06); background: rgba(13, 17, 23, .5); }
+.r360-cta360__tag {
+  position: absolute; left: 0; right: 0; bottom: 12px;
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #fff; text-align: center; pointer-events: none;
+  text-shadow: 0 1px 8px rgba(13, 17, 23, .55);
 }
 .r360-panel__note--360 {
   margin: 6px 0 12px;
