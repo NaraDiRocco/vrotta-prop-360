@@ -166,3 +166,44 @@ Si esa lista no está vacía, hay un precio abierto que debería estar cerrado.
 
 El arreglo de fondo va en `ingestar_a_plataforma.py`: al sincronizar precios,
 cerrar también los vigentes de las unidades que en el CSV ya no traen precio.
+
+## Agregar un campo nuevo al manifiesto: los tres pasos que se olvidan
+
+Pasó tres veces el 2026-09-23 —con `cotizador`, con `social` y con
+`portada360`— y las tres se descubrió publicando y viendo que el campo no
+llegaba. El código estaba bien; faltaba el resto.
+
+Un campo opcional del manifiesto que se configura por proyecto necesita:
+
+1. **El contrato**: el campo en `TourManifest` (`packages/core/src/types.ts`).
+2. **El publicador**: sumarlo a la lista blanca de `pickManifestOverrides` en
+   `apps/worker/src/routes/publish.ts`, y si es una ruta de media, también a
+   `prefixManifestMediaPaths`.
+3. **El pipeline** (`tools/baleia/scripts/build_tour.py`), para que el
+   recorrido local lo tenga.
+
+Y después, para que llegue a producción:
+
+4. **Redesplegar el worker.** El publicador corre allá; con el bundle viejo,
+   la lista blanca vieja descarta el campo en silencio.
+   ```bash
+   pnpm --filter @r360/worker bundle
+   scp apps/worker/dist/worker.mjs root@179.199.142.5:/srv/r360/app/worker.mjs
+   ssh root@179.199.142.5 'docker service update --force r360-worker'
+   ```
+5. **Cargar el valor en `projects.settings`.** El manifiesto de la plataforma
+   se arma desde la base, no desde el `tour.json` local.
+
+**La causa de fondo, sin arreglar**: la ingesta copia a `settings` sólo cuatro
+campos editoriales fijos (`photoTour`, `brochurePages`, `brandLogo`,
+`contact`). Los que se agregaron después hay que cargarlos a mano con SQL. El
+arreglo va en `ingestar_a_plataforma.py`: que tome del manifiesto todos los
+campos opcionales que el publicador sabe leer, en vez de una lista propia que
+se desactualiza.
+
+**Cómo darse cuenta rápido** después de publicar:
+
+```bash
+curl -sS https://baleia.vrottaprop360.com/tour.json \
+  | python3 -c "import sys,json;d=json.load(sys.stdin);print({k:bool(d.get(k)) for k in ('cotizador','social','portada360','photoTour','brochurePages','brandLogo','contact')})"
+```
