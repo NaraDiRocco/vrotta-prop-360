@@ -741,13 +741,13 @@ export class ViewerUi {
         this.header(titulo, codes ? chip : null, { tituloOculto: !codes }) +
         priceRow +
         lineaDecision +
-        // Justo debajo del precio y antes del recorrido 360: es ahí donde
-        // aparece la pregunta "¿y cómo lo pago?", con el precio todavía a
-        // la vista (ver la decisión de UX en `cotizador-panel.ts`).
-        this.cotizadorHtml(code, !!codes, sinConsulta) +
         this.recorrido360Html(attrs) +
         (sinConsulta ? '' : this.ctaHtml(code, visitable)) +
-        this.accionesHtml(code, unit.groupCode ?? parent ?? null, attrs) +
+        // El cotizador va DESPUÉS del botón de visita, no antes: pedir la
+        // visita es la acción principal y tiene que quedar primera. Simular
+        // el plan es el paso siguiente, de quien ya se entusiasmó y quiere
+        // los números, así que gana estando debajo en vez de interponerse.
+        this.cotizadorHtml(code, !!codes, sinConsulta) +
         this.plano3dHtml(attrs) +
         (rows.length ? `<dl class="r360-facts">${rows.join('')}</dl>` : '') +
         (codes ? this.unitGrid(code, codes) : '') +
@@ -890,28 +890,6 @@ export class ViewerUi {
     });
 
     return cotizadorPanelHtml({ condiciones, plan, amortizacion, moneda: price.c, cta });
-  }
-
-  /**
-   * Las dos acciones que sólo Baleia puede ofrecer (plan §6, auditoría §4
-   * Idea 3), debajo del precio: la unidad **está construida** (se puede ir a
-   * verla) y el plano **existe** (se puede bajar). Cada una aparece sólo si
-   * su condición es real: sin bloque construido no hay visita, y sin PDF
-   * publicado no hay descarga — un botón que no lleva a nada es peor que la
-   * ausencia del botón.
-   */
-  private accionesHtml(_code: string, _grupo: string | null, attrs: Record<string, unknown>): string {
-    const partes: string[] = [];
-
-    const pdf = typeof attrs.planoPdf === 'string' ? attrs.planoPdf : null;
-    if (pdf) {
-      partes.push(
-        `<a class="r360-panel__accion" href="${escapeHtml(this.resolve(pdf))}" download target="_blank" rel="noopener">` +
-          `&#11015; Descargar el plano (PDF)</a>`,
-      );
-    }
-
-    return partes.length ? `<div class="r360-panel__acciones">${partes.join('')}</div>` : '';
   }
 
   /**
