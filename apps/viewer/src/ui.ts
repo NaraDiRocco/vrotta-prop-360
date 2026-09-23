@@ -126,6 +126,22 @@ const THUMB = (url: string) => url.replace(/\.webp$/i, '.thumb.webp');
 function panoramaPreviewUrl(base: string): string | null {
   return base.endsWith('/tiles') ? `${base.slice(0, -'/tiles'.length)}/preview.webp` : null;
 }
+/**
+ * La portada de la panorámica: la MISMA escena proyectada en perspectiva, con
+ * el encuadre con el que abre (`tools/baleia/scripts/portadas_360.py`).
+ *
+ * El `preview.webp` de al lado es la equirectangular cruda, 2:1, y se ve
+ * deformada: el techo y el piso estirados de lado a lado y los 360 grados
+ * aplastados en un rectángulo. Como primera impresión de una unidad, parecía
+ * una foto rota. La portada muestra lo que la persona va a ver cuando entre,
+ * que es lo que una tarjeta de invitación tiene que prometer.
+ *
+ * Misma convención de carpeta, y si no existe se cae al preview: un proyecto
+ * sin portadas generadas sigue mostrando algo.
+ */
+function panoramaPortadaUrl(base: string): string | null {
+  return base.endsWith('/tiles') ? `${base.slice(0, -'/tiles'.length)}/portada.webp` : null;
+}
 const NUM = new Intl.NumberFormat('es-AR');
 const num = (v: unknown) => NUM.format(Number(v));
 /** Entrega del Bloque 2, la única unidad construida hoy (README §3.1). No
@@ -847,11 +863,11 @@ export class ViewerUi {
     const disclaimer = ctx.price
       ? '<p class="r360-panel__note r360-panel__note--muted">Valores de lista, a confirmar por el vendedor.</p>'
       : '';
-    // El contorno toma el color del estado: verde en las disponibles, rojo en
-    // las vendidas, gris en las próximamente. Era siempre el verde de
-    // WhatsApp, que decía el canal y no la unidad.
-    const chip = this.chipFor(code);
-    return `<a class="r360-cta" style="border-color:${tintaLegible(chip.base)}"
+    // Sin contorno de color. Lo tuvo un tiempo, tomando el del estado, pero
+    // el estado ya se dice dos veces más arriba -en la palabra y en el punto
+    // del chip- y repetirlo en el borde del botón sumaba un color fuerte a
+    // una ficha que se lee mejor sobria.
+    return `<a class="r360-cta"
         href="${escapeHtml(cta.href)}" target="_blank" rel="noopener"
         data-cta-unit="${escapeHtml(cta.unitCode)}" data-cta-kind="${escapeHtml(cta.kind)}">
         ${escapeHtml(cta.label)}
@@ -942,10 +958,15 @@ export class ViewerUi {
     // panorámica publicada (convención del builder, `panoramaPreviewUrl`),
     // así que no hace falta un campo nuevo en el manifiesto para mostrarla.
     const scene = this.opts.tour.scenes.find((sc) => sc.slug === escena);
-    const preview =
-      scene && 'base' in scene.source ? panoramaPreviewUrl(scene.source.base) : null;
-    const img = preview
-      ? `<img loading="lazy" alt="Panorámica 360° de la unidad modelo" src="${escapeHtml(this.resolve(preview))}" />`
+    const base = scene && 'base' in scene.source ? scene.source.base : null;
+    const portada = base ? panoramaPortadaUrl(base) : null;
+    const preview = base ? panoramaPreviewUrl(base) : null;
+    // Si la portada no está generada, el `onerror` cae al preview en vez de
+    // dejar el hueco de una imagen rota.
+    const img = portada
+      ? `<img loading="lazy" alt="Vista de la unidad modelo" src="${escapeHtml(this.resolve(portada))}"` +
+        (preview ? ` onerror="this.onerror=null;this.src='${escapeHtml(this.resolve(preview))}'"` : '') +
+        ` />`
       : '';
     return `<button class="r360-cta360" data-abrir360="${escapeHtml(escena)}" aria-label="Recorrer en 360°, unidad modelo de la misma tipología">
         ${img}

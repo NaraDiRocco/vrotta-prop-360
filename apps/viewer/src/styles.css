@@ -934,6 +934,12 @@ body.r360-units-open .r360-rail__marca { display: none; }
    tercera, apenas dibujada, para el plano. El verde de WhatsApp queda fuera
    de la ficha: acá el color de marca ordena mejor que el del canal. */
 .r360-sheet .r360-cta {
+  /* Sin contorno. La regla base de `boot.css` le pone el verde de WhatsApp,
+     que tiene sentido cuando el botón es el canal; dentro de la ficha el
+     relleno ya es arena y ese verde quedaba como un recuadro suelto que no
+     decía nada. Se apaga acá y no en la base para que el botón conserve su
+     aspecto propio si alguna vez se usa fuera de una ficha. */
+  border: 0;
   /* 44 px es el piso: el área tocable mínima con el pulgar. */
   min-height: 44px;
   padding: 8px 16px;
