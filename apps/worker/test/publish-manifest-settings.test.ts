@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { PhotoTour } from '@r360/core';
+import type { PhotoTour, CondicionesVenta } from '@r360/core';
 import { buildManifestFromSupabase, pickManifestOverrides } from '../src/routes/publish.ts';
 import { createSupabaseClient } from '../src/lib/supabase.ts';
 
@@ -80,12 +80,27 @@ describe('pickManifestOverrides', () => {
     const social = { title: 'Baleia — reservá tu unidad', description: 'Recorrido 360°.', image: './social/portada.webp' };
     expect(pickManifestOverrides({ social })).toEqual({ social });
   });
+
+  it('copia cotizador (condiciones comerciales) cuando está presente', () => {
+    const cotizador: CondicionesVenta = {
+      anticipoPct: 0.5,
+      tasaAnualPct: 0.06,
+      plazoMeses: 12,
+      gastosOcupacionPct: 0.04,
+      gastosOcupacionReparto: { posesionPct: 0.025, escrituraPct: 0.015 },
+    };
+    expect(pickManifestOverrides({ cotizador })).toEqual({ cotizador });
+  });
+
+  it('trata un null explícito en cotizador como ausente, no lo copia', () => {
+    expect(pickManifestOverrides({ cotizador: null })).toEqual({});
+  });
 });
 
 describe('buildManifestFromSupabase — fundido de projects.settings', () => {
   it('(a) con settings vacío, el manifiesto no lleva ninguna de las claves opcionales', async () => {
     const manifest = await buildManifest({});
-    for (const key of ['theme', 'contact', 'brandLogo', 'photoTour', 'brochurePages'] as const) {
+    for (const key of ['theme', 'contact', 'brandLogo', 'photoTour', 'brochurePages', 'cotizador'] as const) {
       expect(key in manifest).toBe(false);
     }
   });

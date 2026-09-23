@@ -99,31 +99,35 @@ interface HotspotRow {
 }
 
 /**
- * Los seis campos opcionales y aditivos de `TourManifest` (`theme`,
- * `contact`, `brandLogo`, `social`, `photoTour`, `brochurePages` — ver
- * packages/core/src/types.ts) no tienen tabla propia: en el caso real de
- * Baleia son justamente el recorrido narrativo entero (tramos, brochure,
- * logo, CTA de contacto), así que hoy quedan guardados en `projects.settings`
- * (jsonb, 0003_projects.sql), la misma columna donde el panel guarda su
- * propia configuración interna (`initial_scene_id`, `allowed_domains`, ver
+ * Los siete campos opcionales y aditivos de `TourManifest` (`theme`,
+ * `contact`, `brandLogo`, `social`, `photoTour`, `brochurePages`,
+ * `cotizador` — ver packages/core/src/types.ts) no tienen tabla propia: en
+ * el caso real de Baleia son justamente el recorrido narrativo entero
+ * (tramos, brochure, logo, CTA de contacto, condiciones comerciales del
+ * cotizador), así que hoy quedan guardados en `projects.settings` (jsonb,
+ * 0003_projects.sql), la misma columna donde el panel guarda su propia
+ * configuración interna (`initial_scene_id`, `allowed_domains`, ver
  * 0012_project_health_view.sql).
  *
- * Por eso acá se hace un pick explícito de esas seis claves nada más:
+ * Por eso acá se hace un pick explícito de esas siete claves nada más:
  * cualquier otra cosa que haya en `settings` (configuración de panel, restos
  * de una versión vieja, lo que sea) se ignora en silencio. Y una clave sólo
  * se copia si está REALMENTE presente y no es `null` — un `photoTour`
  * ausente en `settings` tiene que quedar ausente en el manifiesto (nunca
  * `undefined` serializado ni `null`), porque el contrato le da significado a
- * la ausencia de la clave (el visor simplemente no dibuja esa sección).
+ * la ausencia de la clave (el visor simplemente no dibuja esa sección). Lo
+ * mismo vale para `cotizador`: sin condiciones cargadas en `settings`, el
+ * manifiesto sale sin `cotizador` y el visor no dibuja el simulador — nunca
+ * unas condiciones inventadas o de otro proyecto.
  *
  * El tipo de retorno (`Partial<Pick<TourManifest, ...>>` con sólo estas
- * seis claves) es, a la vez, la garantía de seguridad: por construcción este
+ * siete claves) es, a la vez, la garantía de seguridad: por construcción este
  * objeto no puede contener `scenes`, `version`, `tenant` ni ningún otro campo
  * obligatorio, así que un `settings` corrupto o cargado a mano de más nunca
  * tiene forma de pisar la geometría o el versionado que arma el publicador.
  */
 type ManifestSettingsOverrides = Partial<
-  Pick<TourManifest, 'theme' | 'contact' | 'brandLogo' | 'social' | 'photoTour' | 'brochurePages'>
+  Pick<TourManifest, 'theme' | 'contact' | 'brandLogo' | 'social' | 'photoTour' | 'brochurePages' | 'cotizador'>
 >;
 
 export function pickManifestOverrides(settings: Record<string, unknown> | null): ManifestSettingsOverrides {
@@ -136,6 +140,9 @@ export function pickManifestOverrides(settings: Record<string, unknown> | null):
   if (settings.photoTour != null) overrides.photoTour = settings.photoTour as TourManifest['photoTour'];
   if (settings.brochurePages != null) {
     overrides.brochurePages = settings.brochurePages as TourManifest['brochurePages'];
+  }
+  if (settings.cotizador != null) {
+    overrides.cotizador = settings.cotizador as TourManifest['cotizador'];
   }
   return overrides;
 }

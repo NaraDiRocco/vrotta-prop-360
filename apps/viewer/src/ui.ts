@@ -33,6 +33,8 @@
 import {
   INFO_TOKEN,
   STATUS_TOKENS,
+  calcularPlanDePago,
+  calcularTablaAmortizacion,
   isUnitStatus,
   type AvailabilityFile,
   type Scene,
@@ -40,6 +42,11 @@ import {
   type UnitStatus,
 } from '@r360/core';
 import { escapeHtml, formatPrice, priceTextForUnit } from './polygons.ts';
+// El cotizador (motor en `@r360/core::cotizador.ts`) decide SI se muestra y
+// arma su HTML acá, no en `ui.ts`: es lógica pura, testeada con `node --test`
+// sin DOM, igual que `unidad.ts` y `contact.ts` — esta capa sólo la integra
+// con el tour/availability de la unidad que se está mirando.
+import { cotizadorPanelHtml, formatMonto, puedeCotizarse } from './cotizador-panel.ts';
 import { parseHash, type SceneController, type UnitClickPayload } from './scenes.ts';
 import { shouldRotate } from './plan-orientation.ts';
 import { mountBrochure, type BrochureHandle } from './brochure.ts';
@@ -734,6 +741,10 @@ export class ViewerUi {
         this.header(titulo, codes ? chip : null, { tituloOculto: !codes }) +
         priceRow +
         lineaDecision +
+        // Justo debajo del precio y antes del recorrido 360: es ahí donde
+        // aparece la pregunta "¿y cómo lo pago?", con el precio todavía a
+        // la vista (ver la decisión de UX en `cotizador-panel.ts`).
+        this.cotizadorHtml(code, !!codes, sinConsulta) +
         this.recorrido360Html(attrs) +
         (sinConsulta ? '' : this.ctaHtml(code, visitable)) +
         this.accionesHtml(code, unit.groupCode ?? parent ?? null, attrs) +
@@ -839,6 +850,46 @@ export class ViewerUi {
         data-cta-unit="${escapeHtml(cta.unitCode)}" data-cta-kind="${escapeHtml(cta.kind)}">
         ${escapeHtml(cta.label)}
       </a>${disclaimer}`;
+  }
+
+  /**
+   * El cotizador: arma el plan de pago (`@r360/core::calcularPlanDePago`) y
+   * su tabla de amortización, y le pide el HTML a `cotizador-panel.ts` —
+   * ahí vive la decisión de si corresponde mostrarlo y cómo se ve, testeada
+   * sin DOM. Acá sólo se junta lo que ese módulo necesita: el precio y el
+   * estado de ESTA unidad, tal como ya los resuelve el resto de la ficha.
+   *
+   * `sinConsulta` llega calculado por `openUnit` (mismo corte que ya usa el
+   * CTA de contacto — vendida, bloqueada, próximamente o sin dato): no tiene
+   * sentido simular el pago de algo que ni siquiera admite la consulta.
+   */
+  private cotizadorHtml(code: string, esBloque: boolean, sinConsulta: boolean): string {
+    const condiciones = this.opts.tour.cotizador;
+    const price = this.opts.availability()?.units[code]?.p ?? null;
+    if (!puedeCotizarse({ cotizador: condiciones, esBloque, price, sinConsulta })) return '';
+    // `puedeCotizarse` ya confirmó que los dos existen; TypeScript no puede
+    // seguir esa garantía a través de la llamada, así que se repite acá como
+    // guarda (nunca debería disparar) para que el resto del método trabaje
+    // con los dos ya no-nulos.
+    if (!condiciones || !price) return '';
+    const plan = calcularPlanDePago(price.a, condiciones);
+    const amortizacion = calcularTablaAmortizacion(price.a, condiciones);
+
+    // El mismo `ctaContextFor` que arma el CTA de contacto (`ctaHtml`,
+    // arriba), forzado a `kind: 'cotizador'` — así el mensaje lleva la unidad,
+    // sus datos y el deep link igual que cualquier otro CTA, y encima el plan
+    // ya calculado (ver `CtaContext.plan` en `contact.ts`).
+    const ctx = ctaContextFor(code, this.opts.tour, this.opts.availability(), this.opts.controller.slug, location.href, 'cotizador');
+    const cta = buildCta(this.opts.tour.contact, {
+      ...ctx,
+      plan: {
+        anticipoTexto: formatMonto({ a: plan.anticipo, c: price.c }),
+        cuotaTexto: formatMonto({ a: plan.cuotaMensual, c: price.c }),
+        plazoMeses: plan.plazoMeses,
+      },
+    });
+
+    return cotizadorPanelHtml({ condiciones, plan, amortizacion, moneda: price.c, cta });
   }
 
   /**
@@ -1032,6 +1083,20 @@ export class ViewerUi {
     this.panel.onclick = (e) => {
       const el = e.target as HTMLElement;
       if (el.closest('.r360-close')) return this.requestClose('panel');
+      // El desplegable del cotizador: un botón real con `aria-expanded`, que
+      // esta ficha alterna a mano (no hay `<details>` acá porque el pedido
+      // es específicamente un botón operable por teclado con ese atributo).
+      // El cuerpo se identifica por `aria-controls`, no por una referencia
+      // guardada aparte, para no duplicar la relación entre los dos.
+      const cotizadorToggle = el.closest<HTMLElement>('.r360-cotizador__toggle');
+      if (cotizadorToggle) {
+        const abierto = cotizadorToggle.getAttribute('aria-expanded') === 'true';
+        const id = cotizadorToggle.getAttribute('aria-controls');
+        const body = id ? this.panel.querySelector<HTMLElement>(`#${CSS.escape(id)}`) : null;
+        cotizadorToggle.setAttribute('aria-expanded', String(!abierto));
+        if (body) body.hidden = abierto;
+        return;
+      }
       // `[data-cta-unit]` y no `.r360-cta`: así cualquier CTA de la ficha
       // queda registrado, sea el botón principal o uno que se agregue después.
       const cta = el.closest<HTMLElement>('[data-cta-unit]');

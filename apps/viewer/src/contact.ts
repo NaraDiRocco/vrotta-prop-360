@@ -38,7 +38,14 @@ export type CtaKind =
    * la variante que ningún proyecto en pozo puede ofrecer, y por eso vive
    * como un CTA propio y no como un texto más del mensaje de consulta.
    */
-  | 'visita';
+  | 'visita'
+  /**
+   * El cierre del cotizador de la ficha (`cotizador-panel.ts`): manda la
+   * propuesta ya simulada (anticipo + cuota) en vez de pedir que el vendedor
+   * la calcule de nuevo del otro lado. Necesita `CtaContext.plan` — sin él
+   * cae al mensaje genérico de `unit`, nunca revienta.
+   */
+  | 'cotizador';
 
 export interface CtaContext {
   project: string;
@@ -61,6 +68,14 @@ export interface CtaContext {
   bloqueLabel?: string | null;
   /** Deep link absoluto a lo que el visitante está mirando. */
   url: string;
+  /**
+   * Sólo para `kind: 'cotizador'`: el plan de pago ya calculado y ya
+   * formateado (ver `cotizador-panel.ts::formatMonto`, la misma cuenta que
+   * ve el visitante en la ficha). Viaja como texto y no como número crudo
+   * para que este módulo no tenga que decidir de nuevo cómo se muestra una
+   * cifra — esa decisión es de un solo lugar, y no es acá.
+   */
+  plan?: { anticipoTexto: string; cuotaTexto: string; plazoMeses: number };
 }
 
 export interface Cta {
@@ -112,6 +127,9 @@ export function formatWhatsappDisplay(raw: string): string | null {
 
 /** Texto del botón. Lleva el código adentro: el visitante ve por qué consulta. */
 export function ctaLabel(ctx: Pick<CtaContext, 'kind' | 'label' | 'numero'>): string {
+  // El botón dice la acción, no el canal: la persona ya simuló el plan, así
+  // que acá no hay nada que "consultar" — hay una propuesta para mandar.
+  if (ctx.kind === 'cotizador') return 'Enviar propuesta por WhatsApp';
   if (ctx.kind === 'visita') return 'Quiero visitarla';
   if (ctx.kind === 'plan') return `Pedir planta de ${ctx.label}`;
   if (ctx.kind === 'block') return `Consultar por el ${ctx.label}`;
@@ -131,6 +149,22 @@ const bullet = (s: string) => `• ${s}`;
  */
 export function buildCtaMessage(ctx: CtaContext): string {
   const lines: string[] = [];
+
+  // El cierre del cotizador: el vendedor tiene que recibir la conversación
+  // YA EMPEZADA con los mismos números que el comprador estaba mirando en la
+  // ficha (unidad + anticipo + cuota), no un "quisiera saber el precio" que
+  // le hace repetir la cuenta que la pantalla ya hizo. Si por algún motivo
+  // no llegó `ctx.plan` (no debería pasar: lo arma `ui.ts` siempre que
+  // ofrece este CTA), se sigue de largo al mensaje genérico de `unit` en vez
+  // de mandar un mensaje a medio armar.
+  if (ctx.kind === 'cotizador' && ctx.plan) {
+    lines.push(`Hola! Estoy viendo ${ctx.project} y me interesa ${frasePorUnidad(ctx)}. Simulé un plan de pago y te paso los números:`);
+    if (ctx.facts.length) lines.push(bullet(ctx.facts.join(' · ')));
+    lines.push(bullet(`Anticipo: ${ctx.plan.anticipoTexto}`));
+    lines.push(bullet(`${ctx.plan.plazoMeses} cuotas de ${ctx.plan.cuotaTexto}`));
+    lines.push(`La estoy viendo acá: ${ctx.url}`);
+    return lines.join('\n');
+  }
 
   // "Quiero visitarla": la unidad está construida y se puede ir a verla. El
   // mensaje no necesita precio ni estado — necesita una fecha, que la pone el
@@ -193,7 +227,12 @@ export function applyTemplate(template: string, ctx: CtaContext): string {
 /** Une todo. `null` cuando el proyecto no tiene contacto cargado. */
 export function buildCta(contact: TourManifest['contact'], ctx: CtaContext): Cta | null {
   if (!contact?.whatsapp) return null;
-  const message = contact.messageTemplate
+  // `messageTemplate` sólo conoce sus siete placeholders de siempre (ver
+  // `applyTemplate`): no tiene forma de decir "anticipo" ni "cuota". Un
+  // proyecto con plantilla propia igual tiene que mandar los números del
+  // cotizador — por eso este único kind se pasa de largo la plantilla y usa
+  // siempre `buildCtaMessage`, que sí sabe armar ese mensaje.
+  const message = contact.messageTemplate && ctx.kind !== 'cotizador'
     ? applyTemplate(contact.messageTemplate, ctx)
     : buildCtaMessage(ctx);
   const href = whatsappUrl(contact.whatsapp, message);

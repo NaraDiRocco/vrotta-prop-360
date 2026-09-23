@@ -1,5 +1,6 @@
 import type { UnitStatus } from './status.ts';
 import type { Sph, Px } from './geometry.ts';
+import type { CondicionesVenta } from './cotizador.ts';
 
 export type ProjectKind = 'loteo' | 'edificio' | 'complejo' | 'mixto';
 export type SceneKind = 'panorama' | 'floorplan' | 'map' | 'video';
@@ -283,6 +284,17 @@ export interface TourManifest {
    *  del teléfono un PDF dentro de la página es poco confiable. Opcional: sin
    *  páginas, el visor no dibuja el botón. */
   brochurePages?: string[];
+  /**
+   * Condiciones comerciales vigentes para el cotizador de la ficha de unidad
+   * (anticipo, tasa, plazo y gastos de ocupación — ver `CondicionesVenta` en
+   * `cotizador.ts`, que también trae la función que las convierte en un
+   * plan de pago). Igual que los demás campos de esta lista, viven acá y no
+   * hardcodeadas en el visor porque cambian con el tiempo (otra lista de
+   * precios, otra tasa) y ese cambio no puede requerir un deploy. Opcional
+   * y aditivo: ausente = el visor no muestra el cotizador, mismo criterio
+   * que el resto — sin dato, no se dibuja.
+   */
+  cotizador?: CondicionesVenta;
   start: string;
   scenes: Scene[];
   hotspots: Hotspot[];

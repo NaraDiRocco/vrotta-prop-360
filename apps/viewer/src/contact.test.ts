@@ -140,6 +140,31 @@ test('"Quiero visitarla" pide la visita al bloque construido y no habla de preci
   assert.equal(ctaLabel({ kind: 'visita', label: 'B2-A' }), 'Quiero visitarla');
 });
 
+// --------------------------------------------------------------- cotizador
+
+const PLAN = { anticipoTexto: 'US$ 182.430,50', cuotaTexto: 'US$ 15.701,14', plazoMeses: 12 };
+
+test('el mensaje del cotizador lleva la unidad, el anticipo y la cuota', () => {
+  const msg = plain(buildCtaMessage({ ...base, kind: 'cotizador', numero: '207', plan: PLAN }));
+  assert.ok(msg.includes('me interesa la 207.'));
+  assert.ok(msg.includes('Anticipo: US$ 182.430,50'));
+  assert.ok(msg.includes('12 cuotas de US$ 15.701,14'));
+  assert.ok(msg.includes(`La estoy viendo acá: ${URL_B2A}`));
+  // Ni precio de lista ni estado por separado: el plan YA es la respuesta a
+  // "cuánto sale", repetirlo sería la misma info dos veces.
+  assert.ok(!msg.includes('Precio de lista'));
+  assert.ok(!msg.includes('Estado:'));
+});
+
+test('sin `plan` (no debería pasar) el cotizador cae al mensaje genérico, nunca revienta', () => {
+  const msg = buildCtaMessage({ ...base, kind: 'cotizador' });
+  assert.ok(msg.includes('Precio de lista'));
+});
+
+test('el botón del cotizador dice "enviar", no "consultar": ya hay una propuesta armada', () => {
+  assert.equal(ctaLabel({ kind: 'cotizador', label: 'B2-A' }), 'Enviar propuesta por WhatsApp');
+});
+
 // ------------------------------------------------------------------ plantilla
 
 test('la plantilla del manifiesto reemplaza sólo los placeholders conocidos', () => {
@@ -243,6 +268,24 @@ test('sin contact en el manifiesto no hay CTA (no un botón roto)', () => {
   const ctx = ctaContextFor('B2-A', tour, availability, 'masterplan', 'https://baleia.uy/tour');
   assert.equal(buildCta(undefined, ctx), null);
   assert.equal(buildCta({ whatsapp: '' }, ctx), null);
+});
+
+test('el CTA del cotizador manda el plan aunque el proyecto tenga su propia plantilla de mensaje', () => {
+  // `messageTemplate` sólo sabe de sus siete placeholders (project/code/label/
+  // facts/price/status/url): no hay forma de pedirle "el anticipo" o "la
+  // cuota". El cotizador tiene que mandarlos sí o sí, así que pasa de largo
+  // la plantilla del proyecto — ver el comentario de `buildCta`.
+  const ctx = { ...ctaContextFor('B2-A', tour, availability, 'masterplan', 'https://baleia.uy/tour'), kind: 'cotizador' as const, plan: PLAN };
+  const contactConPlantilla = { ...tour.contact, messageTemplate: 'Hola, {label}, {price}' };
+  const cta = buildCta(contactConPlantilla, ctx)!;
+  assert.ok(cta.message.includes('Anticipo: US$ 182.430,50'));
+  assert.ok(cta.message.includes('12 cuotas de US$ 15.701,14'));
+  assert.equal(cta.label, 'Enviar propuesta por WhatsApp');
+  // Un CTA "normal" (no cotizador) del mismo proyecto sigue usando SU
+  // plantilla como siempre: el carve-out es sólo para este kind.
+  const ctxUnit = ctaContextFor('B2-A', tour, availability, 'masterplan', 'https://baleia.uy/tour');
+  const ctaUnit = buildCta(contactConPlantilla, ctxUnit)!;
+  assert.equal(plain(ctaUnit.message), 'Hola, B2-A, US$ 240.000');
 });
 
 // -------------------------------------------------------------- registro de leads (I1)

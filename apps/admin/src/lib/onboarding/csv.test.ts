@@ -156,19 +156,29 @@ describe('buildImportPlan', () => {
     expect(first?.groupCode).toBe('Bloque 2');
     expect(first?.typeCode).toBe('duplex');
     expect(first?.typeName).toBe('Dúplex');
-    // 163.42 = precio real del brochure "BLOQUE 2 - DISPONIBLE" (set-2026),
-    // sin cochera (se cobra aparte a USD 10.000 fijo). Antes de cargar el
-    // dato comercial real, esta columna tenía 175.92 (con cochera incluida).
-    expect(first?.areaTotalM2).toBe(163.42);
+    // 175.92 con la cochera incluida, que es como la cuenta la lista de
+    // precios oficial de Caetano (set-2026): cubierto + semicubierto +
+    // descubierto + cochera. El valor anterior, 163.42, la dejaba afuera —y
+    // sólo en algunas unidades, que era la inconsistencia que esa lista vino
+    // a corregir.
+    expect(first?.areaTotalM2).toBe(175.92);
     expect(first?.attrs['sup_cubierta']).toBe(109.68);
     // La columna `estado` ahora trae el dato real del brochure (disponible).
     expect(first?.status).toBe('disponible');
     expect(first?.price).toEqual({ amount: 364861, currency: 'USD', visibility: 'public' });
     // Las notas con comas van entre comillas: tienen que llegar enteras.
-    expect(String(first?.attrs['notas_internas'])).toContain('brochure pag.13');
+    expect(String(first?.attrs['notas_internas'])).toContain('lista de precios real de Caetano');
 
     expect(plan.missingGroups).toEqual(['Bloque 2', 'Bloque 3']);
-    expect(plan.missingTypes.map((t) => t.code)).toEqual(['duplex', '1-dormitorio']);
+    // Cuatro tipologías, no dos: la lista de precios de Caetano distingue
+    // "2 Amb." de "1 Dorm." en el Bloque 2, donde antes las cuatro unidades
+    // chicas figuraban como "1 dormitorio". El "1-dormitorio" que queda es del
+    // Bloque 3, que todavía no se actualizó y por eso convive con el nuevo
+    // "1-dorm": son el mismo tipo escrito de dos formas, y conviene unificarlo
+    // cuando llegue la lista de precios de ese bloque.
+    expect(plan.missingTypes.map((t) => t.code)).toEqual([
+      'duplex', '2-amb', '1-dorm', '1-dormitorio',
+    ]);
   });
 
   it('respeta el estado por defecto que elige el operador, sólo donde no hay dato real', () => {
@@ -177,14 +187,14 @@ describe('buildImportPlan', () => {
     // con el default. Bloque 3 (11 unidades) sigue sin dato -> usa el default.
     const bloque2 = plan.units.filter((u) => u.code.startsWith('B2-'));
     const bloque3 = plan.units.filter((u) => u.code.startsWith('B3-'));
-    // B2-F/B2-G (206/207) pasaron de 'disponible' a 'bloqueado' el 06/09/2026:
-    // 3 de las 4 listas de precios del cliente dicen que esas unidades ya
-    // están vendidas (ver tools/baleia/material/INVENTARIO.md §3 y
-    // tools/baleia/README.md §3.2) y mientras no se confirme con Caetano el
-    // recorrido no afirma disponibilidad ni publica precio para ellas.
+    // Los estados salen de la lista de precios oficial de Caetano (set-2026),
+    // que resolvió lo que antes se deducía de listas parciales: las vendidas
+    // son la 204 (B2-C) y la 201 (B2-H), y las tres que estaban bloqueadas o
+    // dadas por vendidas -B2-F, B2-G y B2-I- están a la venta con precio. El
+    // orden es el del CSV, por letra, no por número comercial.
     expect(bloque2.map((u) => u.status)).toEqual([
-      'disponible', 'disponible', 'disponible', 'disponible', 'disponible',
-      'bloqueado', 'bloqueado', 'vendido', 'vendido',
+      'disponible', 'disponible', 'vendido', 'disponible', 'disponible',
+      'disponible', 'disponible', 'vendido', 'disponible',
     ]);
     expect(bloque3.every((u) => u.status === 'no_disponible')).toBe(true);
   });

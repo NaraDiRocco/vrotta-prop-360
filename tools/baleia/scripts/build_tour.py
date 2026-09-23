@@ -245,6 +245,21 @@ DECISIONES QUE VALE LA PENA DEJAR EXPLÍCITAS
    la caja con las medidas de la fuente que realmente usa. Igual que el
    horizontal, opcional: sin los tres archivos `.vertical.*` en
    `media/video/`, la escena sigue funcionando sólo con el horizontal.
+
+19. COTIZADOR (23/09/2026): `TourManifest.cotizador` (campo aditivo y
+   opcional, packages/core/src/types.ts) habilita el simulador de plan de
+   pago de la ficha de unidad. El MOTOR de cálculo (cuota francesa, tabla de
+   amortización) vive en `packages/core/src/cotizador.ts` -- este script no
+   calcula nada, sólo declara los NÚMEROS vigentes como constantes con
+   nombre (`ANTICIPO_PCT` y compañía, más abajo), tal como los publica la
+   lista de precios de Caetano de septiembre 2026 (`elementos baleia/Baleia
+   prueba brochure (1).pdf`; ver también tools/baleia/README.md §3.1 y
+   docs/08-MATERIAL-REAL/README.md §5, que ya documentaban "50% anticipo +
+   12 cuotas mensuales al 6% anual" y "gastos de ocupación: 4% aparte" en
+   prosa, sin el desglose 2.5%/1.5% que sí trae el brochure). Se emite
+   incondicional (a diferencia de `contact`, que espera confirmación del
+   cliente sobre el número de WhatsApp): las condiciones de venta de Bloque
+   2 ya están confirmadas y publicadas, no son un dato provisorio.
 """
 from __future__ import annotations
 
@@ -574,6 +589,35 @@ CONTACT_TEMPLATE: str | None = None
 # que haga falta fijarlos a mano. Se deja en None; si el cliente pide cortes
 # específicos de la leyenda de precios, ahí sí se completa esta lista.
 PRICE_BANDS: list[dict] | None = None
+
+# ------------------------------------------------------------- cotizador
+# Condiciones comerciales vigentes para `TourManifest.cotizador` (punto 19
+# del docstring). Fuente: lista de precios de Caetano, septiembre 2026
+# (`elementos baleia/Baleia prueba brochure (1).pdf`; ver también
+# tools/baleia/README.md §3.1):
+#
+#   "Anticipo del 50% del precio de la unidad + 12 cuotas mensuales con
+#   interés del 6% anual sobre saldo. Modalidad única — no se aplica
+#   descuento por pago contado."
+#   "Gastos de ocupación: 4% sobre el precio total de la unidad (cochera
+#   incluida), a cargo del comprador. Se abona 2.5% a la posesión y 1.5% a
+#   la escritura, por separado y no integran el total a escriturar."
+#
+# Estos números NO se calculan acá: el motor (cuota francesa, tabla de
+# amortización) vive en `packages/core/src/cotizador.ts`
+# (`CondicionesVenta`). Este script sólo los declara como constantes CON
+# NOMBRE, igual criterio que `CONTACT_WHATSAPP`/`PRICE_BANDS` de arriba: si
+# el día de mañana Caetano publica otra tasa u otro plazo, se cambia acá, en
+# un solo lugar, sin tocar la forma del manifiesto ni el motor de cálculo.
+ANTICIPO_PCT = 0.5
+TASA_ANUAL_PCT = 0.06
+PLAZO_MESES = 12
+GASTOS_OCUPACION_PCT = 0.04
+# Reparto del 4% de gastos de ocupación: 2.5% a la posesión + 1.5% a la
+# escritura (ambos expresados sobre el precio de la unidad, igual que los
+# publica la lista de precios — no como fracción del propio 4%).
+GASTOS_OCUPACION_POSESION_PCT = 0.025
+GASTOS_OCUPACION_ESCRITURA_PCT = 0.015
 
 # ------------------------------------------------------ regla dura (punto 6)
 # Bloques 1 y 3: el brochure los marca explícitamente "PRÓXIMAMENTE" (no
@@ -1453,6 +1497,21 @@ def build(argv: list[str] | None = None) -> int:
     if PRICE_BANDS:
         tour["theme"] = {"priceBands": PRICE_BANDS}
 
+    # `cotizador` (punto 19 del docstring): condiciones comerciales reales,
+    # confirmadas y publicadas (a diferencia de `contact`, no está atado a
+    # ninguna confirmación pendiente) — se emite siempre. El shape tiene que
+    # calzar EXACTO con `CondicionesVenta` de `packages/core/src/cotizador.ts`.
+    tour["cotizador"] = {
+        "anticipoPct": ANTICIPO_PCT,
+        "tasaAnualPct": TASA_ANUAL_PCT,
+        "plazoMeses": PLAZO_MESES,
+        "gastosOcupacionPct": GASTOS_OCUPACION_PCT,
+        "gastosOcupacionReparto": {
+            "posesionPct": GASTOS_OCUPACION_POSESION_PCT,
+            "escrituraPct": GASTOS_OCUPACION_ESCRITURA_PCT,
+        },
+    }
+
     # `photoTour` (punto 13 del docstring): material narrativo curado, con
     # procedencia y captions textuales del plan de experiencia.
     photo_tour, photo_media_info = build_photo_tour(TOUR_DIR)
@@ -1547,6 +1606,7 @@ def build(argv: list[str] | None = None) -> int:
                 },
                 "publicado": published,
                 "contact": tour.get("contact", None),
+                "cotizador": tour.get("cotizador", None),
                 "escenas": len(scenes),
                 "unidades_con_planta": sorted(media_by_unit),
                 "unidades_sin_planta": sorted(

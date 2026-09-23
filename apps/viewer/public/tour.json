@@ -2218,6 +2218,16 @@
     "whatsapp": "+59895559230",
     "name": "Caetano Negocios Inmobiliarios"
   },
+  "cotizador": {
+    "anticipoPct": 0.5,
+    "tasaAnualPct": 0.06,
+    "plazoMeses": 12,
+    "gastosOcupacionPct": 0.04,
+    "gastosOcupacionReparto": {
+      "posesionPct": 0.025,
+      "escrituraPct": 0.015
+    }
+  },
   "photoTour": {
     "items": [
       {

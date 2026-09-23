@@ -863,6 +863,65 @@ body.r360-units-open .r360-rail__marca { display: none; }
 }
 .r360-ficha__datos span { color: #abc1cb; }
 
+/*
+ * El cotizador: un desplegable DENTRO de la propia ficha, nunca un modal
+ * (ver la nota de UX en `cotizador-panel.ts`). Igual que `.r360-ficha`, este
+ * bloque sólo se dibuja adentro de la hoja (`.r360-sheet`), así que va
+ * directo en tinta sobre papel, sin variante oscura que nunca se usa.
+ *
+ * Cerrado es una fila con la misma pinta que las acciones secundarias de
+ * arriba (`.r360-panel__accion`); abierto, la cuota es el único número tan
+ * grande como el precio de la ficha — es la comparación que la persona vino
+ * a hacer, y las dos cifras entran en la misma pantalla.
+ */
+.r360-cotizador { margin: 0 0 12px; }
+.r360-cotizador__toggle {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  min-height: var(--r360-tap); padding: 0 14px; margin: 0; border-radius: 10px;
+  font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer;
+  color: #16202a; background: rgba(22, 32, 42, .04); border: 1px solid rgba(22, 32, 42, .18);
+}
+.r360-cotizador__toggle:hover,
+.r360-cotizador__toggle[aria-expanded="true"] { border-color: #ad9a84; }
+.r360-cotizador__chevron {
+  flex: none; width: 8px; height: 8px; margin-left: 8px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); transition: transform .18s ease;
+}
+.r360-cotizador__toggle[aria-expanded="true"] .r360-cotizador__chevron { transform: rotate(-135deg); }
+
+.r360-cotizador__body { padding-top: 14px; }
+.r360-cotizador__anticipo {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 0 0 12px; font-size: 13px; color: #55636f;
+}
+.r360-cotizador__anticipo strong { font-size: 15px; color: #101820; font-variant-numeric: tabular-nums; }
+.r360-cotizador__cuota-label { margin: 0; font-size: 12px; color: #55636f; }
+/* La cuota es el único número casi tan grande como el precio (`.r360-ficha__precio`
+   usa el mismo `clamp`, un punto más grande): es el dato que la gente compara. */
+.r360-cotizador__cuota {
+  margin: 2px 0 12px; font-size: clamp(24px, 7vw, 30px); font-weight: 700;
+  letter-spacing: -.02em; line-height: 1.05; color: #101820; font-variant-numeric: tabular-nums;
+}
+.r360-cotizador__detalle { margin-top: 0; padding-top: 12px; }
+.r360-cotizador__ocupacion {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(22, 32, 42, .14);
+  font-size: 12.5px; color: #55636f;
+}
+.r360-cotizador__ocupacion-titulo { margin: 0 0 2px; font-weight: 700; color: #101820; }
+.r360-cotizador__ocupacion-reparto { margin: 0; }
+.r360-cotizador__amort { margin-top: 12px; font-size: 12.5px; }
+.r360-cotizador__amort summary { cursor: pointer; padding: 6px 0; color: #16202a; font-weight: 600; }
+.r360-cotizador__tabla-wrap { overflow-x: auto; margin-top: 8px; }
+.r360-cotizador__tabla { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+.r360-cotizador__tabla th, .r360-cotizador__tabla td {
+  padding: 5px 8px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid rgba(22, 32, 42, .12); color: #35424f;
+}
+.r360-cotizador__tabla th { color: #55636f; font-weight: 600; }
+.r360-cotizador__tabla th:first-child, .r360-cotizador__tabla td:first-child { text-align: left; }
+.r360-cotizador__whatsapp { margin-top: 14px; }
+
 /* Los tres botones, en la paleta de Baleia y con una jerarquía que se ve:
    arena sólido para la consulta, tinta delineada para la visita y una
    tercera, apenas dibujada, para el plano. El verde de WhatsApp queda fuera
