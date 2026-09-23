@@ -874,7 +874,11 @@ body.r360-units-open .r360-rail__marca { display: none; }
  * grande como el precio de la ficha — es la comparación que la persona vino
  * a hacer, y las dos cifras entran en la misma pantalla.
  */
-.r360-cotizador { margin: 0 0 12px; }
+/* El disparador va centrado, como una invitación discreta en el medio de la
+   ficha. Se centra desde acá y no con `width:100%` en el botón para que el
+   área que responde al toque siga siendo la del texto y no toda la fila: una
+   franja invisible de borde a borde que abre un panel sorprende. */
+.r360-cotizador { margin: 0 0 12px; text-align: center; }
 /* Sin caja: texto y flecha, nada más. Debajo del botón de visita, una
    segunda caja competía con la principal y le sacaba peso; como enlace
    discreto, invita sin disputar. El área táctil se conserva con el
@@ -893,7 +897,7 @@ body.r360-units-open .r360-rail__marca { display: none; }
 }
 .r360-cotizador__toggle[aria-expanded="true"] .r360-cotizador__chevron { transform: rotate(-135deg); }
 
-.r360-cotizador__body { padding-top: 14px; }
+.r360-cotizador__body { padding-top: 14px; text-align: left; }
 .r360-cotizador__anticipo {
   display: flex; align-items: baseline; justify-content: space-between;
   margin: 0 0 12px; font-size: 13px; color: #55636f;
