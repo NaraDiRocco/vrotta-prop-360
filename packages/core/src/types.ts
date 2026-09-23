@@ -276,6 +276,17 @@ export interface TourManifest {
     /** Relativa a la base pública versionada (se prefija igual que `brandLogo`, ver `prefixManifestMediaPaths`) o ya absoluta. */
     image?: string;
   };
+  /**
+   * La foto que ilustra la invitación a entrar al 360, relativa al propio
+   * `tour.json` (aditiva y opcional, como `brandLogo`).
+   *
+   * Existe porque la alternativa era sacarla de la panorámica misma, y una
+   * panorámica proyectada sirve para mostrar el lugar pero no para seducir:
+   * la mejor foto del proyecto casi nunca coincide con el punto donde se paró
+   * la cámara 360. Ausente = el visor cae a la portada generada de la
+   * panorámica, que sigue siendo mejor que nada.
+   */
+  portada360?: string;
   /** Ver `PhotoTour`. Ausente = el visor no dibuja el recorrido narrativo de fotos. */
   photoTour?: PhotoTour;
   availabilityUrl: string;

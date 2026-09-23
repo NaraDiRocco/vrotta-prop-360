@@ -127,7 +127,17 @@ interface HotspotRow {
  * tiene forma de pisar la geometría o el versionado que arma el publicador.
  */
 type ManifestSettingsOverrides = Partial<
-  Pick<TourManifest, 'theme' | 'contact' | 'brandLogo' | 'social' | 'photoTour' | 'brochurePages' | 'cotizador'>
+  Pick<
+    TourManifest,
+    | 'theme'
+    | 'contact'
+    | 'brandLogo'
+    | 'portada360'
+    | 'social'
+    | 'photoTour'
+    | 'brochurePages'
+    | 'cotizador'
+  >
 >;
 
 export function pickManifestOverrides(settings: Record<string, unknown> | null): ManifestSettingsOverrides {
@@ -136,6 +146,7 @@ export function pickManifestOverrides(settings: Record<string, unknown> | null):
   if (settings.theme != null) overrides.theme = settings.theme as TourManifest['theme'];
   if (settings.contact != null) overrides.contact = settings.contact as TourManifest['contact'];
   if (settings.brandLogo != null) overrides.brandLogo = settings.brandLogo as TourManifest['brandLogo'];
+  if (settings.portada360 != null) overrides.portada360 = settings.portada360 as TourManifest['portada360'];
   if (settings.social != null) overrides.social = settings.social as TourManifest['social'];
   if (settings.photoTour != null) overrides.photoTour = settings.photoTour as TourManifest['photoTour'];
   if (settings.brochurePages != null) {
@@ -308,6 +319,7 @@ export function prefixManifestMediaPaths(manifest: TourManifest): TourManifest {
   };
 
   if (manifest.brandLogo != null) next.brandLogo = prefix(manifest.brandLogo);
+  if (manifest.portada360 != null) next.portada360 = prefix(manifest.portada360);
   if (manifest.social?.image != null) {
     next.social = { ...manifest.social, image: prefix(manifest.social.image) };
   }

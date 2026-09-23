@@ -959,10 +959,13 @@ export class ViewerUi {
     // así que no hace falta un campo nuevo en el manifiesto para mostrarla.
     const scene = this.opts.tour.scenes.find((sc) => sc.slug === escena);
     const base = scene && 'base' in scene.source ? scene.source.base : null;
-    const portada = base ? panoramaPortadaUrl(base) : null;
+    // La foto elegida a mano manda sobre la generada desde la panorámica: una
+    // panorámica proyectada muestra el lugar, pero la mejor foto del proyecto
+    // casi nunca está donde se paró la cámara 360. Sin foto elegida, se cae a
+    // la portada generada, y sin ésa, al preview: cada escalón es peor que el
+    // anterior, pero ninguno deja el hueco de una imagen que falta.
+    const portada = this.opts.tour.portada360 ?? (base ? panoramaPortadaUrl(base) : null);
     const preview = base ? panoramaPreviewUrl(base) : null;
-    // Si la portada no está generada, el `onerror` cae al preview en vez de
-    // dejar el hueco de una imagen rota.
     const img = portada
       ? `<img loading="lazy" alt="Vista de la unidad modelo" src="${escapeHtml(this.resolve(portada))}"` +
         (preview ? ` onerror="this.onerror=null;this.src='${escapeHtml(this.resolve(preview))}'"` : '') +

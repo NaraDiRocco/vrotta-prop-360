@@ -536,6 +536,11 @@ UNIT_PLANOS_3D = {
 # otras tres (203→B2-B, 205→B2-D, 206→B2-E) sigue siendo una asunción
 # posicional (orden alfabético = orden de la lista), no verificada unidad
 # por unidad.
+# La foto de portada del recorrido 360 en la ficha de unidad (ver más abajo,
+# donde se emite `portada360`). Cambiar esta línea es todo lo que hace falta
+# para cambiar esa imagen.
+PORTADA_360_FILE = "14_living_ventanales_vista_verde.webp"
+
 UNIT_NUMEROS_CONFIRMADOS = {
     "B2-H": "201",
     "B2-F": "202",
@@ -1485,6 +1490,38 @@ def build(argv: list[str] | None = None) -> int:
     # tiene que pasar por el mismo prefijado que el resto en `publish()`.
     if marca:
         tour["brandLogo"] = f"./marca/{MARCA_FILE}"
+
+    # La foto que ilustra la invitación a entrar al 360 en la ficha de unidad.
+    #
+    # Se elige a mano y no se saca de la panorámica: una panorámica proyectada
+    # sirve para mostrar el lugar, pero la mejor foto del proyecto casi nunca
+    # coincide con el punto donde se paró la cámara 360. Ésta es la del living
+    # con los ventanales, que muestra las tres cosas que se venden -el espacio,
+    # la luz y la vista- en una sola imagen.
+    portada_360 = os.path.join(TOUR_DIR, "media", "fotos", PORTADA_360_FILE)
+    if os.path.exists(portada_360):
+        # Se genera una copia intermedia en vez de usar la foto completa. La
+        # tarjeta mide unos 350 px de ancho: servir los 2000 px originales son
+        # 240 KB para dibujar 350, y esta ficha se abre desde el teléfono, con
+        # datos móviles. La miniatura de 480 px que ya existe se queda corta en
+        # pantallas retina, así que 960 px es el punto donde la imagen se ve
+        # nítida y pesa una fracción.
+        nombre_medio = PORTADA_360_FILE.replace(".webp", ".card.webp")
+        destino = os.path.join(TOUR_DIR, "media", "fotos", nombre_medio)
+        try:
+            from PIL import Image
+
+            with Image.open(portada_360) as im:
+                ancho = 960
+                alto = round(im.height * ancho / im.width)
+                im.resize((ancho, alto), Image.LANCZOS).save(destino, "WEBP", quality=80, method=6)
+            tour["portada360"] = f"./media/fotos/{nombre_medio}"
+            print(f"  portada del 360: {nombre_medio} ({os.path.getsize(destino)//1024} KB)")
+        except Exception as e:  # sin Pillow o foto ilegible: mejor la grande que ninguna
+            print(f"  ! no pude generar la portada intermedia ({e}); se usa la foto completa")
+            tour["portada360"] = f"./media/fotos/{PORTADA_360_FILE}"
+    else:
+        print(f"  ! no encuentro {PORTADA_360_FILE}: la ficha cae a la portada generada de la panorámica")
 
     whatsapp = cli_value(argv, "--whatsapp") or CONTACT_WHATSAPP
     if whatsapp:
