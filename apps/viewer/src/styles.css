@@ -875,16 +875,19 @@ body.r360-units-open .r360-rail__marca { display: none; }
  * a hacer, y las dos cifras entran en la misma pantalla.
  */
 .r360-cotizador { margin: 0 0 12px; }
+/* Sin caja: texto y flecha, nada más. Debajo del botón de visita, una
+   segunda caja competía con la principal y le sacaba peso; como enlace
+   discreto, invita sin disputar. El área táctil se conserva con el
+   `min-height`, que es lo que de verdad importa en el teléfono. */
 .r360-cotizador__toggle {
-  display: flex; align-items: center; justify-content: space-between; width: 100%;
-  min-height: var(--r360-tap); padding: 0 14px; margin: 0; border-radius: 10px;
+  display: inline-flex; align-items: center; gap: 6px; width: auto;
+  min-height: var(--r360-tap); padding: 0; margin: 0; border: 0; border-radius: 0;
   font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer;
-  color: #16202a; background: rgba(22, 32, 42, .04); border: 1px solid rgba(22, 32, 42, .18);
+  color: #16202a; background: none;
 }
-.r360-cotizador__toggle:hover,
-.r360-cotizador__toggle[aria-expanded="true"] { border-color: #ad9a84; }
+.r360-cotizador__toggle:hover { color: #ad9a84; }
 .r360-cotizador__chevron {
-  flex: none; width: 8px; height: 8px; margin-left: 8px;
+  flex: none; width: 7px; height: 7px; margin-left: 2px;
   border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
   transform: rotate(45deg); transition: transform .18s ease;
 }

@@ -742,12 +742,12 @@ export class ViewerUi {
         priceRow +
         lineaDecision +
         this.recorrido360Html(attrs) +
-        (sinConsulta ? '' : this.ctaHtml(code, visitable)) +
-        // El cotizador va DESPUÉS del botón de visita, no antes: pedir la
-        // visita es la acción principal y tiene que quedar primera. Simular
-        // el plan es el paso siguiente, de quien ya se entusiasmó y quiere
-        // los números, así que gana estando debajo en vez de interponerse.
-        this.cotizadorHtml(code, !!codes, sinConsulta) +
+        // El cotizador va DESPUÉS del botón de visita: pedir la visita es la
+        // acción principal y tiene que quedar primera. Simular el plan es el
+        // paso siguiente, de quien ya se entusiasmó y quiere los números.
+        (sinConsulta
+          ? this.cotizadorHtml(code, !!codes, sinConsulta)
+          : this.ctaHtml(code, visitable, this.cotizadorHtml(code, !!codes, sinConsulta))) +
         this.plano3dHtml(attrs) +
         (rows.length ? `<dl class="r360-facts">${rows.join('')}</dl>` : '') +
         (codes ? this.unitGrid(code, codes) : '') +
@@ -823,7 +823,13 @@ export class ViewerUi {
    *  `contact.ts`, que decide el texto según haya planta, sea bloque o falte
    *  el material — nada de eso se decide acá. `null` cuando el proyecto no
    *  tiene `contact` cargado: sin botón, no un botón que no lleva a nada. */
-  private ctaHtml(code: string, visitable = false): string {
+  /**
+   * `intercalado` entra entre el botón y su aclaración, no después. La nota
+   * "valores de lista, a confirmar por el vendedor" habla de los precios, y
+   * el cotizador que se intercala los usa para calcular: la aclaración tiene
+   * que quedar debajo de los dos, cubriendo a ambos.
+   */
+  private ctaHtml(code: string, visitable = false, intercalado = ''): string {
     // "Consultar por la 201" y "Quiero visitarla" abrían los dos el mismo
     // WhatsApp, uno debajo del otro: dos botones para una sola acción. Queda
     // uno, y cuando la unidad se puede ir a ver pide la visita, que es el
@@ -849,7 +855,7 @@ export class ViewerUi {
         href="${escapeHtml(cta.href)}" target="_blank" rel="noopener"
         data-cta-unit="${escapeHtml(cta.unitCode)}" data-cta-kind="${escapeHtml(cta.kind)}">
         ${escapeHtml(cta.label)}
-      </a>${disclaimer}`;
+      </a>${intercalado}${disclaimer}`;
   }
 
   /**
