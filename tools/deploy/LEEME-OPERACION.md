@@ -137,3 +137,32 @@ No se redesplegó ahora a propósito: la app está configurada en Dokploy como
 build desde git pero con el repositorio sin completar, así que un despliegue
 a ciegas podía fallar y dejar el panel caído sin nadie mirando. Es una tarea
 de diez minutos con alguien atento, no una para hacer de apuro.
+
+## Defecto conocido de la ingesta: el precio de una unidad que se vende
+
+Cuando una unidad **cambia** de precio, la ingesta cierra el precio anterior
+con fecha y abre el nuevo. Pero cuando una unidad **deja de tener precio**
+—porque se vendió— la fila vigente queda abierta, y la disponibilidad sigue
+publicando el precio de una unidad vendida.
+
+Pasó el 2026-09-23 con la B2-C (204): se marcó vendida y siguió mostrando
+US$ 358.638. Se cerró a mano:
+
+```sql
+update unit_prices set valid_to = now()
+where valid_to is null
+  and unit_id in (select id from units where code = 'B2-C');
+```
+
+**Hasta que se arregle**, cada vez que se cargue una venta hay que revisar que
+la unidad vendida no siga publicando precio:
+
+```bash
+curl -sS https://baleia.vrottaprop360.com/availability.json \
+  | python3 -c "import sys,json;d=json.load(sys.stdin)['units'];print([k for k,v in d.items() if v['s']=='vendido' and v.get('p')])"
+```
+
+Si esa lista no está vacía, hay un precio abierto que debería estar cerrado.
+
+El arreglo de fondo va en `ingestar_a_plataforma.py`: al sincronizar precios,
+cerrar también los vigentes de las unidades que en el CSV ya no traen precio.
