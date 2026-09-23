@@ -453,7 +453,7 @@ export class ViewerUi {
       // "El Bloque 2 ya está construido": cierto y verificable, pero es un
       // argumento de venta, no una apertura. El hecho de que esté construido
       // lo demuestra el recorrido entero — no hace falta anunciarlo.
-      headline: 'El placer de habitar el presente',
+      headline: 'El privilegio de pertenecer al paisaje',
       onBrochure: (this.opts.tour.brochurePages?.length ?? 0) > 0
         ? () => this.abrirBrochure()
         : null,
