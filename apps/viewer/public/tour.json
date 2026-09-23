@@ -1869,11 +1869,11 @@
       "label": "B2-A",
       "groupCode": "B2",
       "typeCode": "duplex",
-      "areaTotalM2": 163.42,
+      "areaTotalM2": 175.92,
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 109.68,
-        "numeroComercial": "201",
+        "numeroComercial": "207",
         "plano3d": "./baleia/media/planos-3d/unidad-A-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-A.pdf"
       },
@@ -1886,10 +1886,11 @@
       "label": "B2-B",
       "groupCode": "B2",
       "typeCode": "duplex",
-      "areaTotalM2": 160.5,
+      "areaTotalM2": 173.0,
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76,
+        "numeroComercial": "203",
         "plano3d": "./baleia/media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-B.pdf"
       },
@@ -1902,10 +1903,11 @@
       "label": "B2-C",
       "groupCode": "B2",
       "typeCode": "duplex",
-      "areaTotalM2": 160.5,
+      "areaTotalM2": 173.0,
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76,
+        "numeroComercial": "204",
         "plano3d": "./baleia/media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-C.pdf"
       },
@@ -1918,10 +1920,11 @@
       "label": "B2-D",
       "groupCode": "B2",
       "typeCode": "duplex",
-      "areaTotalM2": 160.5,
+      "areaTotalM2": 173.0,
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76,
+        "numeroComercial": "205",
         "plano3d": "./baleia/media/planos-3d/unidad-B-D-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-D.pdf"
       },
@@ -1934,10 +1937,11 @@
       "label": "B2-E",
       "groupCode": "B2",
       "typeCode": "duplex",
-      "areaTotalM2": 160.5,
+      "areaTotalM2": 173.0,
       "attrs": {
         "tipologia": "Dúplex",
         "superficieCubiertaM2": 107.76,
+        "numeroComercial": "206",
         "plano3d": "./baleia/media/planos-3d/unidad-C-E-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-E.pdf"
       },
@@ -1949,12 +1953,12 @@
     "B2-F": {
       "label": "B2-F",
       "groupCode": "B2",
-      "typeCode": "1-dormitorio",
-      "areaTotalM2": 84.45,
+      "typeCode": "2-amb",
+      "areaTotalM2": 96.95,
       "attrs": {
-        "tipologia": "1 dormitorio",
+        "tipologia": "2 Amb.",
         "superficieCubiertaM2": 54.15,
-        "numeroComercial": "206",
+        "numeroComercial": "202",
         "plano3d": "./baleia/media/planos-3d/unidad-F-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-F_B2-G.pdf"
       },
@@ -1966,12 +1970,12 @@
     "B2-G": {
       "label": "B2-G",
       "groupCode": "B2",
-      "typeCode": "1-dormitorio",
-      "areaTotalM2": 82.5,
+      "typeCode": "1-dorm",
+      "areaTotalM2": 95.0,
       "attrs": {
-        "tipologia": "1 dormitorio",
+        "tipologia": "1 Dorm.",
         "superficieCubiertaM2": 60.05,
-        "numeroComercial": "207",
+        "numeroComercial": "209",
         "plano3d": "./baleia/media/planos-3d/unidad-G-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-F_B2-G.pdf"
       },
@@ -1983,11 +1987,12 @@
     "B2-H": {
       "label": "B2-H",
       "groupCode": "B2",
-      "typeCode": "1-dormitorio",
+      "typeCode": "2-amb",
       "areaTotalM2": 94.4,
       "attrs": {
-        "tipologia": "1 dormitorio",
+        "tipologia": "2 Amb.",
         "superficieCubiertaM2": 52.62,
+        "numeroComercial": "201",
         "plano3d": "./baleia/media/planos-3d/unidad-H-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-H_B2-I.pdf"
       },
@@ -1999,11 +2004,12 @@
     "B2-I": {
       "label": "B2-I",
       "groupCode": "B2",
-      "typeCode": "1-dormitorio",
+      "typeCode": "1-dorm",
       "areaTotalM2": 86.85,
       "attrs": {
-        "tipologia": "1 dormitorio",
+        "tipologia": "1 Dorm.",
         "superficieCubiertaM2": 52.62,
+        "numeroComercial": "208",
         "plano3d": "./baleia/media/planos-3d/unidad-I-plano-3D-minimalista.webp",
         "planoPdf": "./baleia/media/planos-pdf/B2-H_B2-I.pdf"
       },
@@ -2161,7 +2167,7 @@
           "B2-H",
           "B2-I"
         ],
-        "superficieTotalUnidadesM2": 1153.62
+        "superficieTotalUnidadesM2": 1241.12
       }
     },
     "B3": {

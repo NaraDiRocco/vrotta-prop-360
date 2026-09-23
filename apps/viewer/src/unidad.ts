@@ -73,6 +73,30 @@ export function tituloDeUnidad(opts: {
 }
 
 /**
+ * Cómo se nombra la unidad en una LISTA, donde el ancho es poco y el visitante
+ * está comparando varias de un vistazo: "207 · A".
+ *
+ * Los dos nombres conviven porque los dos son reales y cada uno sirve para
+ * algo distinto. El número es el de la lista de precios: es el que el vendedor
+ * busca en su planilla y el que un comprador dice por teléfono ("la 207"). La
+ * letra es la del brochure, que es el papel que el comprador tiene en la mano.
+ * Mostrar sólo uno obliga a alguien a traducir.
+ *
+ * Sin número confirmado se cae al código, que es lo único que se sabe con
+ * certeza — mismo criterio que `tituloDeUnidad`, que nunca deduce el número.
+ */
+export function nombreCortoDeUnidad(opts: {
+  code: string;
+  label?: string | null;
+  numero?: string | null;
+}): string {
+  const letra = letraDeUnidad(opts.code);
+  if (opts.numero && letra) return `${opts.numero} · ${letra}`;
+  if (opts.numero) return opts.numero;
+  return opts.label ?? opts.code;
+}
+
+/**
  * Cómo se nombra la unidad DENTRO de una frase ("me interesa …"). Con número
  * confirmado el vendedor la reconoce al instante: "la 201". Sin número, se
  * dice la unidad por su código, que es lo único que se sabe con certeza.

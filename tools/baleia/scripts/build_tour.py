@@ -496,20 +496,41 @@ UNIT_PLANOS_3D = {
     "unidad-I-plano-3D-minimalista.webp": ["B2-I"],
 }
 
-# Numeración comercial de la lista de precios de septiembre 2026.
+# Numeración comercial de la lista de precios REAL de Caetano (planilla
+# "BLOQUE 2", entregada septiembre 2026). Hasta acá sólo había tres filas:
+# el mapeo letra→número se resolvía por aritmética de superficie contra una
+# tabla de precios parcial, y sólo tres unidades cerraban EXACTO y sin
+# ambigüedad; las otras seis quedaban sin número hasta que Caetano
+# confirmara la tabla completa. El comentario anterior decía "agregar una
+# fila acá es todo lo que hace falta el día que la confirme" — ese día
+# llegó: Caetano entregó la lista de precios real y completa de las nueve
+# unidades (ver `tools/baleia/README.md` §3.1).
 #
-# SÓLO las tres unidades cuyo mapeo cerró EXACTO por aritmética de superficie
-# (`tools/baleia/README.md` §3.1): 163.42 → 201, 84.45 → 206, 82.50 → 207.
-# B2-B..B2-E (202-205) son cuatro unidades idénticas en precio y superficie —
-# el orden alfabético es una asunción, no un dato— y B2-H/B2-I (208/209) están
-# vendidas y el brochure no publica ni sus m² ni su precio, así que tampoco hay
-# con qué verificarlas. Esas seis NO llevan número: el visor muestra la letra
-# sola hasta que Caetano confirme la tabla. Agregar una fila acá es todo lo que
-# hace falta el día que la confirme.
+# El mapeo sale de comparar, por código, la superficie cubierta y el total
+# (con cochera) del CSV contra los de la tabla nueva — igual método que
+# antes, ahora con los nueve pares de números en vez de tres:
+#   B2-A→207 (cubierta 109.68, univoca), B2-F→202 (cubierta 54.15, univoca),
+#   B2-G→209 (cubierta 60.05, univoca), B2-H→201 y B2-I→208 (ambas con
+#   52.62 de cubierta, se distinguen por el total: 94.40 vs 86.85).
+# B2-B/B2-C/B2-D/B2-E→203/204/205/206 es la única asunción que queda: los
+# cuatro dúplex son idénticos en cubierta (107.76m2) y precio (USD 358.638),
+# así que ningún dato los distingue entre sí. La dueña del proyecto
+# confirmó el 2026-09-23 que la unidad vendida de las cuatro es B2-C = 204
+# — ese dato viene de esa confirmación humana, no de aritmética, y no se
+# puede re-derivar si este mapeo se regenera desde cero. El orden de las
+# otras tres (203→B2-B, 205→B2-D, 206→B2-E) sigue siendo una asunción
+# posicional (orden alfabético = orden de la lista), no verificada unidad
+# por unidad.
 UNIT_NUMEROS_CONFIRMADOS = {
-    "B2-A": "201",
-    "B2-F": "206",
-    "B2-G": "207",
+    "B2-H": "201",
+    "B2-F": "202",
+    "B2-B": "203",
+    "B2-C": "204",
+    "B2-D": "205",
+    "B2-E": "206",
+    "B2-A": "207",
+    "B2-I": "208",
+    "B2-G": "209",
 }
 
 UNIT_FLOORPLANS = {

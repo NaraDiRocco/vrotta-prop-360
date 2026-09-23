@@ -66,6 +66,7 @@ import {
   ETAPA_FUTURA_NOTA,
   esEtapaFutura,
   lineaEnVenta,
+  nombreCortoDeUnidad,
   numeroComercial,
   puedeVisitarse,
   resumenEnVenta,
@@ -526,7 +527,24 @@ export class ViewerUi {
     return [...groups.values()]
       .filter((g) => g.codes.length > 0)
       .sort((a, b) => a.code.localeCompare(b.code))
-      .map((g) => ({ ...g, codes: g.codes.sort() }));
+      // Se ordena por el número comercial cuando lo hay, y por el código
+      // cuando no. Ordenar siempre por el código dejaba la lista salteada
+      // -207, 203, 204, 205, 206, 202, 209, 201, 208- porque la letra del
+      // brochure y el número de la lista de precios no van en el mismo orden.
+      // Quien busca "la 201" la barre de arriba abajo, así que la lista tiene
+      // que ir en el orden del nombre que se muestra.
+      .map((g) => ({ ...g, codes: g.codes.sort((a, b) => this.ordenDeUnidad(a) - this.ordenDeUnidad(b) || a.localeCompare(b)) }));
+  }
+
+  /**
+   * El número comercial como número, para ordenar. Las unidades sin número
+   * confirmado van al final: no se les inventa una posición entre las que sí
+   * lo tienen, se las deja juntas y en orden de código.
+   */
+  private ordenDeUnidad(code: string): number {
+    const numero = numeroComercial(this.opts.tour.units[code]?.attrs);
+    const n = numero ? Number.parseInt(numero, 10) : Number.NaN;
+    return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
   }
 
   private renderUnitsTab(): void {
@@ -560,7 +578,7 @@ export class ViewerUi {
               const trailing = price ?? chip.label;
               return `<button class="r360-urow" data-unit="${escapeHtml(code)}">
                   <i style="background:${chip.base}"></i>
-                  <b>${escapeHtml(u?.label ?? code)}</b>
+                  <b>${escapeHtml(nombreCortoDeUnidad({ code, label: u?.label, numero: numeroComercial(u?.attrs) }))}</b>
                   <span>${escapeHtml([tipologia, area].filter(Boolean).join(' · '))}</span>
                   <em>${escapeHtml(trailing)}</em>
                   <s aria-hidden="true">&rsaquo;</s>
